@@ -1,6 +1,58 @@
-Certainly! Below is the **final full implementation** of **Agentic Security**, meticulously crafted to meet your specified requirements. This implementation includes all necessary components: scripts, tests, CLI, requirements, installation script (including Aider), GitHub Actions workflow, and comprehensive documentation. The project is ready to be used in your repository at [https://github.com/ruvnet/agentic-security](https://github.com/ruvnet/agentic-security).
+# Agentic Security
+
+Automated security scanning and fixing pipeline using AI-powered tools.
+
+**Created by rUv, cause he could.**
 
 ---
+
+## Features
+
+1. **Comprehensive Security Checks**:
+   - **OWASP ZAP** for web vulnerability scanning.
+   - **Nuclei** for known vulnerability detection.
+   - **Dependency checking** for outdated components.
+
+2. **Intelligent Fix Pipeline**:
+   - Uses **OpenAI's `o1-preview`** as an architect to analyze issues.
+   - Employs **Claude 3.5 Sonnet** for code implementation.
+   - **Recursive fix attempts** with test validation.
+
+3. **Security Best Practices**:
+   - Follows **OWASP Top 10** vulnerability checks.
+   - Implements proper **access controls** and **authentication**.
+   - Uses **secure communication protocols**.
+
+4. **Automated Workflow**:
+   - Creates **separate branch** for fixes.
+   - Runs **daily automated checks**.
+   - **Notifies admin** of results.
+   - Creates **pull request** for review.
+
+5. **Severity-Based Decision Making**:
+   - Uses **CVSS scoring** for vulnerability assessment.
+   - Only applies fixes for **critical issues**.
+   - Prevents unnecessary changes for **low-risk issues**.
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- **Python 3.10+**
+- **Docker**
+- **Git**
+- **GitHub CLI**
+- **Slack Account** (for notifications)
+
+### Installation
+
+1. **Clone the repository**:
+
+   ```bash
+   git clone https://github.com/ruvnet/agentic-security.git
+   cd agentic-security
 
 **Created by rUv, cause he could.**
 
