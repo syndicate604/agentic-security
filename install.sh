@@ -68,6 +68,11 @@ execute_with_animation() {
 # Exit on error
 set -e
 
+# Install Security Tools
+echo -e "\n${CYAN}╔══════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${CYAN}║${NC}                  Installing Security Tools                  ${CYAN}║${NC}"
+echo -e "${CYAN}╚══════════════════════════════════════════════════════════════╝${NC}\n"
+
 # System update and dependencies
 execute_with_animation "sudo apt-get update" "Updating system packages"
 execute_with_animation "sudo apt-get install -y python3-pip python3-venv git curl unzip docker.io" "Installing system dependencies"
