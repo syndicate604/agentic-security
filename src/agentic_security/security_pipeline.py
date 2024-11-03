@@ -550,14 +550,6 @@ class SecurityPipeline:
 
         try:
 
-            # Then check scan targets
-            if not self.config['security'].get('scan_targets'):
-                return {'status': False, 'error': 'No scan targets configured'}
-
-            if not any(target.get('type') in ['web', 'code'] 
-                      for target in self.config['security']['scan_targets']):
-                return {'status': False, 'error': 'Invalid scan target types'}
-
             # Initialize results
             results = {'status': True, 'reviews': []}
             
