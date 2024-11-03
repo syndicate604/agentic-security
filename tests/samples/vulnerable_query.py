@@ -37,12 +37,17 @@ def get_db_connection():
 def validate_table_name(table_name: str) -> bool:
     """
     Validate if table name is in the allowed list and contains only valid characters
+    
+    Args:
+        table_name: The table name to validate
+        
+    Returns:
+        bool: True if table name is valid, False otherwise
     """
     if not isinstance(table_name, str):
         return False
-    # Check if table is in allowed list and contains only alphanumeric chars and underscores
-    return (table_name in ALLOWED_TABLES.keys() and 
-            bool(re.match(r'^[a-zA-Z0-9_]+$', table_name)))
+    # Strict validation against whitelist only
+    return table_name in ALLOWED_TABLES.keys()
 
 def validate_columns(table_name: str, columns: List[str]) -> bool:
     """
@@ -117,10 +122,13 @@ def get_user_data(user_id: str, table_name: str, columns: Optional[List[str]] = 
                 raise DatabaseError("No valid columns specified")
                 
             # Build safe query using proper parameter binding
-            placeholders = ', '.join(column_list)
-            query = f'SELECT {placeholders} FROM {table_name} WHERE id = ?'
+            placeholders = ','.join('?' * len(column_list))
+            columns_str = ','.join(column_list)
             
-            # Execute with properly bound parameter
+            # Use parameters for both columns and table name
+            query = 'SELECT {} FROM {} WHERE id = ?'.format(columns_str, table_name)
+            
+            # Execute with properly bound parameters
             cursor.execute(query, (user_id,))
             results = cursor.fetchall()
             
@@ -171,18 +179,18 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
             if not column_list:
                 raise DatabaseError("No valid columns specified")
             
-            # Build safe query with validated columns
-            placeholders = ', '.join(column_list)
-            query = f"""
-                SELECT {placeholders} FROM users 
+            # Build safe query with validated columns and proper parameterization
+            columns_str = ','.join(column_list)
+            query = """
+                SELECT {} FROM users 
                 WHERE name LIKE ? ESCAPE '\\' 
                 AND active = 1
                 ORDER BY id ASC 
                 LIMIT 100
-            """
+            """.format(columns_str)
             
             # Properly escape LIKE pattern and use parameterized query
-            search_pattern = "%" + keyword.replace("%", "\\%").replace("_", "\\_") + "%"
+            search_pattern = "%" + re.escape(keyword) + "%"
             cursor.execute(query, (search_pattern,))
             results = cursor.fetchall()
             
