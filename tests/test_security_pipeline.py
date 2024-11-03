@@ -159,12 +159,13 @@ def test_custom_prompts(pipeline):
     test_prompt = pipeline.prompt_manager.get_prompt('test_prompt', test_var="value")
     assert "Custom test prompt: value" in test_prompt
 
-def test_pipeline_error_handling(pipeline, test_config):
+def test_pipeline_error_handling(test_config):
     """Test pipeline error handling"""
     # Test invalid configuration structure
     invalid_config = {
         'not_security': {}
     }
+    pipeline = SecurityPipeline(test_config)
     with pytest.raises(ValueError, match="Invalid configuration structure"):
         pipeline.config = invalid_config
         pipeline.run_pipeline()
@@ -176,6 +177,7 @@ def test_pipeline_error_handling(pipeline, test_config):
             'scan_targets': []
         }
     }
+    pipeline = SecurityPipeline(test_config)
     pipeline.config = invalid_config
     result = pipeline.run_pipeline()
     assert result == {'status': False, 'error': 'Critical threshold cannot be negative'}
@@ -186,6 +188,8 @@ def test_pipeline_error_handling(pipeline, test_config):
             'critical_threshold': 7.0
         }
     }
+    pipeline = SecurityPipeline(test_config)
+    pipeline.config = invalid_config
     result = pipeline.run_pipeline()
     assert result == {'status': False, 'error': 'No scan targets configured'}
 
