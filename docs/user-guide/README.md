@@ -2,6 +2,49 @@
 
 Welcome to the Agentic Security user guide. This guide covers everything from basic usage to advanced features.
 
+## Advanced Features
+
+### Pattern-Based Security Analysis
+
+The system uses advanced pattern detection to identify:
+- SQL Injection vulnerabilities (including string formatting)
+- Command Injection and RCE vulnerabilities
+- Cross-Site Scripting (XSS) and DOM manipulation
+- Weak Cryptography implementations
+- Insecure Deserialization (pickle, yaml, etc)
+- XXE and XML Parser vulnerabilities
+- Path Traversal and file access issues
+- Authentication and session weaknesses
+
+### Caching System
+
+- Performance-optimized result caching
+- Configurable cache duration
+- Automatic cache cleanup
+- Cache validation checks
+
+### Review System
+
+Three output modes available:
+1. **Basic Mode**: Simple vulnerability listing
+2. **Verbose Mode**: Detailed findings with descriptions
+3. **Report Mode**: Comprehensive markdown reports
+
+### AI Integration
+
+- **Architecture Review**: Uses GPT-4-1106-preview for high-level security analysis
+- **Fix Generation**: Uses Claude-3-sonnet-20240229 for precise fix implementation
+- **PR Description**: AI-generated detailed pull request descriptions with context
+- **Vulnerability Analysis**: Smart severity scoring and risk prioritization
+- **Multi-Model Orchestration**: Leverages both models' strengths
+
+### Performance Optimization
+
+- Smart caching for repeated scans
+- Parallel processing capabilities
+- Resource-aware scanning
+- Incremental analysis support
+
 ## Command Overview
 
 ```mermaid
@@ -29,7 +72,9 @@ mindmap
 
 ### CLI Interface
 
-The CLI provides a cyberpunk-themed interface:
+The CLI provides a cyberpunk-themed interface with advanced scanning options:
+
+#### Basic Commands
 
 ```bash
 ╔══════════════════════════════════════════════════════════════╗
@@ -57,7 +102,14 @@ The CLI provides a cyberpunk-themed interface:
 
 3. **Run Full Pipeline**
    ```bash
-   agentic-security run --config config.yml
+   # Full pipeline with architecture review
+   agentic-security run --config config.yml --with-architecture-review
+
+   # Skip architecture review
+   agentic-security run --config config.yml --skip-architecture-review
+
+   # Custom model selection
+   agentic-security run --config config.yml --arch-model gpt-4 --fix-model claude-3
    ```
 
 ## Advanced Features
@@ -102,17 +154,20 @@ flowchart TB
 sequenceDiagram
     participant User
     participant CLI
-    participant AI
+    participant GPT4
+    participant Claude3
     participant Security
     
     User->>CLI: Run Analysis
     CLI->>Security: Scan System
     Security-->>CLI: Vulnerabilities
-    CLI->>AI: Analyze Issues
-    AI-->>CLI: Suggestions
-    CLI->>AI: Generate Fixes
-    AI-->>CLI: Fix Implementation
-    CLI-->>User: Results
+    CLI->>GPT4: Architecture Review
+    GPT4-->>CLI: Design Analysis
+    CLI->>Claude3: Generate Fixes
+    Claude3-->>CLI: Fix Implementation
+    CLI->>Security: Validate Fixes
+    Security-->>CLI: Validation Results
+    CLI-->>User: Results & PR
 ```
 
 ## Ethical Guidelines

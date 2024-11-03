@@ -39,3 +39,41 @@ ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 
 ENTRYPOINT ["python3", "security_cli.py"]
+FROM python:3.10-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    unzip \
+    docker.io \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install wget and security tools
+RUN apt-get update && apt-get install -y wget && \
+    wget https://github.com/projectdiscovery/nuclei/releases/download/v3.1.1/nuclei_3.1.1_linux_amd64.zip && \
+    unzip nuclei_3.1.1_linux_amd64.zip && \
+    mv nuclei /usr/local/bin/ && \
+    rm nuclei_3.1.1_linux_amd64.zip && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Set up working directory
+WORKDIR /app
+
+# Copy requirements and install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . .
+
+# Create cache directory
+RUN mkdir -p .security_cache && chmod 755 .security_cache
+
+# Set environment variables
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+
+# Default command
+ENTRYPOINT ["python", "-m", "src.agentic_security.security_cli"]
+CMD ["--help"]
