@@ -154,11 +154,11 @@ def scan(path, auto_fix, output, verbose, test, config):
             pipeline.run_tests()
             return
 
-        print_cyber_status("Scanning source code...", "info") 
-        results = pipeline.scan_paths(path)
+        print_cyber_status("Scanning source code...", "info")
         print_cyber_status("Scanning dependencies...", "info")
         print_cyber_status("Analyzing results...", "info")
         
+        results = pipeline.scan_paths(path)
         vulns = results.get('vulnerabilities', [])
         if vulns:
             print_cyber_status("\nVulnerabilities found:", "error")
