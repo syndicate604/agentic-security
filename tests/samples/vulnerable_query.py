@@ -97,22 +97,13 @@ def get_user_data(user_id: str, table_name: str, columns: Optional[List[str]] = 
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
-            # Use safe column list
-            columns_str = ', '.join(f'"{col}"' for col in columns)
+            # Construct fully parameterized query
+            placeholders = ','.join(['?' for _ in columns])
+            query = 'SELECT ? FROM ? WHERE id = ?'
             
-            # Use table mapping instead of direct interpolation
-            table_mapping = {
-                'users': 'users',
-                'profiles': 'profiles', 
-                'settings': 'settings'
-            }
-            
-            if table_name not in table_mapping:
-                raise DatabaseError("Invalid table name")
-                
-            # Construct query with proper quoting and mapping
-            query = f'SELECT {columns_str} FROM "{table_mapping[table_name]}" WHERE id = ?'
-            cursor.execute(query, (user_id,))
+            # Execute with all parameters properly bound
+            params = (placeholders, table_name, user_id)
+            cursor.execute(query, params)
             results = cursor.fetchall()
             
             if not results:
