@@ -16,6 +16,53 @@ The pipeline combines OWASP ZAP scans with AI-driven analysis, catching architec
 - 📖 [User Guide](docs/user-guide/README.md)
 - 🚀 [Future Enhancements](docs/future/README.md)
 
+## Capabilities & Roadmap
+
+### Current Features
+
+| Emoji | Feature | Description | Status | Documentation |
+|-------|---------|-------------|--------|---------------|
+| 🧠 | AI Architecture Analysis | GPT-4 powered security architecture review and recommendations | ✅ Implemented | [Implementation](docs/implementation/README.md#ai-integration) |
+| 🛠️ | AI Code Generation | Claude-3 powered secure code implementation | ✅ Implemented | [User Guide](docs/user-guide/README.md#advanced-features) |
+| 🔍 | AI Pattern Recognition | Context-aware vulnerability pattern detection | ✅ Implemented | [Implementation](docs/implementation/README.md#security-patterns) |
+| 📝 | Smart PR Generation | AI-generated security-focused pull request descriptions | ✅ Implemented | [Implementation](docs/implementation/README.md#git-integration) |
+| 🎯 | AI Fix Validation | Automated fix verification with test generation | ✅ Implemented | [User Guide](docs/user-guide/README.md#advanced-features) |
+| 🧪 | AI Test Generation | Automated security test case creation | ✅ Implemented | [Implementation](docs/implementation/README.md#security-patterns) |
+| 📊 | AI Severity Analysis | CVSS-based vulnerability assessment and prioritization | ✅ Implemented | [User Guide](docs/user-guide/README.md#pattern-based-security-analysis) |
+| 🔄 | Recursive Fix Logic | AI-driven iterative fix attempts with validation | ✅ Implemented | [Implementation](docs/implementation/README.md#ai-integration) |
+| 🎭 | Context Analysis | AI-powered code context understanding | ✅ Implemented | [Implementation](docs/implementation/README.md#security-patterns) |
+| 📈 | Risk Assessment | AI-based security risk scoring and analysis | ✅ Implemented | [User Guide](docs/user-guide/README.md#pattern-based-security-analysis) |
+| 🔍 | SQL Injection AI | Machine learning pattern matching for SQL vulnerabilities | ✅ Implemented | [Implementation](docs/implementation/README.md#security-patterns) |
+| 🛡️ | Command Injection AI | AI-powered shell injection detection | ✅ Implemented | [Implementation](docs/implementation/README.md#security-patterns) |
+| 🌐 | XSS AI Detection | Neural pattern matching for XSS vulnerabilities | ✅ Implemented | [Implementation](docs/implementation/README.md#security-patterns) |
+| 🔒 | Crypto AI Analysis | AI-driven cryptographic weakness detection | ✅ Implemented | [Implementation](docs/implementation/README.md#security-patterns) |
+| 🎯 | Smart Fix Suggestions | Context-aware security fix recommendations | ✅ Implemented | [User Guide](docs/user-guide/README.md#advanced-features) |
+| 📚 | Code Documentation | AI-generated security documentation | ✅ Implemented | [Implementation](docs/implementation/README.md#ai-integration) |
+| 🔄 | Auto Branch Creation | AI-managed fix branch workflow | ✅ Implemented | [Implementation](docs/implementation/README.md#git-integration) |
+| 🤖 | Multi-Model Pipeline | Orchestrated GPT-4 and Claude-3 workflow | ✅ Implemented | [Implementation](docs/implementation/README.md#ai-model-configuration) |
+| 🎨 | Smart CLI | AI-powered command suggestions and help | ✅ Implemented | [User Guide](docs/user-guide/README.md#cli-interface) |
+| 📋 | Progress Analysis | AI-driven progress tracking and estimation | ✅ Implemented | [User Guide](docs/user-guide/README.md#cli-interface) |
+| ⚡ | Smart Caching | AI-optimized result caching system | ✅ Implemented | [Implementation](docs/implementation/README.md#cache-configuration) |
+| 🔔 | Intelligent Alerts | Context-aware security notifications | ✅ Implemented | [Implementation](docs/implementation/README.md#notifications) |
+| 🎯 | Fix Prioritization | AI-based vulnerability prioritization | ✅ Implemented | [User Guide](docs/user-guide/README.md#advanced-features) |
+| 📊 | Report Generation | AI-enhanced security report creation | ✅ Implemented | [User Guide](docs/user-guide/README.md#review-system) |
+| 🔍 | Dependency Analysis | AI-powered dependency vulnerability assessment | ✅ Implemented | [User Guide](docs/user-guide/README.md#advanced-features) |
+
+### Coming Soon
+
+| Emoji | Feature | Description | Timeline | Details |
+|-------|---------|-------------|----------|----------|
+| 📡 | Real-time Monitoring | Live vulnerability monitoring system | 2024-Q2 | [Future Plans](docs/future/README.md#next-steps) |
+| 🧠 | ML Pattern Detection | Machine learning-based vulnerability detection | 2024-Q2 | [AI Components](docs/future/README.md#ai-components) |
+| ✔️ | Enhanced Validation | Advanced fix validation system | 2024-Q2 | [Future Plans](docs/future/README.md#automation-features) |
+| ☁️ | Cloud Security | Cloud infrastructure security scanning | 2024-Q3 | [Security Components](docs/future/README.md#infrastructure-security) |
+| 🔒 | SAST Integration | Static Application Security Testing integration | 2024-Q2 | [Security Components](docs/future/README.md#advanced-vulnerability-assessment) |
+| 🛡️ | Container Security | Advanced container scanning and protection | 2024-Q3 | [Security Components](docs/future/README.md#container-security) |
+| 🤝 | DevSecOps Pipeline | Enhanced security pipeline integration | 2024-Q3 | [Integration Points](docs/future/README.md#devsecops-pipeline) |
+| 📈 | Analytics Dashboard | Security metrics and trend analysis | 2024-Q4 | [Automation Features](docs/future/README.md#reporting-and-analytics) |
+| 🔄 | Rollback System | Automated rollback for failed fixes | 2024-Q2 | [Automation Features](docs/future/README.md#rollback-mechanisms) |
+| 🧪 | Advanced Testing | Comprehensive security testing suite | 2024-Q3 | [Automation Features](docs/future/README.md#advanced-testing) |
+
 ## Features
 
 1. **Comprehensive Security Checks**:
@@ -74,13 +121,17 @@ The pipeline combines OWASP ZAP scans with AI-driven analysis, catching architec
 
 2. **Run the cyberpunk-styled installer**:
    ```bash
+   chmod +x install.sh
    ./install.sh
    ```
 
 3. **Configure environment**:
    ```bash
    cp .env.example .env
-   # Edit .env with your API keys
+   # Edit .env with your API keys:
+   # - OPENAI_API_KEY
+   # - ANTHROPIC_API_KEY
+   # - SLACK_WEBHOOK (optional)
    ```
 
 4. **Activate environment**:
@@ -88,7 +139,12 @@ The pipeline combines OWASP ZAP scans with AI-driven analysis, catching architec
    source venv/bin/activate
    ```
 
-### Usage
+5. **Install the CLI**:
+   ```bash
+   pip install -e .
+   ```
+
+### CLI Usage
 
 The CLI provides a cyberpunk-themed interface with the following commands:
 
@@ -104,14 +160,66 @@ The CLI provides a cyberpunk-themed interface with the following commands:
 [>] version  - Show version
 ```
 
-Example usage:
-```bash
-# Run a security scan
-agentic-security scan --config config.yml
+### Command Options
 
-# Run the complete pipeline
-agentic-security run --config config.yml
-```
+1. **scan**: Run security scans
+   ```bash
+   # Basic scan
+   agentic-security scan
+
+   # Scan specific paths
+   agentic-security scan --path ./src --path ./tests
+
+   # Scan with custom config
+   agentic-security scan --config custom-config.yml
+
+   # Scan with auto-fix
+   agentic-security scan --auto-fix
+
+   # Generate scan report
+   agentic-security scan --output report.md
+   ```
+
+2. **analyze**: AI-powered analysis
+   ```bash
+   # Basic analysis
+   agentic-security analyze
+
+   # Analysis with auto-fix
+   agentic-security analyze --auto-fix
+
+   # Analysis with custom config
+   agentic-security analyze --config custom-config.yml
+   ```
+
+3. **run**: Full pipeline execution
+   ```bash
+   # Run pipeline
+   agentic-security run
+
+   # Run with architecture review
+   agentic-security run --with-architecture-review
+
+   # Run with custom config
+   agentic-security run --config custom-config.yml
+   ```
+
+4. **validate**: Configuration validation
+   ```bash
+   # Validate default config
+   agentic-security validate
+
+   # Validate custom config
+   agentic-security validate --config custom-config.yml
+
+   # Full validation including API checks
+   agentic-security validate --full
+   ```
+
+5. **Global Options**:
+   - `--config, -c`: Path to configuration file
+   - `--verbose, -v`: Enable verbose output
+   - `--help`: Show help message
 
 ### Docker Support
 

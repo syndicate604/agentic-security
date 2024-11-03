@@ -1,167 +1,91 @@
-# Architecture Overview
+# 🏗️ Architecture
 
-## System Architecture
+## System Overview
+Agentic Security is an AI-powered security scanning and auto-fix pipeline that combines multiple security tools with AI capabilities to detect and remediate security vulnerabilities in code and web applications.
 
-```mermaid
-flowchart TB
-    subgraph Frontend["Frontend Layer"]
-        CLI[CLI Interface]
-        API[API Interface]
-    end
-
-    subgraph Core["Core Layer"]
-        Pipeline[Security Pipeline]
-        Scanner[Security Scanner]
-        Analyzer[AI Analyzer]
-    end
-
-    subgraph AI["AI Layer"]
-        OpenAI[GPT-4 1106]
-        Claude[Claude-3 Sonnet]
-        Models[AI Models]
-        subgraph Tasks["AI Tasks"]
-            ArchReview[Architecture Review]
-            VulnAnalysis[Vulnerability Analysis]
-            FixGen[Fix Generation]
-        end
-    end
-
-    subgraph Security["Security Layer"]
-        OWASP[OWASP ZAP]
-        Nuclei[Nuclei]
-        DependencyCheck[Dependency Check]
-        CodeAnalysis[Pattern Analysis]
-        subgraph Patterns["Vulnerability Patterns"]
-            SQL[SQL Injection]
-            CMD[Command Injection]
-            XSS[Cross-Site Scripting]
-            Auth[Auth Vulnerabilities]
-        end
-    end
-
-    subgraph Integration["Integration Layer"]
-        Git[Git Integration]
-        Notifications[Notifications]
-        Reports[Reports]
-    end
-
-    Frontend --> Core
-    Core --> AI
-    Core --> Security
-    Core --> Integration
-
-    classDef default fill:#1a1a1a,stroke:#00ff00,color:#fff
-    classDef ai fill:#2a2a2a,stroke:#00ffff,color:#fff
-    classDef security fill:#2a2a2a,stroke:#ff00ff,color:#fff
-    
-    class Frontend,Core default
-    class AI,Models,OpenAI,Claude ai
-    class Security,OWASP,Nuclei,DependencyCheck security
-```
-
-## Component Interaction
-
-```mermaid
-sequenceDiagram
-    participant CLI as CLI Interface
-    participant Pipeline as Security Pipeline
-    participant AI as AI Services
-    participant Security as Security Tools
-    participant Git as Git Integration
-
-    CLI->>Pipeline: Initialize Scan
-    Pipeline->>Security: Run Security Checks
-    Security-->>Pipeline: Security Results
-    Pipeline->>AI: Analyze Vulnerabilities
-    AI-->>Pipeline: Fix Suggestions
-    Pipeline->>AI: Generate Fixes
-    AI-->>Pipeline: Implementation Code
-    Pipeline->>Security: Validate Fixes
-    Security-->>Pipeline: Validation Results
-    Pipeline->>Git: Create PR
-    Git-->>CLI: PR URL
-```
+### Core Components
+- **SecurityPipeline**: The main orchestrator that manages the security scanning and fixing process
+- **CLI Interface**: A cyberpunk-styled command-line interface for interacting with the pipeline
+- **Cache System**: Optimizes performance by caching scan results
+- **AI Integration**: Leverages OpenAI GPT-4 and Claude for code analysis and fixes
 
 ## Data Flow
+1. **Input Processing**
+   - Configuration loading from YAML files
+   - Environment validation
+   - Path scanning configuration
 
-```mermaid
-flowchart LR
-    subgraph Input["Input Sources"]
-        Code[Source Code]
-        Web[Web Apps]
-        Config[Configuration]
-    end
+2. **Security Scanning**
+   - Code security checks
+   - Web security scanning (ZAP, Nuclei)
+   - Dependency vulnerability checking
+   - Architecture review
 
-    subgraph Processing["Processing"]
-        Scanner[Security Scanner]
-        Analyzer[AI Analyzer]
-        Generator[Fix Generator]
-    end
+3. **Analysis & Remediation**
+   - Vulnerability severity assessment
+   - AI-powered fix generation
+   - Fix validation
+   - Pull request creation
 
-    subgraph Storage["Data Storage"]
-        Reports[Security Reports]
-        Models[AI Models]
-        Cache[Result Cache]
-    end
+4. **Reporting**
+   - Markdown report generation
+   - Console output
+   - Slack notifications
 
-    subgraph Output["Output"]
-        PR[Pull Requests]
-        Notifications[Notifications]
-        Metrics[Security Metrics]
-    end
+## Components
 
-    Input --> Processing
-    Processing --> Storage
-    Processing --> Output
+### Security Pipeline
+The core engine that orchestrates:
+- Security scanning operations
+- AI-powered code analysis
+- Fix implementation
+- Result caching
+- Report generation
 
-    classDef default fill:#1a1a1a,stroke:#00ff00,color:#fff
-    classDef storage fill:#2a2a2a,stroke:#00ffff,color:#fff
-    classDef output fill:#2a2a2a,stroke:#ff00ff,color:#fff
-    
-    class Input,Processing default
-    class Storage storage
-    class Output output
-```
+### CLI Interface
+Provides commands for:
+- `scan`: Run security scans
+- `analyze`: Analyze and fix security issues
+- `run`: Execute complete pipeline
+- `review`: Generate security reports
+- `validate`: Configuration validation
+- `test`: Run pipeline tests
 
-## Directory Structure
+### Cache System
+- Stores scan results
+- Implements validation logic
+- Supports CI/CD pipeline optimization
 
-```mermaid
-graph TD
-    Root["/"] --> SRC[src/]
-    Root --> Tests[tests/]
-    Root --> Docs[docs/]
-    Root --> Config[config/]
-    
-    SRC --> Core[core/]
-    SRC --> AI[ai/]
-    SRC --> Security[security/]
-    SRC --> Utils[utils/]
-    
-    Core --> Pipeline[pipeline.py]
-    Core --> Scanner[scanner.py]
-    Core --> Analyzer[analyzer.py]
-    
-    AI --> Models[models.py]
-    AI --> Services[services.py]
-    
-    Security --> Tools[tools.py]
-    Security --> Validators[validators.py]
-    
-    Utils --> Helpers[helpers.py]
-    Utils --> Logger[logger.py]
-    
-    classDef default fill:#1a1a1a,stroke:#00ff00,color:#fff
-    classDef core fill:#2a2a2a,stroke:#00ffff,color:#fff
-    classDef utils fill:#2a2a2a,stroke:#ff00ff,color:#fff
-    
-    class Root,SRC,Tests,Docs,Config default
-    class Core,AI,Security core
-    class Utils utils
-```
+### AI Integration
+- Uses OpenAI GPT-4 for code review
+- Leverages Claude for fix implementation
+- Generates PR descriptions
+- Performs architecture analysis
 
-## Further Reading
+## Integration Points
 
-- [Data Flow Details](data-flow.md)
-- [Component Details](components.md)
-- [Integration Details](integration.md)
-- [Implementation Guide](../implementation/README.md)
+### External Tools
+- OWASP ZAP: Web security scanning
+- Nuclei: Vulnerability scanning
+- Dependency Check: Package vulnerability scanning
+
+### AI Services
+- OpenAI API
+- Anthropic API
+
+### Notification Services
+- Slack webhooks for alerts
+
+### Version Control
+- Git integration for:
+  - Branch creation
+  - Fix implementation
+  - PR generation
+
+## Security Considerations
+- Environment variable validation
+- Secure API key handling
+- Cache validation
+- Fix validation before implementation
+- Rate limiting for API calls
+- Secure configuration handling
