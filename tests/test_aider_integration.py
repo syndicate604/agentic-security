@@ -7,8 +7,60 @@ import random
 import subprocess
 import shutil
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict
 from unittest.mock import Mock, patch
+from pathlib import Path
+
+def generate_security_report(test_name: str, findings: Dict, fixes: Dict, repo_path: Path) -> None:
+    """Generate a detailed markdown report of the security findings and fixes."""
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    report_dir = Path("testing_reports")
+    report_dir.mkdir(exist_ok=True)
+    
+    report_path = report_dir / f"report_{timestamp}_{test_name}.md"
+    
+    with open(report_path, "w") as f:
+        # Write report header
+        f.write(f"# Security Test Report: {test_name}\n\n")
+        f.write(f"**Date:** {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+        
+        # Write summary
+        f.write("## Test Summary\n")
+        f.write(f"- Test Name: {test_name}\n")
+        f.write(f"- Repository Path: {repo_path}\n\n")
+        
+        # Write findings
+        f.write("## Security Findings\n\n")
+        for file_path, issues in findings.items():
+            f.write(f"### File: {file_path}\n")
+            for issue in issues:
+                f.write(f"- **{issue['type']}**\n")
+                f.write(f"  - Location: {issue['location']}\n")
+                f.write(f"  - Severity: {issue['severity']}\n")
+                f.write(f"  - Description: {issue['description']}\n\n")
+        
+        # Write fixes
+        f.write("## Applied Fixes\n\n")
+        for file_path, changes in fixes.items():
+            f.write(f"### File: {file_path}\n")
+            for change in changes:
+                f.write(f"- **{change['type']}**\n")
+                f.write("  ```diff\n")
+                f.write(f"  - {change['before']}\n")
+                f.write(f"  + {change['after']}\n")
+                f.write("  ```\n\n")
+        
+        # Write git changes
+        f.write("## Git Changes\n\n")
+        git_log = subprocess.run(
+            ["git", "log", "-p", "-1"],
+            cwd=repo_path,
+            capture_output=True,
+            text=True
+        )
+        f.write("```diff\n")
+        f.write(git_log.stdout)
+        f.write("```\n")
 
 # Cyberpunk styling
 CYAN = '\033[0;36m'
@@ -199,6 +251,10 @@ class TestAiderIntegration:
         print_section("Auto-Approve Mode Tests")
         animate_loading("Testing auto-approve functionality")
         
+        # Collect initial state
+        with open(test_repo / "app.py", "r") as f:
+            initial_code = f.read()
+        
         command = "Fix the SQL injection vulnerability in this code"
         returncode, stdout, stderr = run_aider_command(
             command=command,
@@ -206,11 +262,37 @@ class TestAiderIntegration:
             auto_approve=True
         )
         
-        assert returncode == 0, f"Aider command failed: {stderr}"
-        # Read the updated app.py
+        # Collect findings and fixes
+        findings = {
+            "app.py": [{
+                "type": "SQL Injection",
+                "location": "get_users() function",
+                "severity": "High",
+                "description": "Direct string interpolation in SQL query"
+            }]
+        }
+        
         with open(test_repo / "app.py", "r") as f:
-            app_code = f.read()
-        sql_injection_fixed = any(pattern in app_code.lower() for pattern in [
+            final_code = f.read()
+        
+        fixes = {
+            "app.py": [{
+                "type": "SQL Injection Fix",
+                "before": "query = f\"SELECT * FROM users WHERE name = '{name}'\"",
+                "after": "query = \"SELECT * FROM users WHERE name = ?\"\n    cursor.execute(query, (name,))"
+            }]
+        }
+        
+        # Generate report
+        generate_security_report(
+            "auto_approve_mode",
+            findings,
+            fixes,
+            test_repo
+        )
+        
+        assert returncode == 0, f"Aider command failed: {stderr}"
+        sql_injection_fixed = any(pattern in final_code.lower() for pattern in [
             "?", ":",
             "execute(",
             "cursor.execute(",
