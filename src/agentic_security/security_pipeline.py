@@ -235,23 +235,54 @@ class SecurityPipeline:
                                         'severity': 'high' if vuln_type in ['command_injection', 'insecure_deserialization'] else 'medium'
                                     })
             
-            # Run dependency check if available
-            dependency_check_path = os.path.join(os.getcwd(), "dependency-check", "bin", "dependency-check.sh")
-            if os.path.exists(dependency_check_path):
+            # Check for OWASP Dependency Check installation
+            dependency_check_paths = [
+                os.path.join(os.getcwd(), "dependency-check", "bin", "dependency-check.sh"),  # Local install
+                "/usr/local/bin/dependency-check.sh",  # Global install
+                "dependency-check.sh"  # PATH install
+            ]
+            
+            dependency_check_available = any(os.path.exists(path) for path in dependency_check_paths)
+            
+            if not dependency_check_available:
+                print("\n[33m[!] OWASP Dependency Check not found[0m")
+                install_prompt = input("\nWould you like to install OWASP Dependency Check now? (y/N): ")
+                
+                if install_prompt.lower() == 'y':
+                    try:
+                        # Attempt to install using the official script
+                        print("\n[36m[>] Installing OWASP Dependency Check...[0m")
+                        subprocess.run([
+                            "curl", "-L", 
+                            "https://github.com/jeremylong/DependencyCheck/releases/download/v8.4.0/dependency-check-8.4.0-release.zip",
+                            "-o", "dependency-check.zip"
+                        ], check=True)
+                        
+                        subprocess.run(["unzip", "dependency-check.zip"], check=True)
+                        os.remove("dependency-check.zip")
+                        
+                        print("[32m[✓] OWASP Dependency Check installed successfully[0m")
+                        dependency_check_available = True
+                        
+                    except Exception as e:
+                        print(f"[31m[!] Error installing OWASP Dependency Check: {str(e)}[0m")
+                        print("\nPlease install manually from: https://owasp.org/www-project-dependency-check/")
+                else:
+                    print("\n[33m[!] Skipping dependency scanning[0m")
+                    print("To enable dependency scanning later, install OWASP Dependency Check:")
+                    print("https://owasp.org/www-project-dependency-check/")
+            
+            if dependency_check_available:
                 try:
                     dep_check_result = subprocess.run([
-                        dependency_check_path,
+                        next(path for path in dependency_check_paths if os.path.exists(path)),
                         "--scan", path,
                         "--format", "JSON",
                         "--out", "dependency-check-report.json"
                     ], capture_output=True, text=True)
                     results['dependency'] = self._parse_dependency_results("dependency-check-report.json")
                 except Exception as e:
-                    print(f"Warning: Dependency check failed to run: {str(e)}")
-            else:
-                print("Note: OWASP Dependency Check not found - skipping dependency scanning")
-                print("To enable dependency scanning, install OWASP Dependency Check:")
-                print("https://owasp.org/www-project-dependency-check/")
+                    print(f"[31m[!] Warning: Dependency check failed to run: {str(e)}[0m")
                 
         except Exception as e:
             print(f"Error running code security checks: {str(e)}")
