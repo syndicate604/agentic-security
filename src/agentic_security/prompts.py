@@ -48,6 +48,30 @@ Description:"""
         if custom_prompts:
             self.prompts.update(custom_prompts)
 
+    def sanitize_input(self, input_str: str) -> str:
+        """Sanitize input strings for AI prompts
+        
+        Args:
+            input_str: Input string to sanitize
+            
+        Returns:
+            Sanitized string safe for AI prompts
+        """
+        if not isinstance(input_str, str):
+            input_str = str(input_str)
+            
+        # Remove any potentially problematic characters
+        sanitized = input_str.replace('"', '\\"')  # Escape quotes
+        sanitized = sanitized.replace('$', '\\$')  # Escape dollar signs
+        sanitized = sanitized.replace('`', '\\`')  # Escape backticks
+        
+        # Limit length
+        max_length = 8000  # Reasonable limit for most AI models
+        if len(sanitized) > max_length:
+            sanitized = sanitized[:max_length] + "..."
+            
+        return sanitized
+        
     def get_prompt(self, prompt_type: str, **kwargs) -> str:
         """Get formatted prompt"""
         if prompt_type not in self.prompts:
