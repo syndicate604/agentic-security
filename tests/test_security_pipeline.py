@@ -423,10 +423,10 @@ def test_ci_pipeline_execution(mock_run, pipeline):
     with patch.dict(os.environ, {
         'OPENAI_API_KEY': 'test-key',
         'ANTHROPIC_API_KEY': 'test-key',
-        'CI': 'true'  # Remove webhook requirement in CI
+        'CI': 'true',  # Remove webhook requirement in CI
+        'SKIP_CACHE': 'true'
     }):
         # Run pipeline in CI mode
-        pipeline._skip_cache = True
         result = pipeline.run_pipeline()
         assert isinstance(result, dict), "Pipeline should return results dict"
         assert result.get('status') is True, "Pipeline should succeed"

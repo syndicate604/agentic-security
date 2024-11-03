@@ -426,7 +426,7 @@ class SecurityPipeline:
                         raise  # Fail in CI environment
             
             # Cache results before returning, but not in CI
-            if not getattr(self, '_skip_cache', False) and not os.environ.get('CI', '').lower() == 'true':
+            if not os.environ.get('CI', '').lower() == 'true' and not os.environ.get('SKIP_CACHE', '').lower() == 'true':
                 self.cache.save_scan_results("latest_scan", {'results': results})
             
             return results
@@ -458,8 +458,8 @@ class SecurityPipeline:
             if not os.path.exists(path):
                 raise FileNotFoundError(f"Path not found: {path}")
 
-            # Use absolute path as cache key to ensure uniqueness
-            cache_key = f"review_{os.path.abspath(path)}"
+            # Use sanitized path as cache key
+            cache_key = f"review_{path.replace('/', '_').replace('\\', '_')}"
             cached_results = self.cache.get_scan_results(cache_key)
 
             if cached_results:
