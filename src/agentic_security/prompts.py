@@ -1,4 +1,7 @@
+import logging
 from typing import Dict, Optional
+
+logger = logging.getLogger(__name__)
 
 class PromptManager:
     DEFAULT_PROMPTS = {
@@ -75,5 +78,10 @@ Description:"""
     def get_prompt(self, prompt_type: str, **kwargs) -> str:
         """Get formatted prompt"""
         if prompt_type not in self.prompts:
+            logger.error(f"Unknown prompt type requested: {prompt_type}")
             raise ValueError(f"Unknown prompt type: {prompt_type}")
-        return self.prompts[prompt_type].format(**kwargs)
+            
+        prompt = self.prompts[prompt_type].format(**kwargs)
+        logger.info(f"Generated {prompt_type} prompt:")
+        logger.info(prompt)
+        return prompt
