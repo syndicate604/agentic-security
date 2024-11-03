@@ -13,10 +13,31 @@ Analysis:""",
         
         'fix_generation': """Generate secure fixes for the following vulnerability:
 {vulnerability_type} in file {file_path}
-Consider:
-1. Security best practices
-2. Performance impact
-3. Maintainability
+
+Required Changes:
+1. Replace any insecure functions/methods with their secure alternatives
+2. Add proper input validation and sanitization
+3. Use safe defaults and secure configuration options
+
+Security Considerations:
+1. Follow the principle of least privilege
+2. Implement defense in depth
+3. Use well-tested security libraries
+4. Add appropriate error handling
+
+Code Guidelines:
+1. Make minimal necessary changes
+2. Maintain existing code structure
+3. Add clear security-focused comments
+4. Ensure backward compatibility
+
+Please provide the exact code changes needed, using secure alternatives like:
+- subprocess.run() instead of os.system()
+- parameterized queries instead of string formatting
+- defusedxml instead of xml.etree
+- bcrypt/argon2 instead of md5/sha1
+- html.escape() for XSS prevention
+
 Proposed fix:""",
         
         'pr_description': """Create a detailed pull request description for these security changes:
