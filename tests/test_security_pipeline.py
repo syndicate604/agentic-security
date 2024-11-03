@@ -412,6 +412,18 @@ def test_ci_pipeline_execution(mock_run, pipeline):
     # Mock successful command executions with command tracking
     def mock_subprocess(*args, **kwargs):
         command = ' '.join(str(x) for x in args[0]) if args else ''
+        # Map specific commands to their step names for verification
+        if any(x in command for x in ['nuclei', 'zap', 'dependency-check']):
+            command = 'security checks'
+        elif 'aider' in command and 'Review' in command:
+            command = 'architecture review'
+        elif 'aider' in command and 'fix' in command.lower():
+            command = 'implement fixes'
+        elif 'git checkout -b' in command:
+            command = 'create branch'
+        elif 'gh pr create' in command:
+            command = 'create pull request'
+            
         return MagicMock(
             returncode=0,
             stdout=f"Test output for: {command}",
@@ -440,9 +452,25 @@ def test_ci_pipeline_execution(mock_run, pipeline):
         'create pull request'
     ]
     
-    call_args = [call[0][0] for call in mock_run.call_args_list]
+    # Extract actual commands from mock calls
+    actual_commands = []
+    for call in mock_run.call_args_list:
+        command = ' '.join(str(x) for x in call[0][0])
+        # Map commands to step names using the same logic as mock_subprocess
+        if any(x in command for x in ['nuclei', 'zap', 'dependency-check']):
+            actual_commands.append('security checks')
+        elif 'aider' in command and 'Review' in command:
+            actual_commands.append('architecture review')
+        elif 'aider' in command and 'fix' in command.lower():
+            actual_commands.append('implement fixes')
+        elif 'git checkout -b' in command:
+            actual_commands.append('create branch')
+        elif 'gh pr create' in command:
+            actual_commands.append('create pull request')
+
+    # Verify each expected call is present
     for expected in expected_calls:
-        assert any(expected in str(args) for args in call_args), f"Missing CI step: {expected}"
+        assert expected in actual_commands, f"Missing CI step: {expected}"
 
 
 def test_artifact_generation(pipeline, tmp_path):
