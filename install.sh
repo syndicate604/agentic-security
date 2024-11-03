@@ -128,6 +128,16 @@ if ! command -v docker &> /dev/null; then
     execute_with_animation "sudo usermod -aG docker $USER" "Adding user to docker group"
 fi
 
+# Configure Docker
+echo -e "\n${CYAN}╔══════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${CYAN}║${NC}                  Configuring Docker                        ${CYAN}║${NC}"
+echo -e "${CYAN}╚══════════════════════════════════════════════════════════════╝${NC}\n"
+
+if ! command -v docker &> /dev/null; then
+    execute_with_animation "curl -fsSL https://get.docker.com | sh" "Installing Docker"
+    execute_with_animation "sudo usermod -aG docker $USER" "Adding user to docker group"
+fi
+
 # Pull required Docker images
 execute_with_animation "docker pull owasp/zap2docker-stable" "Pulling OWASP ZAP image"
 
