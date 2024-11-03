@@ -536,6 +536,16 @@ class SecurityPipeline:
             raise ValueError("Invalid configuration structure")
         if not isinstance(self.config['security'], dict):
             raise ValueError("Invalid configuration structure")
+
+        # Then check scan targets
+        if not self.config['security'].get('scan_targets'):
+            return {'status': False, 'error': 'No scan targets configured'}
+
+        if not any(target.get('type') in ['web', 'code'] 
+                  for target in self.config['security']['scan_targets']):
+            return {'status': False, 'error': 'Invalid scan target types'}
+
+        # Finally check threshold
         if self.config['security'].get('critical_threshold', 0) < 0:
             raise ValueError("Critical threshold cannot be negative")
 
