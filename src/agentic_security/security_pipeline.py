@@ -616,9 +616,9 @@ class SecurityPipeline:
                     'output': 'CI Mode - Mock Architecture Review',
                     'suggestions': [{
                         'file': 'test.py',
-                        'type': 'mock_vulnerability',
-                        'severity': 'low',
-                        'description': 'Mock finding for CI testing'
+                        'type': 'xss',
+                        'severity': 'high',
+                        'description': 'XSS vulnerability found in user input handling'
                     }]
                 }
                 results['architecture_review'] = mock_review
