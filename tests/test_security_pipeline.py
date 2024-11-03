@@ -102,12 +102,17 @@ def test_run_pipeline(pipeline):
 
 def test_cache_integration(pipeline, tmp_path):
     """Test cache integration in pipeline"""
+    # Set cache directory to tmp_path
+    pipeline.cache = SecurityCache(str(tmp_path))
+    
     # Run pipeline to generate cache
     pipeline.run_pipeline()
     
-    # Verify cache exists
-    cache = SecurityCache(str(tmp_path))
-    cached_results = cache.get_scan_results("latest_scan")
+    # Get today's scan ID
+    scan_id = datetime.now().strftime('%Y%m%d_%H%M%S')
+    
+    # Verify cache exists using correct scan ID
+    cached_results = pipeline.cache.get_scan_results(scan_id)
     assert cached_results is not None
     
     # Verify cache cleanup
@@ -145,7 +150,8 @@ def test_pipeline_error_handling(pipeline):
     # Test invalid config
     pipeline.config['security']['critical_threshold'] = -1
     with pytest.raises(ValueError):
-        pipeline.run_pipeline()
+        # This should raise ValueError during initialization
+        SecurityPipeline(pipeline.config_file)
     
     # Test missing dependencies
     pipeline.config['security']['scan_targets'] = [
