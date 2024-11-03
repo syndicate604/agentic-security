@@ -2,6 +2,52 @@
 
 This guide covers the implementation details of Agentic Security, including installation, configuration, and best practices.
 
+## Security Patterns
+
+The system currently supports detection of:
+
+```yaml
+security_patterns:
+  sql_injection:
+    - "SELECT * FROM"
+    - "INSERT INTO"
+    - "UPDATE"
+    - "DELETE FROM"
+    - "f\"SELECT"
+  command_injection:
+    - "os.system"
+    - "subprocess.call"
+    - "eval("
+    - "exec("
+  xss:
+    - "<script>"
+    - "innerHTML"
+    - "document.write"
+  crypto:
+    - "md5"
+    - "sha1"
+    - "DES"
+    - "RC4"
+```
+
+## Cache Configuration
+
+The caching system supports:
+- Result caching with timestamps
+- Configurable retention periods
+- Automatic cache cleanup
+- Cache validation checks
+
+## AI Model Configuration
+
+Configure different models for different tasks:
+```yaml
+ai:
+  models:
+    architecture_review: gpt-4-1106-preview
+    fix_implementation: claude-3-sonnet-20240229
+```
+
 ## Implementation Overview
 
 ```mermaid

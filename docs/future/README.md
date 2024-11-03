@@ -2,6 +2,25 @@
 
 This section outlines planned enhancements and future development roadmap for Agentic Security.
 
+## Implemented Features
+
+Recent implementations include:
+- Dual AI model support (GPT-4 and Claude-3)
+- Pattern-based vulnerability detection
+- Performance-optimized caching system
+- Comprehensive review system
+- GitHub Actions integration
+- Docker container support
+
+## Next Steps
+
+Upcoming enhancements:
+- Real-time vulnerability monitoring
+- Machine learning-based pattern detection
+- Enhanced fix validation system
+- Cloud security integration
+- Additional AI model support
+
 ## Overview
 
 ```mermaid
