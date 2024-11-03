@@ -791,7 +791,7 @@ class SecurityPipeline:
                     self.progress.update(15, "Cache validation failed, running new scan")
                     security_results = self._run_new_scan(scan_id)
                     # Log the reason for running a new scan
-                    print_cyber_status("Running new scan due to cache validation failure", "warning")
+                    self.progress.update(15, "Cache validation failed, running new scan")
             else:
                 security_results = self._run_new_scan(scan_id)
             
