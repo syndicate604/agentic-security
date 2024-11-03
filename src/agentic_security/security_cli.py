@@ -130,12 +130,13 @@ def cli():
 
 @cli.command()
 @click.option('--path', '-p', multiple=True, help='Paths to scan (files or directories)')
+@click.option('--exclude', '-e', multiple=True, help='Directories to exclude from scan')
 @click.option('--auto-fix/--no-auto-fix', default=False, help='Automatically apply fixes without prompting')
 @click.option('--output', '-o', type=click.Path(), help='Output markdown report path')
 @click.option('--verbose/--no-verbose', '-v/', default=False, help='Verbose output')
 @click.option('--test/--no-test', default=False, help='Run in test mode')
 @click.option('--config', '-c', default='config.yml', help='Path to configuration file')
-def scan(path, auto_fix, output, verbose, test, config):
+def scan(path, exclude, auto_fix, output, verbose, test, config):
     """Run security scans on specified paths"""
     print(CYBER_BANNER)
     if not validate_environment():
@@ -159,7 +160,7 @@ def scan(path, auto_fix, output, verbose, test, config):
         print_cyber_status("Analyzing results...", "info")
         
         try:
-            results = pipeline.scan_paths(path, timeout=300)  # 5 minute timeout
+            results = pipeline.scan_paths(path, exclude=exclude, timeout=300)  # 5 minute timeout
         except KeyboardInterrupt:
             print("\n[33m[!] Scan interrupted by user. Partial results may be available.[0m")
             return
