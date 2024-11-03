@@ -175,8 +175,8 @@ def scan(path, auto_fix, timeout, exclude, output, verbose, no_progress):
         print("\n")
         
     if not path:
-        path = [os.getcwd()]  # Default to current working directory
-        print("[33m[!] No paths specified, scanning current directory[0m")
+        print("[33m[!] No paths specified, please provide at least one path to scan[0m")
+        return
             
     try:
         pipeline = SecurityPipeline('config.yml')
@@ -296,9 +296,11 @@ def analyze(path: tuple, config: str, auto_fix: bool, verbose: bool):
     except KeyboardInterrupt:
         print("\n\033[33m[!] Analysis interrupted. Saving partial results...\033[0m")
         # Still try to save the report if interrupted
-        if 'results' in locals():
+        if 'results' in locals() and results:
             pipeline.generate_review_report(results, str(report_file))
             print_cyber_status(f"\nPartial report saved: {report_file}", "warning")
+        else:
+            print_cyber_status("No results to save", "warning")
     except Exception as e:
         print_cyber_status(f"Error during analysis: {str(e)}", "error")
         sys.exit(1)
