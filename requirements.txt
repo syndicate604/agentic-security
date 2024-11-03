@@ -9,3 +9,4 @@ aider-chat>=0.61.0
 defusedxml>=0.7.1
 cryptography>=41.0.0
 anyio==4.6.2.post1
+slack-sdk>=3.26.1
