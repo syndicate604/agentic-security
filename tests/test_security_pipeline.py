@@ -309,7 +309,7 @@ def test_cli_review_integration(pipeline, tmp_path):
     
     # Test CLI review command
     from click.testing import CliRunner
-    from security_cli import review
+    from src.agentic_security.security_cli import review
     
     runner = CliRunner()
     result = runner.invoke(review, ['--path', str(tmp_path),
