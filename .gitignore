@@ -164,3 +164,4 @@ cython_debug/
 testing_reports/*
 !testing_reports/.gitkeep
 .security_cache
+dependency-check
