@@ -161,9 +161,11 @@ class SecurityPipeline:
         """Run code-specific security checks"""
         results = {}
         start_time = time.time()
+        files_scanned = 0
+        total_files = sum(1 for _ in os.walk(path) for _ in _[2] if _.endswith(('.py', '.js', '.php', '.java')))
         
-        # Show scanning indicator
-        print(f"[36m[>] Analyzing {path} for security issues...[0m")
+        # Show scanning indicator with file count
+        print(f"[36m[>] Analyzing {path} ({total_files} files)...[0m")
 
         # Directories to exclude
         exclude_dirs = {'venv', 'env', '.git', '__pycache__', 'node_modules', '.pytest_cache'}
@@ -196,12 +198,31 @@ class SecurityPipeline:
                 if any(excluded in root.split(os.sep) for excluded in exclude_dirs):
                     continue
                     
+                # Check timeout
+                if time.time() - start_time > timeout:
+                    print("\n[31m[!] Scan timeout reached. Partial results will be returned.[0m")
+                    return results
+
                 for file in files:
                     if not file.endswith(('.py', '.js', '.php', '.java')):
                         continue
-                        file_path = os.path.join(root, file)
-                        with open(file_path, 'r', encoding='utf-8') as f:
+                    
+                    file_path = os.path.join(root, file)
+                    files_scanned += 1
+                    
+                    # Update progress percentage
+                    progress = (files_scanned / total_files) * 100 if total_files > 0 else 0
+                    print(f"\r[36m[>] Scanning: {progress:.1f}% complete ({files_scanned}/{total_files} files)[0m", end='', flush=True)
+                    
+                    try:
+                        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                             content = f.read()
+                    except (PermissionError, FileNotFoundError) as e:
+                        print(f"\n[33m[!] Could not access {file_path}: {str(e)}[0m")
+                        continue
+                    except UnicodeDecodeError:
+                        print(f"\n[33m[!] Could not decode {file_path} - skipping[0m")
+                        continue
                             
                             # Check for each vulnerability pattern
                             for vuln_type, patterns in security_patterns.items():
