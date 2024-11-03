@@ -1,42 +1,58 @@
 # Agentic Security
 
-Automated security scanning and fixing (code,arch,ml/devops) pipeline using AI-powered tools.
+Automated security scanning and fixing (code,arch,ml/devops) pipeline using AI-powered tools with a cyberpunk-themed interface.
 
 The pipeline combines OWASP ZAP scans with AI-driven analysis, catching architectural flaws through explicit prompting at design, implementation, and testing phases. For red teaming, it integrates automated vulnerability assessments with AI-guided fixes, which are deployed to a new branch for manual review.
 
 **Created by rUv, cause he could.**
 
----
+## Documentation
+
+📚 [View Full Documentation](docs/README.md)
+
+### Quick Links
+- 🏗️ [Architecture Guide](docs/architecture/README.md)
+- 🛠️ [Implementation Guide](docs/implementation/README.md)
+- 📖 [User Guide](docs/user-guide/README.md)
+- 🚀 [Future Enhancements](docs/future/README.md)
 
 ## Features
 
 1. **Comprehensive Security Checks**:
-   - **OWASP ZAP** for web vulnerability scanning.
-   - **Nuclei** for known vulnerability detection.
-   - **Dependency checking** for outdated components.
+   - **OWASP ZAP** for web vulnerability scanning
+   - **Nuclei** for known vulnerability detection
+   - **Dependency checking** for outdated components
 
 2. **Intelligent Fix Pipeline**:
-   - Uses **OpenAI's `o1-preview`** as an architect to analyze issues.
-   - Employs **Claude 3.5 Sonnet** for code implementation.
-   - **Recursive fix attempts** with test validation.
+   - Uses **OpenAI's `o1-preview`** as an architect to analyze issues
+   - Employs **Claude 3.5 Sonnet** for code implementation
+   - **Recursive fix attempts** with test validation
 
 3. **Security Best Practices**:
-   - Follows **OWASP Top 10** vulnerability checks.
-   - Implements proper **access controls** and **authentication**.
-   - Uses **secure communication protocols**.
+   - Follows **OWASP Top 10** vulnerability checks
+   - Implements proper **access controls** and **authentication**
+   - Uses **secure communication protocols**
 
 4. **Automated Workflow**:
-   - Creates **separate branch** for fixes.
-   - Runs **daily automated checks**.
-   - **Notifies admin** of results.
-   - Creates **pull request** for review.
+   - Creates **separate branch** for fixes
+   - Runs **daily automated checks**
+   - **Notifies admin** of results
+   - Creates **pull request** for review
 
 5. **Severity-Based Decision Making**:
-   - Uses **CVSS scoring** for vulnerability assessment.
-   - Only applies fixes for **critical issues**.
-   - Prevents unnecessary changes for **low-risk issues**.
+   - Uses **CVSS scoring** for vulnerability assessment
+   - Only applies fixes for **critical issues**
+   - Prevents unnecessary changes for **low-risk issues**
 
----
+6. **Cyberpunk Interface**:
+   - **ASCII Art Banner** with neon-styled colors
+   - **Color-coded status messages**:
+     * Cyan [>] for information
+     * Green [+] for success
+     * Yellow [!] for warnings
+     * Red [x] for errors
+   - **Retro-futuristic command layout**
+   - **Visual progress indicators**
 
 ## Quick Start
 
@@ -51,704 +67,59 @@ The pipeline combines OWASP ZAP scans with AI-driven analysis, catching architec
 ### Installation
 
 1. **Clone the repository**:
-
-   ```bash
-   git clone https://github.com/ruvnet/agentic-security.git
-   cd agentic-security
-
-**Created by rUv, cause he could.**
-
----
-
-## Table of Contents
-
-- [Overview](#overview)
-- [Installation Script (`install.sh`)](#installation-script-installsh)
-- [Requirements (`requirements.txt`)](#requirements-requirementstxt)
-- [Security Pipeline Code (`security_pipeline.py`)](#security-pipeline-code-security_pipelinepy)
-- [CLI Tool (`security_cli.py`)](#cli-tool-security_clip)
-- [Test Suite (`tests/test_security.py`)](#test-suite-teststest_securitypy)
-- [Configuration File (`config.yml`)](#configuration-file-configyml)
-- [Environment Variables Example (`.env.example`)](#environment-variables-example-envexample)
-- [Bash Runner (`run_pipeline.sh`)](#bash-runner-run_pipelinesh)
-- [GitHub Actions Workflow (`.github/workflows/security_pipeline.yml`)](#github-actions-workflow-githubworkflowssecurity_pipelineyml)
-- [Docker Support (`Dockerfile`)](#docker-support-dockerfile)
-- [Documentation (`README.md`)](#documentation-readmemd)
-
----
-
-## Overview
-
-**Agentic Security** leverages GitHub Actions and AI models to automate security scanning and fixing. It uses OpenAI's `o1-preview` model in a multi-stage analysis approach:
-
-1. **Architectural Analysis**: Utilizes Aider in `/architect` mode with OpenAI's `o1-preview` model to analyze structural vulnerabilities.
-2. **Recursive Implementation**: Employs Aider in editor mode using Claude 3.5 Sonnet for recursive fixes until optimized.
-
----
-
-## Key Features
-
-1. **Comprehensive Security Checks**:
-   - **OWASP ZAP** for web vulnerability scanning.
-   - **Nuclei** for known vulnerability detection.
-   - **Dependency checking** for outdated components.
-
-2. **Intelligent Fix Pipeline**:
-   - Uses **OpenAI's `o1-preview`** as an architect to analyze issues.
-   - Employs **Claude 3.5 Sonnet** for code implementation.
-   - **Recursive fix attempts** with test validation.
-
-3. **Security Best Practices**:
-   - Follows **OWASP Top 10** vulnerability checks.
-   - Implements proper **access controls** and **authentication**.
-   - Uses **secure communication protocols**.
-
-4. **Automated Workflow**:
-   - Creates **separate branch** for fixes.
-   - Runs **daily automated checks**.
-   - **Notifies admin** of results.
-   - Creates **pull request** for review.
-
-5. **Severity-Based Decision Making**:
-   - Uses **CVSS scoring** for vulnerability assessment.
-   - Only applies fixes for **critical issues**.
-   - Prevents unnecessary changes for **low-risk issues**.
-
-### Scoring System
-The `score` in this code is calculated by identifying the maximum severity of vulnerabilities found across different security reports generated by tools like OWASP ZAP, Nuclei, and Dependency-Check. Here’s a breakdown of the scoring process:
-
-1. **Severity Mapping**:
-   - The method `severity_to_score` is used to map severity levels (`critical`, `high`, `medium`, `low`, and `info`) to numeric scores. For example:
-     - `critical` is mapped to 9
-     - `high` to 7
-     - `medium` to 5
-     - `low` to 3
-     - `info` to 0
-
-2. **Maximum Severity Calculation**:
-   - The `analyze_vulnerabilities` function checks each report (from ZAP, Nuclei, and Dependency-Check) to find the highest severity score:
-     - **OWASP ZAP Report**: For each vulnerability (alert) in `zap-report.json`, it extracts the `riskcode` (risk level), which is usually a number indicating the severity (0 for lowest, increasing upwards).
-     - **Nuclei Report**: Each entry in `nuclei-report.jsonl` is checked for its severity level, and this is converted to a score using `severity_to_score`.
-     - **Dependency-Check Report**: For each detected vulnerability, it checks the `cvssScore`, which is typically a numerical CVSS (Common Vulnerability Scoring System) score. This is directly used as a severity level.
-
-3. **Threshold Comparison**:
-   - After calculating the maximum severity score found in all reports, it compares this score against a predefined threshold `critical_threshold` from `config.yml`. If the highest severity found exceeds this threshold, it indicates a critical vulnerability, and the pipeline initiates the fixing process.
-
-In summary, the score represents the maximum severity of vulnerabilities across multiple reports, compared against a threshold to determine if automated security fixes are required.
----
-
-## Installation Script (`install.sh`)
-
-```bash
-#!/bin/bash
-
-# Exit immediately if a command exits with a non-zero status
-set -e
-
-echo "Updating system packages..."
-sudo apt-get update
-
-echo "Installing system dependencies..."
-sudo apt-get install -y python3-pip docker.io git curl unzip
-
-echo "Installing OWASP ZAP..."
-docker pull owasp/zap2docker-stable
-
-echo "Installing Nuclei..."
-curl -s https://api.github.com/repos/projectdiscovery/nuclei/releases/latest \
-| grep "browser_download_url.*linux_amd64.zip" \
-| cut -d '"' -f 4 \
-| wget -i -
-unzip nuclei-*-linux_amd64.zip
-sudo mv nuclei /usr/local/bin/
-rm nuclei-*-linux_amd64.zip
-
-echo "Installing Dependency-Check..."
-wget https://github.com/jeremy-lin/dependency-check/releases/download/v6.5.3/dependency-check-6.5.3-release.zip
-unzip dependency-check-6.5.3-release.zip -d dependency-check
-rm dependency-check-6.5.3-release.zip
-
-echo "Installing Python dependencies..."
-pip3 install --user -r requirements.txt
-
-echo "Installing Aider..."
-pip3 install --user aider-chat
-
-echo "Installing GitHub CLI..."
-type -p curl >/dev/null || sudo apt install curl -y
-curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | \
-sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg && \
-sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg && \
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] \
-https://cli.github.com/packages stable main" | \
-sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null && \
-sudo apt update && \
-sudo apt install gh -y
-
-echo "Installation completed successfully!"
-```
-
----
-
-## Requirements (`requirements.txt`)
-
-```text
-pytest==7.4.3
-aider-chat==0.14.1
-requests==2.31.0
-python-dotenv==1.0.0
-pyyaml==6.0.1
-openai==1.3.0
-anthropic==0.5.0
-click==8.1.7
-```
-
----
-
-## Security Pipeline Code (`security_pipeline.py`)
-
-```python
-#!/usr/bin/env python3
-
-import subprocess
-import json
-import os
-from datetime import datetime
-import yaml
-import requests
-
-# Configuration Variables
-OPENAI_MODEL = "gpt-4-1106-preview"  # o1-preview model
-CLAUDE_MODEL = "claude-3-sonnet-20240229"  # Latest Sonnet model
-DEFAULT_CONFIG = {
-    "security": {
-        "critical_threshold": 7.0,
-        "max_fix_attempts": 3,
-        "scan_targets": []
-    }
-}
-
-class SecurityPipeline:
-    def __init__(self, config_file='config.yml'):
-        self.load_config(config_file)
-        self.critical_threshold = self.config['security']['critical_threshold']
-        self.max_fix_attempts = self.config['security']['max_fix_attempts']
-        self.branch_name = f"security-fixes-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
-
-    def load_config(self, config_file):
-        """Load configuration from YAML file or use defaults"""
-        try:
-            with open(config_file, 'r') as f:
-                self.config = yaml.safe_load(f)
-        except FileNotFoundError:
-            self.config = DEFAULT_CONFIG
-
-    def run_architecture_review(self):
-        """Run architecture review using OpenAI o1-preview"""
-        print("Running architecture review with OpenAI o1-preview...")
-        
-        subprocess.run([
-            "aider",
-            "--model", OPENAI_MODEL,
-            "--edit-format", "diff",
-            "/ask",
-            "Review the architecture for security vulnerabilities and suggest improvements:",
-            "."
-        ], check=True)
-
-    def implement_fixes(self):
-        """Implement fixes using Claude 3.5 Sonnet"""
-        print("Implementing fixes with Claude 3.5 Sonnet...")
-        
-        subprocess.run([
-            "aider",
-            "--model", CLAUDE_MODEL,
-            "--edit-format", "diff",
-            "/code",
-            "Implement the suggested security fixes:",
-            "."
-        ], check=True)
-
-    def run_security_checks(self):
-        """Run comprehensive security scans"""
-        for target in self.config['security']['scan_targets']:
-            if target['type'] == 'web':
-                self._run_web_security_checks(target['url'])
-            elif target['type'] == 'code':
-                self._run_code_security_checks(target['path'])
-
-    def _run_web_security_checks(self, url):
-        """Run web-specific security checks"""
-        print(f"Running web security checks for {url}")
-        
-        # OWASP ZAP scan
-        subprocess.run([
-            "aider",
-            "--model", OPENAI_MODEL,
-            "/ask",
-            f"Analyze OWASP ZAP results for {url}:",
-            "zap-report.json"
-        ], check=True)
-
-        # Nuclei scan
-        subprocess.run([
-            "aider",
-            "--model", CLAUDE_MODEL,
-            "/ask",
-            f"Review Nuclei scan results for {url}:",
-            "nuclei-report.jsonl"
-        ], check=True)
-
-    def _run_code_security_checks(self, path):
-        """Run code-specific security checks"""
-        print(f"Running code security checks for {path}")
-        
-        subprocess.run([
-            "aider",
-            "--model", CLAUDE_MODEL,
-            "/ask",
-            f"Analyze dependency vulnerabilities in {path}:",
-            "dependency-check-report.json"
-        ], check=True)
-
-    def create_fix_branch(self):
-        """Create a new branch for security fixes"""
-        print(f"Creating fix branch: {self.branch_name}")
-        subprocess.run(["git", "checkout", "-b", self.branch_name], check=True)
-
-    def validate_fixes(self):
-        """Validate implemented fixes"""
-        print("Validating fixes...")
-        
-        subprocess.run([
-            "aider",
-            "--model", OPENAI_MODEL,
-            "/test",
-            "Validate the implemented security fixes:",
-            "."
-        ], check=True)
-
-    def create_pull_request(self):
-        """Create PR with AI-generated description"""
-        print("Creating pull request...")
-        
-        # Get changed files
-        changed_files = subprocess.check_output([
-            "git", "diff", "--name-only", "main", self.branch_name
-        ]).decode().strip().split('\n')
-        
-        # Generate PR description using o1-preview
-        pr_command = [
-            "aider",
-            "--model", OPENAI_MODEL,
-            "/ask",
-            "Generate a detailed PR description for these security changes:",
-            *changed_files
-        ]
-        
-        pr_description = subprocess.check_output(pr_command).decode().strip()
-        
-        # Create PR
-        subprocess.run([
-            "gh", "pr", "create",
-            "--title", "Security: AI-Reviewed Security Fixes",
-            "--body", pr_description,
-            "--head", self.branch_name,
-            "--base", "main"
-        ], check=True)
-
-    def run_pipeline(self):
-        """Execute the complete security pipeline"""
-        try:
-            # Architecture review with o1-preview
-            self.run_architecture_review()
-            
-            # Security checks
-            self.run_security_checks()
-            
-            # Create fix branch
-            self.create_fix_branch()
-            
-            # Implement fixes with Claude
-            self.implement_fixes()
-            
-            # Validate fixes with o1-preview
-            self.validate_fixes()
-            
-            # Create PR
-            self.create_pull_request()
-            
-            print("Security pipeline completed successfully")
-            
-        except subprocess.CalledProcessError as e:
-            print(f"Pipeline failed: {str(e)}")
-            raise
-
-if __name__ == "__main__":
-    pipeline = SecurityPipeline()
-    pipeline.run_pipeline()
-```
-
----
-
-## Configuration File (`config.yml`)
-
-```yaml
-security:
-  critical_threshold: 7.5
-  max_fix_attempts: 3
-  scan_targets:
-    - type: web
-      url: http://localhost:8080
-    - type: code
-      path: ./src
-
-notifications:
-  enabled: true
-  channels:
-    - type: github
-    - type: slack
-      webhook: ${SLACK_WEBHOOK}
-
-aider:
-  architect_mode: true
-  model: o1-preview
-  fix_mode: sonnet
-```
-
----
-
-## Environment Variables Example (`.env.example`)
-
-```bash
-# Environment Variables Example
-
-# OpenAI API Key
-OPENAI_API_KEY=your_openai_api_key
-
-# Anthropic API Key
-ANTHROPIC_API_KEY=your_anthropic_api_key
-
-# Slack Webhook URL
-SLACK_WEBHOOK=https://hooks.slack.com/services/your/webhook/url
-```
-
----
-
-## Bash Runner (`run_pipeline.sh`)
-
-```bash
-#!/bin/bash
-
-# Exit immediately if a command exits with a non-zero status
-set -e
-
-# Environment setup
-export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-if [ -f ".env" ]; then
-  source .env
-fi
-
-# Run security pipeline
-echo "Running security pipeline..."
-python3 security_pipeline.py
-
-echo "Pipeline execution completed successfully!"
-```
-
----
-
-## GitHub Actions Workflow (`.github/workflows/security_pipeline.yml`)
-
-```yaml
-name: Security Pipeline
-
-on:
-  schedule:
-    - cron: '0 5 * * *'  # Daily at 5 AM
-  workflow_dispatch:
-
-jobs:
-  security-check:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y docker.io unzip
-          pip install --user -r requirements.txt
-
-      - name: Install Aider
-        run: pip install --user aider-chat
-
-      - name: Run security pipeline
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-        run: |
-          ./run_pipeline.sh
-
-      - name: Create Pull Request
-        if: success()
-        uses: peter-evans/create-pull-request@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: Automated security fixes
-          branch: security-fixes
-          title: 'Security: Automated fixes for vulnerabilities'
-          body: 'Automated security fixes applied by Agentic Security pipeline'
-          labels: security, automated
-```
-
----
-
-## Docker Support (`Dockerfile`)
-
-```dockerfile
-FROM python:3.10-slim
-
-WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    docker.io \
-    unzip \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install OWASP ZAP
-RUN docker pull owasp/zap2docker-stable
-
-# Install Nuclei
-RUN curl -s https://api.github.com/repos/projectdiscovery/nuclei/releases/latest \
-    | grep "browser_download_url.*linux_amd64.zip" \
-    | cut -d '"' -f 4 \
-    | wget -i - && \
-    unzip nuclei-*-linux_amd64.zip && \
-    mv nuclei /usr/local/bin/ && \
-    rm nuclei-*-linux_amd64.zip
-
-# Install Dependency-Check
-RUN wget https://github.com/jeremy-lin/dependency-check/releases/download/v6.5.3/dependency-check-6.5.3-release.zip && \
-    unzip dependency-check-6.5.3-release.zip -d dependency-check && \
-    rm dependency-check-6.5.3-release.zip
-
-# Copy requirements and install
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application
-COPY . .
-
-# Set environment variables
-ENV PYTHONPATH=/app
-ENV PYTHONUNBUFFERED=1
-
-ENTRYPOINT ["python3", "security_cli.py"]
-```
-
----
-
-## Documentation (`README.md`)
-
-```markdown
-# Agentic Security
-
-Automated security scanning and fixing pipeline using AI-powered tools.
-
-**Created by rUv, cause he could.**
-
----
-
-## Features
-
-1. **Comprehensive Security Checks**:
-   - **OWASP ZAP** for web vulnerability scanning.
-   - **Nuclei** for known vulnerability detection.
-   - **Dependency checking** for outdated components.
-
-2. **Intelligent Fix Pipeline**:
-   - Uses **OpenAI's `o1-preview`** as an architect to analyze issues.
-   - Employs **Claude 3.5 Sonnet** for code implementation.
-   - **Recursive fix attempts** with test validation.
-
-3. **Security Best Practices**:
-   - Follows **OWASP Top 10** vulnerability checks.
-   - Implements proper **access controls** and **authentication**.
-   - Uses **secure communication protocols**.
-
-4. **Automated Workflow**:
-   - Creates **separate branch** for fixes.
-   - Runs **daily automated checks**.
-   - **Notifies admin** of results.
-   - Creates **pull request** for review.
-
-5. **Severity-Based Decision Making**:
-   - Uses **CVSS scoring** for vulnerability assessment.
-   - Only applies fixes for **critical issues**.
-   - Prevents unnecessary changes for **low-risk issues**.
-
----
-
-## Quick Start
-
-### Prerequisites
-
-- **Python 3.10+**
-- **Docker**
-- **Git**
-- **GitHub CLI**
-- **Slack Account** (for notifications)
-
-### Installation
-
-1. **Clone the repository**:
-
    ```bash
    git clone https://github.com/ruvnet/agentic-security.git
    cd agentic-security
    ```
 
-2. **Install dependencies**:
-
+2. **Run the cyberpunk-styled installer**:
    ```bash
    ./install.sh
    ```
 
-3. **Configure environment variables**:
-
-   Create a `.env` file in the root directory:
-
+3. **Configure environment**:
    ```bash
    cp .env.example .env
+   # Edit .env with your API keys
    ```
 
-   Add your API keys and Slack webhook URL:
-
+4. **Activate environment**:
    ```bash
-   # .env file
-   OPENAI_API_KEY=your_openai_api_key
-   ANTHROPIC_API_KEY=your_anthropic_api_key
-   SLACK_WEBHOOK=https://hooks.slack.com/services/your/webhook/url
+   source venv/bin/activate
    ```
 
-4. **Edit Configuration**:
+### Usage
 
-   Customize `config.yml` as needed.
-
-### Running the Pipeline
-
-To run the security pipeline:
+The CLI provides a cyberpunk-themed interface with the following commands:
 
 ```bash
-./run_pipeline.sh
+╔══════════════════════════════════════════════════════════════╗
+║                     Available Commands                      ║
+╚══════════════════════════════════════════════════════════════╝
+
+[>] scan     - Run security scans
+[>] analyze  - AI-powered analysis
+[>] run      - Full pipeline execution
+[>] validate - Config validation
+[>] version  - Show version
 ```
 
----
+Example usage:
+```bash
+# Run a security scan
+agentic-security scan --config config.yml
 
-## Usage
+# Run the complete pipeline
+agentic-security run --config config.yml
+```
 
-### CLI Commands
-
-- **Run Security Scan**:
-
-  ```bash
-  python3 security_cli.py scan --config config.yml
-  ```
-
-- **Analyze and Fix**:
-
-  ```bash
-  python3 security_cli.py analyze --config config.yml --auto-fix
-  ```
-
-- **Run Full Pipeline**:
-
-  ```bash
-  python3 security_cli.py run --config config.yml
-  ```
-
-### Docker
+### Docker Support
 
 Build and run using Docker:
-
 ```bash
 docker build -t agentic-security .
 docker run --env-file .env agentic-security run --config config.yml
 ```
-
----
-
-## Configuration
-
-### `config.yml`
-
-- **security**:
-  - `critical_threshold`: The CVSS score threshold for considering a vulnerability critical.
-  - `max_fix_attempts`: Maximum number of fix attempts before giving up.
-  - `scan_targets`: List of targets to scan.
-    - `type`: `web` or `code`.
-    - `url` or `path`: The URL or file path to scan.
-
-- **notifications**:
-  - `enabled`: Enable or disable notifications.
-  - `channels`: List of notification channels.
-    - `type`: `github` or `slack`.
-    - `webhook`: (For Slack) The Slack webhook URL.
-
-- **aider**:
-  - `architect_mode`: Enable Aider's architect mode.
-  - `model`: AI model to use (`o1-preview` for OpenAI, `claude-3.5` for Anthropic).
-  - `fix_mode`: Mode for Aider when applying fixes (e.g., `sonnet`).
-
-### Environment Variables
-
-- **OPENAI_API_KEY**: Your OpenAI API key.
-- **ANTHROPIC_API_KEY**: Your Anthropic API key.
-- **SLACK_WEBHOOK**: Your Slack webhook URL.
-
----
-
-## Testing
-
-Run the test suite using:
-
-```bash
-pytest tests/
-```
-
----
-
-## GitHub Actions Integration
-
-The pipeline is integrated with GitHub Actions for automated execution. See [`.github/workflows/security_pipeline.yml`](.github/workflows/security_pipeline.yml) for the workflow configuration.
-
----
-
-## Contributing
-
-Contributions are welcome! Please open an issue or submit a pull request for any improvements.
-
----
-
-## License
-
-This project is licensed under the MIT License.
-
----
 
 ## References
 
@@ -760,136 +131,5 @@ This project is licensed under the MIT License.
 - [Anthropic](https://www.anthropic.com/)
 
 ---
-
-## Additional Notes
-
-- **Security Considerations**: While the pipeline automates security checks and fixes, it is crucial to review the changes manually before merging into the main branch.
-- **AI Model Usage**: The effectiveness of automated fixes depends on the AI models used. Ensure you have the appropriate permissions and capacity for using models like OpenAI's `o1-preview` and Anthropic's Claude 3.5 Sonnet.
-- **Extensibility**: The pipeline is designed to be modular. You can add additional security tools or notification channels as needed.
-
----
-
-## Contact
-
-For any questions or support, please contact [your.email@example.com](mailto:your.email@example.com).
-
----
-
-Happy securing your applications!
-
----
-
-**Created by rUv, cause he could.**
-
----
-
-## End-to-End Execution
-
-This implementation has been thoroughly tested to ensure it meets all specified requirements. It combines state-of-the-art security scanning with AI-powered fixing capabilities while maintaining proper security controls and human oversight through the pull request process.
-
----
-
-If you have any questions or need further assistance, feel free to reach out!
-
----
-
-## Final Steps
-
-1. **Clone the Repository**:
-
-   ```bash
-   git clone https://github.com/ruvnet/agentic-security.git
-   cd agentic-security
-   ```
-
-2. **Make Scripts Executable**:
-
-   ```bash
-   chmod +x install.sh run_pipeline.sh
-   ```
-
-3. **Run Installation Script**:
-
-   ```bash
-   ./install.sh
-   ```
-
-4. **Set Up Environment Variables**:
-
-   ```bash
-   cp .env.example .env
-   # Edit .env with your API keys and Slack webhook URL
-   ```
-
-5. **Run the Pipeline**:
-
-   ```bash
-   ./run_pipeline.sh
-   ```
-
-6. **Set Up GitHub Actions**:
-
-   Ensure that the necessary secrets (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `SLACK_WEBHOOK`, `GITHUB_TOKEN`) are added to your GitHub repository's secrets.
-
-
-## Future Updates & Security Components
-
-1. **Advanced Vulnerability Assessment**:
-- **SAST (Static Application Security Testing)**
-   - SonarQube or Checkmarx integration
-   - Code quality analysis
-   - Security anti-patterns detection
-
-2. **Container Security**:
-- **Trivy** for container scanning
-- **Snyk** for container vulnerability assessment
-- Docker image security checks
-
-3. **Infrastructure Security**:
-- **Terraform security scanning**
-- **Cloud configuration analysis** (AWS Config, Azure Policy)
-- **Infrastructure as Code** security checks
-
-## Missing AI Components
-
-1. **Enhanced AI Analysis**:
-- **Vector embeddings** for vulnerability pattern matching
-- **Semantic code analysis** using LLMs
-- **Historical vulnerability correlation**
-
-2. **AI-Driven Decision Making**:
-- **Risk scoring** using machine learning
-- **Automated triage** of vulnerabilities
-- **Prediction of potential security impacts**
-
-## Missing Automation Features
-
-1. **Rollback Mechanisms**:
-- Automated rollback if fixes cause issues
-- Version control integration
-- State management
-
-2. **Advanced Testing**:
-- **Fuzzing integration**
-- **Chaos engineering** tests
-- **Performance impact analysis** of security fixes
-
-3. **Reporting and Analytics**:
-- **Security metrics dashboard**
-- **Trend analysis**
-- **Compliance reporting**
-
-## Missing Integration Points
-
-1. **Security Tools**:
-- **Burp Suite** integration
-- **Metasploit** for exploit verification
-- **Nessus** vulnerability scanning
-
-2. **DevSecOps Pipeline**:
-- **GitOps** integration
-- **Artifact signing**
-- **Supply chain security**
-
 
 **Created by rUv, cause he could.**

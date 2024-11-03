@@ -1,0 +1,20 @@
+security:
+  critical_threshold: 7.5
+  max_fix_attempts: 3
+  scan_targets:
+    - type: web
+      url: http://localhost:8080
+    - type: code
+      path: ./src
+
+notifications:
+  enabled: true
+  channels:
+    - type: github
+    - type: slack
+      webhook: ${SLACK_WEBHOOK}
+
+aider:
+  architect_mode: true
+  model: o1-preview
+  fix_mode: sonnet
