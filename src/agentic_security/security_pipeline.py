@@ -315,18 +315,22 @@ class SecurityPipeline:
             # Initialize results
             results = {'status': True, 'reviews': []}
             
-            # Check if we should skip cache
-            skip_cache = getattr(self, '_skip_cache', False)
+            # Validate environment and configuration
+            self.setup_environment()
             
-            # Set up environment variables for CI
-            if os.environ.get('CI'):
-                skip_cache = True
+            # Set up caching behavior
+            skip_cache = getattr(self, '_skip_cache', False) or os.environ.get('CI', False)
             
             # Validate scan targets
-            if not any(target['type'] in ['web', 'code'] for target in self.config['security']['scan_targets']):
-                return False
+            if not self.config.get('security', {}).get('scan_targets'):
+                print("No scan targets configured")
+                return {'status': False, 'error': 'No scan targets configured'}
+            
+            if not any(target.get('type') in ['web', 'code'] for target in self.config['security']['scan_targets']):
+                print("Invalid scan target types")
+                return {'status': False, 'error': 'Invalid scan target types'}
                 
-            results = {'status': True, 'reviews': []}
+            results = {'status': True, 'reviews': [], 'errors': []}
             self.progress.start("Starting security pipeline")
             
             # Generate unique scan ID based on current timestamp
