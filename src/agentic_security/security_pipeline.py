@@ -452,6 +452,20 @@ class SecurityPipeline:
                 if review.get('findings'):
                     print("Findings:")
                     for finding in review['findings']:
-                        print(f"- {finding.get('description', 'Security issue detected')}")
+                        description = finding.get('description')
+                        if description:
+                            print(f"Description: {description}")
+                        print(f"- {self._get_vulnerability_description(review['type'])}")
             else:
                 print(f"- {review['file']}: {review['type']} ({review['severity']})")
+
+    def _get_vulnerability_description(self, vuln_type: str) -> str:
+        """Get detailed description for vulnerability type"""
+        descriptions = {
+            'sql_injection': 'SQL Injection vulnerability detected - Risk of database manipulation',
+            'command_injection': 'Command Injection vulnerability detected - Risk of arbitrary command execution',
+            'xss': 'Cross-Site Scripting (XSS) vulnerability detected - Risk of client-side code injection',
+            'weak_crypto': 'Weak cryptographic implementation detected - Risk of data exposure',
+            'insecure_deserialization': 'Insecure deserialization vulnerability detected - Risk of code execution'
+        }
+        return descriptions.get(vuln_type, 'Security vulnerability detected')
