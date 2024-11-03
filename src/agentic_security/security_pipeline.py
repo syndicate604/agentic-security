@@ -925,8 +925,13 @@ class SecurityPipeline:
         """
         results = {'vulnerabilities': [], 'fixes_applied': []}
         start_time = time.time()
-        stop_progress = threading.Event()
+        stop_progress = None
         progress_thread = None
+        try:
+            import threading
+            stop_progress = threading.Event()
+        except ImportError:
+            print("[33m[!] Threading not available - progress animation disabled[0m")
         
         # Add user exclusions to default excludes
         exclude_dirs = {'venv', 'env', '.git', '__pycache__', 'node_modules', '.pytest_cache'}
