@@ -469,7 +469,8 @@ class SecurityPipeline:
                                     'file': file_path,
                                     'type': vuln_type,
                                     'severity': 'high',
-                                    'line': content.count('\n', 0, content.find(next(k for k in sql_keywords if k in content.upper())))
+                                    'line': content.count('\n', 0, content.find(next(k for k in sql_keywords if k in content.upper()))),
+                                    'description': 'Potential SQL injection vulnerability detected. User input is being used in SQL queries without proper sanitization.'
                                 })
                         # For other vulnerability types
                         elif any(pattern in content.lower() for pattern in patterns) and \
@@ -479,7 +480,8 @@ class SecurityPipeline:
                             results[vuln_type].append({
                                 'file': file_path,
                                 'type': vuln_type,
-                                'severity': 'high' if vuln_type in ['command_injection', 'insecure_deserialization'] else 'medium'
+                                'severity': 'high' if vuln_type in ['command_injection', 'insecure_deserialization'] else 'medium',
+                                'description': 'Potential insecure deserialization vulnerability detected. User input is being deserialized without proper validation, which could lead to arbitrary code execution.'
                             })
             
             # Check for OWASP Dependency Check installation
@@ -925,8 +927,12 @@ class SecurityPipeline:
                 print("\n[33m[!] Scan timeout reached. Partial results will be returned.[0m")
                 break
                 
+            # Validate and sanitize input path
+            path = os.path.normpath(path)
             if not os.path.exists(path):
                 raise FileNotFoundError(f"Path not found: {path}")
+            elif not os.path.isdir(path) and not os.path.isfile(path):
+                raise ValueError(f"Invalid path: {path}")
             
             print(f"\n[36m[>] Scanning: {path}[0m")
             scan_start = time.time()
