@@ -68,7 +68,7 @@ class SecurityPipeline:
         required_vars = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY']
         missing_vars = [var for var in required_vars if not os.getenv(var)]
         if missing_vars:
-            raise EnvironmentError(f"Missing required environment variables: {', '.join(missing_vars)}")
+            raise OSError(f"Missing required environment variables: {', '.join(missing_vars)}")
 
     def run_architecture_review(self) -> Dict:
         """Run architecture review using OpenAI o1-preview"""
