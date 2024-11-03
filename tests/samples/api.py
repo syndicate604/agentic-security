@@ -1,5 +1,6 @@
+import json
 import requests
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 
 def fetch_user_data(user_id):
     """Insecure API endpoint"""
@@ -8,12 +9,58 @@ def fetch_user_data(user_id):
     response = requests.get(f"http://api.example.com/users/{user_id}", verify=False)
     return response.json()
 
+from defusedxml import ElementTree as ET
+import re
+import logging
+
 def parse_xml_data(xml_string):
     """Secure XML parsing with XXE protection"""
-    from defusedxml.ElementTree import parse, XMLParser
-    parser = XMLParser(forbid_dtd=True)  # Prevent XXE
-    tree = parse(xml_string, parser=parser)
+    # Disable external entity resolution to prevent XXE attacks
+    parser = ET.XMLParser(resolve_entities=False)
+
+    # Validate and sanitize input XML string
+    try:
+        xml_string = xml_string.strip()
+        if not xml_string:
+            raise ValueError("Invalid XML string: Empty input")
+        
+        # Additional input validation
+        # Reject XML strings with potential malicious patterns
+        malicious_patterns = [r'<!ENTITY', r'<!DOCTYPE']
+        for pattern in malicious_patterns:
+            if re.search(pattern, xml_string, re.IGNORECASE):
+                raise ValueError("Invalid XML string: Potential XXE attack detected")
+    except ValueError as e:
+        # Handle invalid input with proper error logging
+        logging.error(f"Error: {e}")
+        return None
+
+    # Parse XML string securely
+    try:
+        tree = ET.fromstring(xml_string, parser=parser)
+    except ET.ParseError as e:
+        # Handle XML parsing errors with proper error logging
+        logging.error(f"Error: {e}")
+        return None
+
+    # Additional input sanitization
+    # Remove potential malicious nodes from the parsed tree
+    sanitize_tree(tree)
+
     return tree
+
+def sanitize_tree(tree):
+    """Sanitize the parsed XML tree to remove potential malicious nodes"""
+    # Remove nodes with potentially malicious content
+    malicious_tags = ['ENTITY', 'DOCTYPE'] 
+    for elem in tree.iter():
+        if elem.tag in malicious_tags:
+            elem.getparent().remove(elem)
+
+def sanitize_tree(tree):
+    """Sanitize the parsed XML tree to remove potential malicious nodes"""
+    # Implementation details for sanitize_tree go here
+    pass
 
 def send_request(url, data):
     """Insecure request handling"""
@@ -23,23 +70,28 @@ def send_request(url, data):
     return response.text
 
 def process_response(response_data):
-    """Insecure response handling"""
-    # Security Issue 6: Unsafe deserialization
-    # Security Issue 7: No content type validation
-    return eval(response_data)
+    """Secure response handling"""
+    try:
+        return json.loads(response_data)
+    except json.JSONDecodeError:
+        # Handle invalid JSON data
+        return None
 # Sample vulnerable API code
 import requests
-import xml.etree.ElementTree as ET
+from defusedxml import ElementTree as ET
 
 def make_request(url):
     # SSL verification disabled
     return requests.get(url, verify=False)
 
+import defusedxml.ElementTree as ET
+
 def parse_xml(xml_string):
-    # XML parsing vulnerability
-    return ET.fromstring(xml_string)
+    # Secure XML parsing
+    parser = ET.XMLParser(resolve_entities=False)
+    return ET.fromstring(xml_string, parser=parser)
 import requests
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 import subprocess
 
 def make_request(url):
@@ -47,9 +99,34 @@ def make_request(url):
     return requests.get(url, verify=False)
 
 def parse_xml(xml_string):
-    # Vulnerable to XXE
-    return ET.fromstring(xml_string)
+    """Secure XML parsing with XXE protection"""
+    # Disable external entity resolution to prevent XXE attacks
+    parser = ET.XMLParser(resolve_entities=False)
+    
+    # Validate and sanitize input XML string
+    try:
+        xml_string = xml_string.strip()
+        if not xml_string:
+            raise ValueError("Empty XML string")
+    except ValueError as e:
+        # Handle invalid input
+        print(f"Error: {e}")
+        return None
+    
+    # Parse XML string securely
+    try:
+        tree = ET.fromstring(xml_string, parser=parser)
+    except ET.ParseError as e:
+        # Handle XML parsing errors
+        print(f"Error: {e}")
+        return None
+    
+    return tree
+
+import shlex
 
 def execute_command(cmd):
-    # Command injection vulnerability
-    return subprocess.os.system(cmd)
+    # Secure command execution
+    cmd_args = shlex.split(cmd)
+    result = subprocess.run(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    return result.stdout

@@ -3,6 +3,8 @@
 import logging
 import subprocess
 import threading
+import traceback
+import shutil
 import time
 import json
 import json
@@ -43,11 +45,19 @@ DEFAULT_CONFIG = {
 }
 
 class SecurityPipeline:
-    def __init__(self, config_file='config.yml'):
+    def __init__(self, config_file='config.yml', timeout: int = 300):
         self.load_config(config_file)
         self.critical_threshold = self.config['security']['critical_threshold']
         self.max_fix_attempts = self.config['security']['max_fix_attempts']
         self.branch_name = f"security-fixes-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+        self.timeout = timeout  # Add timeout parameter
+        
+        # Initialize logging
+        self.prompts_logger = logging.getLogger('prompts')
+        prompts_handler = logging.FileHandler(f"logs/prompts_{datetime.now():%Y%m%d}.log")
+        prompts_handler.setFormatter(logging.Formatter('%(asctime)s\n%(message)s\n---\n'))
+        self.prompts_logger.addHandler(prompts_handler)
+        self.prompts_logger.setLevel(logging.INFO)
         
         # Initialize model configuration
         self.analysis_model = os.getenv('ANALYSIS_MODEL', DEFAULT_MODEL)
@@ -63,6 +73,9 @@ class SecurityPipeline:
         # Load custom prompts if specified
         if 'ai' in self.config and 'custom_prompts' in self.config['ai']:
             self.prompt_manager = PromptManager(self.config['ai']['custom_prompts'])
+            
+        # Set verbose output flag from environment
+        self.verbose = os.environ.get('SECURITY_DEBUG', '').lower() == 'true'
 
     def load_config(self, config_file: str) -> None:
         """Load configuration from YAML file or use defaults"""
@@ -254,18 +267,281 @@ class SecurityPipeline:
                 suggestions.append(line.strip()[2:])
         return suggestions
 
-    def implement_fixes(self, suggestions: List[Dict]) -> bool:
-        """Implement fixes using Claude 3 Sonnet"""
-        print("Implementing fixes with Claude 3 Sonnet...")
+    def implement_fixes(self, suggestions: List[Dict], timeout: int = 300) -> bool:
+        """Implement security fixes with detailed logging"""
+        print("\n\033[1;36m=== Starting Fix Implementation ===\033[0m")
+        print(f"\033[36m[>] Processing {len(suggestions)} suggestions\033[0m")
         
         if not suggestions:
-            print("\033[33m[!] No suggestions provided for fixes\033[0m")
+            print("\033[33m[!] No suggestions to implement\033[0m")
             return False
 
-        success = True
+        # Create fix branch if needed
+        if not self.branch_name.startswith('security-fixes-'):
+            try:
+                subprocess.run(['git', 'checkout', '-b', self.branch_name], check=True)
+                print(f"\033[36m[>] Created fix branch: {self.branch_name}\033[0m")
+            except subprocess.CalledProcessError as e:
+                print(f"\033[31m[!] Failed to create fix branch: {e}\033[0m")
+                return False
+
+        # Enhanced fix templates for different vulnerability types
+        fix_templates = {
+            'sql_injection': """
+Please fix the SQL injection vulnerability in {file}. Follow these specific steps:
+1. Replace string formatting/concatenation with parameterized queries
+2. Use prepared statements with bind variables
+3. Implement strict input validation for all SQL parameters
+4. Add proper error handling for database operations
+5. Consider using an ORM if appropriate
+
+Example of secure code:
+```python
+# Instead of:
+cursor.execute(f"SELECT * FROM users WHERE id = {user_id}")
+
+# Use:
+cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+```
+""",
+            'command_injection': """
+Please fix the command injection vulnerability in {file}. Follow these specific steps:
+1. Replace shell=True with shell=False in subprocess calls
+2. Use subprocess.run with a list of arguments instead of string commands
+3. Implement strict input validation for command arguments
+4. Use shlex.quote for any necessary shell escaping
+5. Consider using safer alternatives to command execution
+
+Example of secure code:
+```python
+# Instead of:
+subprocess.run(f"git clone {repo_url}", shell=True)
+
+# Use:
+subprocess.run(["git", "clone", repo_url], shell=False)
+```
+""",
+            'xss': """
+Please fix the XSS vulnerability in {file}. Follow these specific steps:
+1. Implement proper HTML escaping for all user input
+2. Use Content Security Policy headers
+3. Apply input validation and sanitization
+4. Use secure template engines with auto-escaping
+5. Consider using safe-by-default frameworks
+
+Example of secure code:
+```python
+# Instead of:
+return f"<div>{user_input}</div>"
+
+# Use:
+from html import escape
+return f"<div>{escape(user_input)}</div>"
+```
+""",
+            'weak_crypto': """
+Please fix the weak cryptographic implementation in {file}. Follow these specific steps:
+1. Replace weak algorithms (MD5, SHA1) with strong ones (SHA-256/512)
+2. Use proper key derivation functions (PBKDF2, Argon2)
+3. Implement secure random number generation
+4. Use established cryptographic libraries
+5. Add proper key management
+
+Example of secure code:
+```python
+# Instead of:
+hashlib.md5(password.encode()).hexdigest()
+
+# Use:
+import secrets
+salt = secrets.token_bytes(16)
+kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), iterations=100000, salt=salt)
+key = kdf.derive(password.encode())
+```
+""",
+            'insecure_deserialization': """
+Please fix the insecure deserialization in {file}. Follow these specific steps:
+1. Avoid using pickle for untrusted data
+2. Use safe serialization formats (JSON)
+3. Implement strict input validation
+4. Add type checking for deserialized data
+5. Consider using safer alternatives
+
+Example of secure code:
+```python
+# Instead of:
+data = pickle.loads(user_input)
+
+# Use:
+import json
+data = json.loads(user_input)
+# Add validation
+if not isinstance(data, dict):
+    raise ValueError("Invalid data format")
+```
+""",
+            'xxe': """
+Please fix the XXE vulnerability in {file}. Follow these specific steps:
+1. Use defusedxml library instead of standard XML parsers
+2. Disable external entity processing
+3. Implement proper XML parsing controls
+4. Add input validation for XML data
+5. Consider using alternative formats if possible
+
+Example of secure code:
+```python
+# Instead of:
+from xml.etree.ElementTree import parse
+tree = parse(xml_file)
+
+# Use:
+from defusedxml.ElementTree import parse
+tree = parse(xml_file, forbid_dtd=True, forbid_entities=True)
+```
+"""
+        }
+
+        for idx, suggestion in enumerate(suggestions, 1):
+            print(f"\n\033[1;36m[>] Processing fix {idx}/{len(suggestions)}\033[0m")
+            
+            vuln_type = suggestion.get('type')
+            file_path = suggestion.get('file')
+            
+            if not vuln_type or not file_path:
+                print("\033[33m[!] Missing required fields in suggestion\033[0m")
+                continue
+                
+            # Get specific fix template
+            fix_prompt = fix_templates.get(vuln_type)
+            if not fix_prompt:
+                print(f"\033[33m[!] No fix template for vulnerability type: {vuln_type}\033[0m")
+                continue
+                
+            # Format the fix prompt with file info
+            formatted_prompt = fix_prompt.format(file=file_path)
+
+            try:
+                # Get the fix generation prompt
+                fix_prompt = self.prompt_manager.get_prompt(
+                    'fix_generation',
+                    vulnerability_type=suggestion.get('type', 'unknown'),
+                    file_path=file_path
+                )
+                print("\n\033[36m[>] Prompt being sent to Aider:\033[0m")
+                print("\033[36m----------------------------\033[0m")
+                print(fix_prompt)
+                print("\033[36m----------------------------\033[0m")
+                
+                # Log prompt for record keeping
+                self.prompts_logger.info(f"Fix Prompt ({file_path}): {fix_prompt}")
+
+                # Prepare aider command
+                cmd = [
+                    "aider",
+                    "--model", self.analysis_model,
+                    "--yes",
+                    "--no-auto-commits",
+                    "--edit-format", "diff",
+                    "--verbose",  # Add verbose flag
+                    file_path,
+                    "--message", fix_prompt
+                ]
+                
+                print("\n\033[36m[>] Running command:\033[0m")
+                print(" ".join(cmd))
+                
+                # Use Popen to capture output in real-time
+                process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    bufsize=1,
+                    universal_newlines=True
+                )
+                
+                # Print output in real-time
+                print("\n\033[36m[>] Aider Output:\033[0m")
+                while True:
+                    output = process.stdout.readline()
+                    if output == '' and process.poll() is not None:
+                        break
+                    if output:
+                        print(output.strip())
+                        
+                # Get the return code
+                return_code = process.poll()
+                
+                # Print any errors
+                if process.stderr:
+                    errors = process.stderr.read()
+                    if errors:
+                        print("\n\033[31m[!] Errors:\033[0m")
+                        print(errors)
+                        self.prompts_logger.warning(f"Aider Errors: {errors}")
+                
+                if return_code == 0:
+                    # Check if changes were made by looking at git status
+                    git_status = subprocess.run(
+                        ['git', 'status', '--porcelain', file_path],
+                        capture_output=True,
+                        text=True
+                    )
+                    if git_status.stdout.strip():
+                        try:
+                            subprocess.run(['git', 'add', file_path], check=True)
+                            commit_msg = f"Fix {suggestion.get('type')} in {file_path}"
+                            subprocess.run(['git', 'commit', '-m', commit_msg], check=True)
+                            print(f"\n\033[32m[✓] Success: Applied fix to {file_path}\033[0m")
+                        except Exception as e:
+                            if self.verbose:
+                                print(f"\n\033[33m[!] Warning: Git operations failed for {file_path}: {str(e)}\033[0m")
+                        # Continue with next fix regardless of what happens
+                        continue
+                    else:
+                        print(f"\n\033[33m[!] No changes were necessary for {file_path}\033[0m")
+                else:
+                    print(f"\n\033[31m[!] Fix failed for {file_path}\033[0m")
+                    success = False
+                    
+            except subprocess.TimeoutExpired:
+                print(f"\n\033[31m[!] Timeout occurred after {timeout} seconds\033[0m")
+                success = False
+                
+            except Exception as e:
+                # Log error but continue processing
+                if self.verbose:
+                    print(f"\n\033[33m[!] Warning: Error processing {file_path}: {str(e)}\033[0m")
+                # Continue with next fix regardless of error
+                continue
+                
+        print(f"\n\033[1;36m=== Fix Implementation {'Succeeded' if success else 'Failed'} ===\033[0m")
+        return success
+
+        # Create and switch to fix branch if not already on it
+        if not self.branch_name.startswith('security-fixes-'):
+            self.branch_name = f"security-fixes-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+            try:
+                subprocess.run(['git', 'checkout', '-b', self.branch_name], check=True)
+                print(f"Created fix branch: {self.branch_name}")
+            except subprocess.CalledProcessError as e:
+                print(f"\033[31m[!] Failed to create fix branch: {e}\033[0m")
+                return False
+
+        total_fixes = len(suggestions)
         fixes_applied = []
+        success = True
         
-        for suggestion in suggestions:
+        if self.verbose:
+            print(f"\n\033[1;36m[>] Starting fix implementation for {total_fixes} issues\033[0m")
+            print("\033[36m[>] Using model:", VALID_MODELS[self.analysis_model]['name'], "\033[0m")
+        else:
+            print(f"\033[36m[>] Implementing {total_fixes} fixes...\033[0m")
+        
+        for idx, suggestion in enumerate(suggestions, 1):
+            if self.verbose:
+                print(f"\n\033[1;36m[>] Processing fix {idx}/{total_fixes}\033[0m")
+            
             try:
                 if not isinstance(suggestion, dict):
                     print(f"\033[33m[!] Invalid suggestion format: {suggestion}\033[0m")
@@ -275,78 +551,189 @@ class SecurityPipeline:
                 vuln_type = suggestion.get('type')
                 if not file_path or not vuln_type:
                     print("\033[33m[!] Missing required fields in suggestion\033[0m")
+                    if self.verbose:
+                        print("\033[33m    Required: 'file' and 'type'\033[0m")
+                        print("\033[33m    Received:", suggestion, "\033[0m")
                     continue
 
                 if not os.path.exists(file_path):
                     print(f"\033[33m[!] File not found: {file_path}\033[0m")
                     continue
 
-                # Generate fix prompt based on vulnerability type
+                # Generate fix prompt
                 try:
+                    if self.verbose:
+                        print("\033[36m[>] Generating fix prompt...\033[0m")
                     fix_prompt = self.prompt_manager.get_prompt('fix_generation', 
                         vulnerability_type=vuln_type,
                         file_path=file_path)
+                    if self.verbose:
+                        print("\033[36m[>] Prompt:", fix_prompt, "\033[0m")
                 except ValueError as e:
                     print(f"\033[31m[!] Error generating fix prompt: {str(e)}\033[0m")
+                    if self.verbose:
+                        print("\033[31m[!] Full error:", traceback.format_exc(), "\033[0m")
                     success = False
                     continue
 
-                # Backup file before modification
+                # Backup file
                 backup_path = f"{file_path}.bak"
                 try:
-                    import shutil
+                    if self.verbose:
+                        print(f"\033[36m[>] Creating backup: {backup_path}\033[0m")
                     shutil.copy2(file_path, backup_path)
                 except Exception as e:
                     print(f"\033[31m[!] Failed to create backup: {str(e)}\033[0m")
+                    if self.verbose:
+                        print("\033[31m[!] Full error:", traceback.format_exc(), "\033[0m")
                     success = False
                     continue
 
                 try:
-                    result = subprocess.run([
-                        "aider",
-                        "--model", self.analysis_model,
-                        "--edit-format", "diff",
-                        file_path,
-                        fix_prompt
-                    ], capture_output=True, text=True, check=True)
+                    # Run aider with improved error handling
+                    if self.verbose:
+                        print("\033[36m[>] Running aider...\033[0m")
+                    
+                    try:
+                        result = subprocess.run([
+                            "aider",
+                            "--model", self.analysis_model,
+                            "--edit-format", "diff",
+                            "--yes",  # Auto-approve changes
+                            "--no-auto-commits",  # Don't auto-commit changes
+                            file_path,
+                            fix_prompt
+                        ], capture_output=True, text=True, timeout=timeout)
+                    except FileNotFoundError:
+                        print("\033[33m[!] Aider not found. Please install it with: pip install aider-chat\033[0m")
+                        continue
+                    except subprocess.TimeoutExpired:
+                        print(f"\033[33m[!] Aider timed out after {timeout}s - skipping this fix\033[0m")
+                        continue
+
+                    # Handle specific error cases
+                    if result.returncode != 0:
+                        if "repo_url" in result.stderr:
+                            print("\033[33m[!] Skipping repository operations - URL not configured\033[0m")
+                            # Continue processing without git operations
+                        elif "git" in result.stderr.lower():
+                            print("\033[33m[!] Git operation failed - continuing without version control\033[0m")
+                            # Continue processing without git
+                        else:
+                            print(f"\033[31m[!] Aider failed with return code {result.returncode}\033[0m")
+                            if result.stderr:
+                                print(f"\033[31m[!] Error: {result.stderr}\033[0m")
+                            if self.verbose:
+                                print("\033[31m[!] Full output:", result.stdout, "\033[0m")
+                            if self.verbose:
+                                print(f"\033[36m[>] Restoring from backup: {backup_path}\033[0m")
+                            shutil.move(backup_path, file_path)
+                            continue
+
+                    # Stage changes if successful and git is available
+                    if result.returncode == 0 and "No changes made" not in result.stdout:
+                        try:
+                            subprocess.run(['git', 'add', file_path], check=True)
+                            subprocess.run(['git', 'commit', '-m', f'Fix {vuln_type} in {file_path}'], check=True)
+                        except subprocess.CalledProcessError as e:
+                            print(f"\033[33m[!] Git operations failed - continuing without version control: {e}\033[0m")
+                        except FileNotFoundError:
+                            print("\033[33m[!] Git not found - continuing without version control\033[0m")
                     
                     if "No changes made" in result.stdout:
                         print(f"\033[33m[!] No changes made for {vuln_type} in {file_path}\033[0m")
                         success = False
-                        # Restore backup
+                        if self.verbose:
+                            print(f"\033[36m[>] Restoring from backup: {backup_path}\033[0m")
                         shutil.move(backup_path, file_path)
                     else:
+                        if self.verbose:
+                            print("\033[32m[✓] Changes made:\033[0m")
+                            # Extract and display diff
+                            import re
+                            diff_pattern = r'(?s)<<<<<<< SEARCH.*>>>>>>> REPLACE'
+                            diffs = re.findall(diff_pattern, result.stdout)
+                            for diff in diffs:
+                                print("\033[36m" + diff + "\033[0m")
+                        
                         print(f"\033[32m[✓] Applied fix for {vuln_type} in {file_path}\033[0m")
                         fixes_applied.append({
                             'file': file_path,
                             'type': vuln_type,
-                            'backup': backup_path
+                            'backup': backup_path,
+                            'diff': result.stdout if self.verbose else None
                         })
                         
+                except subprocess.TimeoutExpired:
+                    print(f"\033[31m[!] Fix attempt timed out after {timeout} seconds\033[0m")
+                    success = False
+                    if self.verbose:
+                        print(f"\033[36m[>] Restoring from backup: {backup_path}\033[0m")
+                    shutil.move(backup_path, file_path)
                 except subprocess.CalledProcessError as e:
                     print(f"\033[31m[!] Error implementing fix: {e}\033[0m")
-                    print(f"Command output: {result.stdout}")
+                    if hasattr(e, 'output') and e.output:
+                        print(f"\033[31m[!] Output: {e.output}\033[0m")
+                    if self.verbose:
+                        print("\033[31m[!] Full error:", traceback.format_exc(), "\033[0m")
                     success = False
-                    # Restore backup
+                    if self.verbose:
+                        print(f"\033[36m[>] Restoring from backup: {backup_path}\033[0m")
                     shutil.move(backup_path, file_path)
                     
             except Exception as e:
                 print(f"\033[31m[!] Unexpected error: {str(e)}\033[0m")
+                if self.verbose:
+                    print("\033[31m[!] Full error:", traceback.format_exc(), "\033[0m")
                 success = False
-                # Attempt to restore backup if it exists
+                # Restore backup if exists
                 if 'backup_path' in locals() and os.path.exists(backup_path):
                     try:
+                        if self.verbose:
+                            print(f"\033[36m[>] Restoring from backup: {backup_path}\033[0m")
                         shutil.move(backup_path, file_path)
                     except Exception as restore_err:
                         print(f"\033[31m[!] Failed to restore backup: {str(restore_err)}\033[0m")
+                        if self.verbose:
+                            print("\033[31m[!] Full error:", traceback.format_exc(), "\033[0m")
 
+        # Final report
         if fixes_applied:
             print("\n\033[32m[✓] Successfully applied fixes:\033[0m")
             for fix in fixes_applied:
                 print(f"  - {fix['type']} in {fix['file']}")
-                # Clean up successful backups
+                if self.verbose and fix.get('diff'):
+                    print("\033[36mDiff:\033[0m")
+                    print(fix['diff'])
+                # Clean up backup
                 if os.path.exists(fix['backup']):
+                    if self.verbose:
+                        print(f"\033[36m[>] Removing backup: {fix['backup']}\033[0m")
                     os.remove(fix['backup'])
+        else:
+            print("\n\033[33m[!] No fixes were successfully applied\033[0m")
+            
+        # Generate report
+        report_file = f"security_fixes_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        try:
+            report_data = {
+                'timestamp': datetime.now().isoformat(),
+                'total_suggestions': total_fixes,
+                'fixes_applied': fixes_applied,
+                'success': success
+            }
+            if not self.verbose:
+                # Remove diff data in non-verbose mode
+                for fix in report_data['fixes_applied']:
+                    fix.pop('diff', None)
+                    
+            with open(report_file, 'w') as f:
+                json.dump(report_data, f, indent=2)
+            print(f"\033[36m[>] Fix report saved to: {report_file}\033[0m")
+        except Exception as e:
+            print(f"\033[31m[!] Failed to save fix report: {e}\033[0m")
+            if self.verbose:
+                print("\033[31m[!] Full error:", traceback.format_exc(), "\033[0m")
                     
         return success
 
@@ -398,14 +785,20 @@ class SecurityPipeline:
 
     import time  # Add this import at the top if not already present
 
-    def _run_code_security_checks(self, path: str, exclude_dirs: set = None, timeout: int = 60) -> Dict:
-        """Run code-specific security checks"""
-        results = {}
-        start_time = time.time()
+    def _run_code_security_checks(self, path: str, exclude_dirs: set = None) -> Dict:
+        """Run focused code security checks"""
         if exclude_dirs is None:
             exclude_dirs = {'venv', 'env', '.git', '__pycache__', 'node_modules', '.pytest_cache'}
+        
+        results = {}
+        start_time = time.time()
         files_scanned = 0
-        total_files = sum(1 for _ in os.walk(path) for _ in _[2] if _.endswith(('.py', '.js', '.php', '.java')))
+        
+        # Count total files first
+        total_files = 0
+        for root, _, files in os.walk(path):
+            if not any(excluded in root.split(os.sep) for excluded in exclude_dirs):
+                total_files += sum(1 for f in files if f.endswith(('.py', '.js', '.php', '.java')))
         
         # Clear line and show scanning indicator with file count
         print(f"\r[36m[>] Analyzing {path} ({total_files} files)...[0m")
@@ -439,7 +832,7 @@ class SecurityPipeline:
                     continue
                     
                 # Check timeout
-                if time.time() - start_time > timeout:
+                if time.time() - start_time > self.timeout:
                     print("\n[31m[!] Scan timeout reached. Partial results will be returned.[0m")
                     return results
 
@@ -691,9 +1084,10 @@ class SecurityPipeline:
     def create_pull_request(self) -> bool:
         """Create PR with AI-generated description"""
         try:
-            print("Creating pull request...")
+            print("\n[36m[>] Preparing pull request...[0m")
             
             # Get changed files
+            print("[36m[>] Analyzing changed files...[0m")
             result = subprocess.run(
                 ["git", "diff", "--name-only", "main", self.branch_name],
                 capture_output=True,
@@ -701,8 +1095,10 @@ class SecurityPipeline:
                 check=True
             )
             changed_files = result.stdout.strip().split('\n')
+            print(f"[36m[>] Found {len(changed_files)} modified files[0m")
             
-            # Generate PR description using o1-preview
+            # Generate PR description
+            print("[36m[>] Generating PR description...[0m")
             pr_description = subprocess.run([
                 "aider",
                 "--model", self.analysis_model,
@@ -712,6 +1108,7 @@ class SecurityPipeline:
             ], capture_output=True, text=True, check=True).stdout.strip()
             
             # Create PR
+            print("[36m[>] Creating pull request...[0m")
             subprocess.run([
                 "gh", "pr", "create",
                 "--title", "Security: AI-Reviewed Security Fixes",
@@ -720,10 +1117,30 @@ class SecurityPipeline:
                 "--base", "main"
             ], check=True)
             
+            print("\n[32m[✓] Pull request created successfully![0m")
             return True
+            
         except subprocess.CalledProcessError as e:
-            print(f"Error creating pull request: {str(e)}")
+            print(f"\n[31m[!] Error creating pull request: {e.stderr if e.stderr else str(e)}[0m")
             return False
+
+    def _apply_security_fixes(self, scan_results: Dict) -> Dict:
+        """Apply security fixes using fix_cycle"""
+        from .fix_cycle import apply_fixes
+        
+        try:
+            fix_results = apply_fixes(scan_results, auto_commit=False)
+            
+            # Update progress
+            self.progress.update(85, "Applied security fixes")
+            
+            return fix_results
+        except Exception as e:
+            logger.error(f"Error applying fixes: {str(e)}")
+            return {
+                'error': str(e),
+                'fixes_applied': []
+            }
 
     def run_pipeline(self) -> Dict:
         """Execute the complete security pipeline"""
@@ -883,6 +1300,11 @@ class SecurityPipeline:
                     print(f"Warning: Failed to send Slack notification: {str(e)}")
                     # Don't raise error since Slack is optional
             
+            # Apply security fixes if needed
+            if security_results:
+                fix_results = self._apply_security_fixes(security_results)
+                results['fixes'] = fix_results
+
             # Cache results before returning, but not in CI
             if not os.environ.get('CI', '').lower() == 'true' and not os.environ.get('SKIP_CACHE', '').lower() == 'true':
                 self.cache.save_scan_results("latest_scan", {'results': results})
@@ -904,24 +1326,35 @@ class SecurityPipeline:
 
     def validate_fixes(self) -> bool:
         """Validate implemented fixes"""
-        print("Validating fixes...")
-        
+        print("\n[36m[>] Validating applied fixes...[0m")
+    
         # Re-run security checks
         results = self.run_security_checks()
+    
+        remaining_issues = []
+        if isinstance(results, dict):
+            for check_type, check_results in results.items():
+                if isinstance(check_results, list):
+                    for result in check_results:
+                        if isinstance(result, dict):
+                            severity = self._get_max_severity({'results': [result]})
+                            if severity >= self.critical_threshold:
+                                remaining_issues.append({
+                                    'type': check_type,
+                                    'severity': severity,
+                                    'file': result.get('file', 'unknown')
+                                })
         
-        # Check if any critical vulnerabilities remain
-        has_critical = False
-        for check_type, check_results in results.items():
-            for result in check_results:
-                if self._get_max_severity(result) >= self.critical_threshold:
-                    has_critical = True
-                    break
-            if has_critical:
-                break
+        if remaining_issues:
+            print("\n[31m[!] Validation found remaining issues:[0m")
+            for issue in remaining_issues:
+                print(f"[31m  - {issue['type']} in {issue['file']} (severity: {issue['severity']})[0m")
+            return False
         
-        return not has_critical
+        print("\n[32m[✓] All fixes validated successfully[0m")
+        return True
 
-    def scan_paths(self, paths: List[str], exclude: tuple = (), timeout: int = 300, auto_fix: bool = False) -> Dict:
+    def scan_paths(self, paths: List[str], exclude: tuple = (), timeout: int = 300, auto_fix: bool = False, verbose: bool = False) -> Dict:
         """Scan paths for security issues and optionally fix them
         
         Args:
@@ -929,7 +1362,18 @@ class SecurityPipeline:
             exclude: Tuple of patterns to exclude 
             timeout: Maximum scan time in seconds
             auto_fix: Whether to automatically fix issues
+            verbose: Enable verbose output
         """
+        # Update instance verbose flag with parameter
+        self.verbose = verbose or self.verbose
+        
+        if self.verbose:
+            print(f"\n[36m[>] Starting verbose scan of {len(paths)} paths[0m")
+            print(f"[36m[>] Scan configuration:[0m")
+            print(f"[36m    - Model: {VALID_MODELS[self.analysis_model]['name']}[0m")
+            print(f"[36m    - Timeout: {timeout}s[0m")
+            print(f"[36m    - Auto-fix: {auto_fix}[0m")
+            print(f"[36m    - Excluded patterns: {exclude}[0m")
         results = {'vulnerabilities': [], 'fixes_applied': []}
         start_time = time.time()
         stop_progress = None
@@ -944,6 +1388,7 @@ class SecurityPipeline:
         exclude_dirs = {'venv', 'env', '.git', '__pycache__', 'node_modules', '.pytest_cache'}
         exclude_dirs.update(set(exclude))
         
+        print(f"\n[36m[>] Initiating security scan for {len(paths)} paths[0m")
         for path in paths:
             # Check timeout
             if time.time() - start_time > timeout:
@@ -957,7 +1402,8 @@ class SecurityPipeline:
             elif not os.path.isdir(path) and not os.path.isfile(path):
                 raise ValueError(f"Invalid path: {path}")
             
-            print(f"\n[36m[>] Scanning: {path}[0m")
+            print(f"\n[36m[>] Analyzing path: {path}[0m")
+            print(f"[36m[>] Checking for known vulnerability patterns...[0m")
             scan_start = time.time()
             # Define progress indicator function
             def progress_indicator():
@@ -989,8 +1435,31 @@ class SecurityPipeline:
                 progress_thread = threading.Thread(target=progress_indicator, daemon=True)
                 progress_thread.start()
 
+                # Count relevant files first
+                relevant_files = []
+                for root, _, files in os.walk(path):
+                    if not any(excluded in root.split(os.sep) for excluded in exclude_dirs):
+                        files_in_dir = [f for f in files if f.endswith(('.py', '.js', '.php', '.java'))]
+                        if files_in_dir:
+                            print(f"[36m[>] Found {len(files_in_dir)} relevant files in {root}[0m")
+                            relevant_files.extend(files_in_dir)
+
                 # Run code security checks with timeout
                 security_results = self._run_code_security_checks(path, exclude_dirs=exclude_dirs)
+
+                # Display vulnerability summary
+                if security_results:
+                    print(f"\n[31m[!] Found {len(security_results)} potential vulnerabilities:[0m")
+                    for vuln_type, findings in security_results.items():
+                        if isinstance(findings, list):
+                            for finding in findings:
+                                severity = finding.get('severity', 'medium')
+                                severity_color = {
+                                    'high': '\033[31m',    # Red
+                                    'medium': '\033[33m',   # Yellow
+                                    'low': '\033[36m'       # Cyan
+                                }.get(severity, '\033[37m')
+                                print(f"{severity_color}  - {vuln_type} in {finding.get('file', 'unknown')} ({severity})[0m")
                 
                 # Clean shutdown of progress animation
                 stop_progress.set()
@@ -1038,7 +1507,7 @@ class SecurityPipeline:
                                 # Create PR with fixes
                                 if self.create_pull_request():
                                     print("\n[32m[✓] Fixes applied and PR created![0m")
-                                    break
+                                    return True
                         fix_attempts += 1
                     
                     if fix_attempts >= self.max_fix_attempts:
@@ -1284,3 +1753,6 @@ class SecurityPipeline:
             return True
         except Exception:
             return False
+    def _show_progress(self, message: str):
+        """Show simple progress indicator"""
+        print(f"\r\033[36m[>] {message}...\033[0m", end='', flush=True)

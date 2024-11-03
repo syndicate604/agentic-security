@@ -6,9 +6,44 @@ import sys
 from pathlib import Path
 import logging
 import difflib
+from typing import Dict, List, Optional, Union
+import json
+from datetime import datetime
 
-logging.basicConfig(level=logging.INFO)
+# Configure logging with more detailed format
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 logger = logging.getLogger(__name__)
+
+# Add file handlers to save logs
+log_dir = Path("logs")
+log_dir.mkdir(exist_ok=True)
+
+# General log file
+file_handler = logging.FileHandler(log_dir / f"fix_cycle_{datetime.now():%Y%m%d}.log")
+file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+logger.addHandler(file_handler)
+
+# Dedicated prompts and responses log file
+prompts_handler = logging.FileHandler(log_dir / f"prompts_responses_{datetime.now():%Y%m%d}.log")
+prompts_handler.setFormatter(logging.Formatter('%(asctime)s\n%(message)s\n---\n'))
+prompts_handler.setLevel(logging.INFO)
+prompts_logger = logging.getLogger('prompts')
+prompts_logger.addHandler(prompts_handler)
+prompts_logger.setLevel(logging.INFO)
+
+# Add file handler to save logs
+try:
+    log_dir = Path("logs")
+    log_dir.mkdir(exist_ok=True)
+    file_handler = logging.FileHandler(log_dir / f"fix_cycle_{datetime.now():%Y%m%d}.log")
+    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    logger.addHandler(file_handler)
+except Exception as e:
+    logger.warning(f"Failed to set up file logging: {e}")
 
 class FixCycle:
     def __init__(self, files, message, max_attempts=3):
@@ -100,6 +135,8 @@ class FixCycle:
         attempts = 0
         while attempts < self.max_attempts:
             logger.info(f"\nAttempt {attempts + 1}/{self.max_attempts}")
+            logger.info("Fix message:")
+            logger.info(self.message)
             
             try:
                 # Apply fixes using aider with direct message passing
@@ -113,6 +150,13 @@ class FixCycle:
                 
                 if result.returncode == 0:
                     logger.info("Aider completed successfully")
+                    
+                    # Log aider response
+                    logger.info("Aider response:")
+                    logger.info(result.stdout)
+                    if result.stderr:
+                        logger.warning("Aider warnings/errors:")
+                        logger.warning(result.stderr)
                     
                     # Generate and log summary of changes
                     logger.info("\nSummary of changes made:")

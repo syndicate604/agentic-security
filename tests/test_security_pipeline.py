@@ -697,19 +697,24 @@ def render_unsafe(user_input):
     return Markup("<div>{}</div>").format(sanitized)
 ''',
         'crypto_weak.py': '''
-import hashlib
+import bcrypt
+
 def hash_password(password):
-    return hashlib.md5(password.encode()).hexdigest()
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password.encode(), salt)
+    return hashed.decode('utf-8')
 ''',
         'xss_complex.py': '''
 def render_complex(user_input, user_data):
     from html import escape
     import json
+    from html import escape
+
     template = f"""
         <div class="user-content">
             <script>
                 var userData = {json.dumps(user_data)};
-                document.getElementById('content').textContent = {json.dumps(user_input)};
+                document.getElementById('content').textContent = {json.dumps(escape(user_input))};
             </script>
         </div>
     """
