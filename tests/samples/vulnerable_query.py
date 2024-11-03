@@ -10,12 +10,21 @@ ALLOWED_TABLES: Dict[str, List[str]] = {
     'settings': ['id', 'preferences']
 }
 
-# Database configuration
+# Database configuration with validation
 DB_CONFIG = {
-    'timeout': 5.0,
+    'timeout': max(min(float(5.0), 30.0), 1.0),  # Clamp between 1-30 seconds
     'isolation_level': 'EXCLUSIVE',
     'check_same_thread': False
 }
+
+def validate_db_config(config: Dict) -> None:
+    """Validate database configuration parameters"""
+    if not isinstance(config.get('timeout'), (int, float)):
+        raise DatabaseError("Invalid timeout value")
+    if config.get('isolation_level') not in ('DEFERRED', 'IMMEDIATE', 'EXCLUSIVE'):
+        raise DatabaseError("Invalid isolation level")
+    if not isinstance(config.get('check_same_thread'), bool):
+        raise DatabaseError("Invalid check_same_thread value")
 
 # Cache for prepared statements
 STMT_CACHE = {}
@@ -149,9 +158,19 @@ def build_secure_column_query(columns: List[str], table_name: str) -> tuple[str,
         Tuple of (query_string, parameters)
     """
     validated_cols = validate_columns(table_name, columns)
-    placeholders = ','.join(['?'] * len(validated_cols))
-    query = f"SELECT {placeholders} FROM ?"
-    return query, validated_cols + [table_name]
+    validated_table = validate_table_name(table_name)
+    
+    # Build column list with proper quoting
+    column_list = ', '.join(f'"{col}"' for col in validated_cols)
+    
+    # Use a fixed query structure without string interpolation
+    query = f"""
+        SELECT {column_list} 
+        FROM "{validated_table}"
+        WHERE active = 1 
+        AND deleted_at IS NULL
+    """
+    return query, []  # No parameters needed since we validated and quoted everything
 
 def validate_columns(table_name: str, columns: List[str]) -> List[str]:
     """
@@ -308,10 +327,21 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
         if not isinstance(keyword, str):
             raise DatabaseError("Search keyword must be a string")
             
-        # Enhanced keyword validation
+        # Stricter keyword validation
         keyword = keyword.strip()
-        if not re.match(r'^[a-zA-Z0-9\s-]{3,50}$', keyword):
-            raise DatabaseError("Invalid search keyword format - must be 3-50 chars, alphanumeric with spaces and hyphens only")
+        if not keyword:
+            raise DatabaseError("Search keyword cannot be empty")
+            
+        if len(keyword) < 3 or len(keyword) > 50:
+            raise DatabaseError("Search keyword must be between 3 and 50 characters")
+            
+        # Only allow letters, numbers, spaces and hyphens
+        if not re.match(r'^[a-zA-Z0-9\s-]+$', keyword):
+            raise DatabaseError("Search keyword can only contain letters, numbers, spaces and hyphens")
+            
+        # Prevent common SQL injection patterns
+        if any(pattern in keyword.lower() for pattern in ['union', 'select', '--', ';', '/*', '*/']):
+            raise DatabaseError("Invalid search keyword")
         
         # Use all columns if none specified
         if columns is None:
