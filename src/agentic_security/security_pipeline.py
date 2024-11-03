@@ -309,12 +309,16 @@ class SecurityPipeline:
             print(f"Error creating pull request: {str(e)}")
             return False
 
-    def run_pipeline(self) -> Dict:
+    def run_pipeline(self) -> Union[Dict, bool]:
         """Execute the complete security pipeline"""
         try:
             # Check if we should skip cache
             skip_cache = getattr(self, '_skip_cache', False)
             
+            # Validate scan targets
+            if not any(target['type'] in ['web', 'code'] for target in self.config['security']['scan_targets']):
+                return False
+                
             results = {'status': True, 'reviews': []}
             self.progress.start("Starting security pipeline")
             
@@ -387,14 +391,15 @@ class SecurityPipeline:
             
             # Send notification
             try:
-                if 'SLACK_WEBHOOK' in os.environ:
-                    requests.post(
+                if os.environ.get('SLACK_WEBHOOK'):
+                    response = requests.post(
                         os.environ['SLACK_WEBHOOK'],
                         json={
                             'text': f'Security scan complete\nFindings: {len(results.get("reviews", []))} issues found'
                         },
                         timeout=10
                     )
+                    response.raise_for_status()
             except Exception as e:
                 print(f"Error sending notification: {str(e)}")
                 # Don't fail the pipeline on notification error
@@ -506,7 +511,10 @@ class SecurityPipeline:
         """Run a new security scan and cache results"""
         self.progress.update(20, "Running security checks")
         security_results = self.run_security_checks()
-        results = {'results': security_results}
+        results = {
+            'results': security_results,
+            'timestamp': datetime.now().isoformat()
+        }
         if not getattr(self, '_skip_cache', False):
             self.cache.save_scan_results(scan_id, results)
         return results
