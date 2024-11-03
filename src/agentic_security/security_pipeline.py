@@ -95,10 +95,15 @@ class SecurityPipeline:
         if missing_vars:
             raise OSError(f"Missing required environment variables: {', '.join(missing_vars)}")
 
-    def run_architecture_review(self) -> Dict:
-        """Run architecture review using configured AI model"""
+    def run_architecture_review(self, timeout: int = 300) -> Dict:
+        """Run architecture review using configured AI model
+        
+        Args:
+            timeout: Maximum time in seconds for review
+        """
         model_info = VALID_MODELS[self.analysis_model]
         print(f"Running architecture review with {model_info['name']}...")
+        start_time = time.time()
         
         # In CI mode, return mock suggestions for testing
         if os.environ.get('CI', '').lower() == 'true':
@@ -175,14 +180,16 @@ class SecurityPipeline:
                 # Pass files directly to Aider
                 # Use configured analysis model
                 model = self.analysis_model
+                remaining_time = max(30, int(timeout - (time.time() - start_time)))
                 result = subprocess.run([
                     "aider",
                     "--model", model,
                     "--edit-format", "diff",
                     "--no-git",  # Don't require git
+                    "--timeout", str(remaining_time),
                     *python_files,  # Pass files as separate arguments
                     "--message", review_prompt
-                ], capture_output=True, text=True, timeout=600)  # 10 minute timeout
+                ], capture_output=True, text=True, timeout=remaining_time)
                 
                 if result.returncode != 0:
                     error_msg = result.stderr.strip() if result.stderr else "Unknown error"
@@ -910,12 +917,13 @@ class SecurityPipeline:
         
         Args:
             paths: List of paths to scan
-            exclude: Tuple of patterns to exclude
+            exclude: Tuple of patterns to exclude 
             timeout: Maximum scan time in seconds
             auto_fix: Whether to automatically fix issues
         """
         results = {'vulnerabilities': [], 'fixes_applied': []}
         start_time = time.time()
+        stop_progress = threading.Event()
         
         # Add user exclusions to default excludes
         exclude_dirs = {'venv', 'env', '.git', '__pycache__', 'node_modules', '.pytest_cache'}
@@ -945,7 +953,7 @@ class SecurityPipeline:
                     colors = ["\033[32m", "\033[36m", "\033[35m", "\033[33m"]  # Green, Cyan, Magenta, Yellow
                     i = 0
                     state_idx = 0
-                    while True:
+                    while not stop_progress.is_set():
                         if time.time() - scan_start > timeout:
                             raise TimeoutError("\033[31m[CRITICAL] Neural Net Timeout - Connection Lost\033[0m")
                         
@@ -963,12 +971,16 @@ class SecurityPipeline:
                         time.sleep(0.1)
 
                 import threading
-                progress_thread = threading.Thread(target=progress_indicator, daemon=True)
-                progress_thread.start()
+                try:
+                    progress_thread = threading.Thread(target=progress_indicator, daemon=True)
+                    progress_thread.start()
 
                 # Run code security checks with timeout
                 security_results = self._run_code_security_checks(path, exclude_dirs=exclude_dirs)
-                print("\r" + " " * 50 + "\r", end='', flush=True)  # Clear progress indicator
+                # Clean shutdown of progress animation
+                stop_progress.set()
+                progress_thread.join(timeout=1.0)
+                print("\r" + " " * 80 + "\r", end='', flush=True)  # Clear progress indicator
                 
                 # Format results
                 for vuln_type, findings in security_results.items():
