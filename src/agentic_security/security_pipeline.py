@@ -1488,7 +1488,7 @@ tree = parse(xml_file, forbid_dtd=True, forbid_entities=True)
                                 # Create PR with fixes
                                 if self.create_pull_request():
                                     print("\n[32m[✓] Fixes applied and PR created![0m")
-                                    break
+                                    return True
                         fix_attempts += 1
                     
                     if fix_attempts >= self.max_fix_attempts:
