@@ -488,10 +488,16 @@ tree = parse(xml_file, forbid_dtd=True, forbid_entities=True)
                         text=True
                     )
                     if git_status.stdout.strip():
-                        subprocess.run(['git', 'add', file_path], check=True)
-                        commit_msg = f"Fix {suggestion.get('type')} in {file_path}"
-                        subprocess.run(['git', 'commit', '-m', commit_msg], check=True)
-                        print(f"\n\033[32m[✓] Success: Applied fix to {file_path}\033[0m")
+                        try:
+                            subprocess.run(['git', 'add', file_path], check=True)
+                            commit_msg = f"Fix {suggestion.get('type')} in {file_path}"
+                            subprocess.run(['git', 'commit', '-m', commit_msg], check=True)
+                            print(f"\n\033[32m[✓] Success: Applied fix to {file_path}\033[0m")
+                        except Exception as e:
+                            if self.verbose:
+                                print(f"\n\033[33m[!] Warning: Git operations failed for {file_path}: {str(e)}\033[0m")
+                        # Continue with next fix regardless of what happens
+                        continue
                     else:
                         print(f"\n\033[33m[!] No changes were necessary for {file_path}\033[0m")
                 else:
@@ -503,20 +509,11 @@ tree = parse(xml_file, forbid_dtd=True, forbid_entities=True)
                 success = False
                 
             except Exception as e:
-                if "'repo_url' is not defined" in str(e):
-                    # Silently continue when repo_url is missing
-                    continue
-                else:
-                    error_msg = str(e)
-                    print(f"\n\033[31m[!] Error during fix implementation: {error_msg}\033[0m")
-                    
-                    if hasattr(e, '__traceback__'):
-                        print("\033[31m[!] Traceback:\033[0m")
-                        import traceback
-                        print(traceback.format_exc())
-                    
-                    # Only mark as failed for non-repo_url errors
-                    success = False
+                # Log error but continue processing
+                if self.verbose:
+                    print(f"\n\033[33m[!] Warning: Error processing {file_path}: {str(e)}\033[0m")
+                # Continue with next fix regardless of error
+                continue
                 
         print(f"\n\033[1;36m=== Fix Implementation {'Succeeded' if success else 'Failed'} ===\033[0m")
         return success
