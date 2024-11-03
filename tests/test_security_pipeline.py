@@ -169,17 +169,31 @@ def test_pipeline_error_handling(pipeline, test_config):
     ]
     assert not pipeline.run_pipeline()
 
-def test_pipeline_performance(pipeline):
+def test_pipeline_performance(pipeline, tmp_path):
     """Test pipeline performance and caching"""
-    # First run - should take normal time
+    # Configure cache for test
+    pipeline.cache = SecurityCache(str(tmp_path))
+    
+    # Create test scan results
+    test_results = {
+        'web': [{'test': 'data'}],
+        'code': [{'test': 'data'}]
+    }
+    
+    # First run - save to cache
+    scan_id = datetime.now().strftime('%Y%m%d_%H%M%S')
+    pipeline.cache.save_scan_results(scan_id, test_results)
+    
+    # First pipeline run
     start_time = time.time()
     pipeline.run_pipeline()
     first_run_time = time.time() - start_time
     
-    # Second run - should be faster due to caching
+    # Second run - should use cached results
     start_time = time.time()
     pipeline.run_pipeline()
     second_run_time = time.time() - start_time
     
     # Second run should be faster due to caching
-    assert second_run_time < first_run_time
+    assert second_run_time < first_run_time, \
+           f"Second run ({second_run_time:.2f}s) was not faster than first run ({first_run_time:.2f}s)"
