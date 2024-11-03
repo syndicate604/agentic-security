@@ -588,9 +588,12 @@ def test_cache_in_ci(mock_run, pipeline, tmp_path):
 
 @pytest.mark.parametrize('test_file,expected_findings', [
     ('sql_injection.py', ['sql_injection']),
-    ('command_injection.py', ['command_injection']),
+    ('command_injection.py', ['command_injection']), 
     ('xss_vulnerability.py', ['xss']),
     ('crypto_weak.py', ['weak_crypto']),
+    ('xss_complex.py', ['xss']),
+    ('xss_dom.py', ['xss']),
+    ('xss_stored.py', ['xss'])
 ])
 def test_specific_vulnerability_detection(pipeline, tmp_path, test_file, expected_findings):
     """Test detection of specific vulnerability types"""
@@ -617,6 +620,42 @@ def render_unsafe(user_input):
 import hashlib
 def hash_password(password):
     return hashlib.md5(password.encode()).hexdigest()
+''',
+        'xss_complex.py': '''
+def render_complex(user_input, user_data):
+    template = f"""
+        <div class="user-content">
+            <script>
+                var userData = {user_data};
+                document.write("{user_input}");
+            </script>
+        </div>
+    """
+    return template
+''',
+        'xss_dom.py': '''
+def render_dom(user_input):
+    return f"""
+        <div id="content"></div>
+        <script>
+            document.getElementById("content").innerHTML = 
+                location.hash.substring(1);
+        </script>
+    """
+''',
+        'xss_stored.py': '''
+class UserProfile:
+    def __init__(self):
+        self.comments = []
+        
+    def add_comment(self, comment):
+        self.comments.append(comment)
+        
+    def render_comments(self):
+        return "".join([
+            f"<div class='comment'>{comment}</div>"
+            for comment in self.comments
+        ])
 '''
     }
     
