@@ -356,33 +356,6 @@ def review(path: tuple, output: str, verbose: bool, config: str):
         print_cyber_status(f"Error: {str(e)}", "error")
         sys.exit(1)
 
-@cli.command()
-@click.option('--path', '-p', multiple=True, help='Paths to review')
-@click.option('--output', '-o', type=click.Path(), help='Output markdown report path')
-@click.option('--verbose/--no-verbose', '-v/', default=False, help='Verbose output')
-@click.option('--config', '-c', default='config.yml', help='Path to configuration file')
-def review(path, output, verbose, config):
-    """Generate security review report"""
-    print_cyber_status("Security Review Report", "info")
-    
-    if not path:
-        path = ['.']
-        
-    try:
-        pipeline = SecurityPipeline(config)
-        
-        results = pipeline.review_paths(path, verbose)
-        
-        if output:
-            pipeline.generate_review_report(results, output)
-            print_cyber_status(f"Review report generated at {output}", "success")
-        else:
-            # Print review results to console
-            pipeline.print_review_results(results, verbose)
-            
-    except Exception as e:
-        print_cyber_status(f"Error: {str(e)}", "error")
-        sys.exit(1)
 
 def version():
     """Show version information"""
