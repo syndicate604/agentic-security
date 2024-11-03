@@ -459,7 +459,21 @@ def test_ci_pipeline_execution(mock_run, pipeline):
         elif 'aider' in command and '/ask' in command and 'Review' in command:
             command = 'architecture review'
         elif 'aider' in command and 'fix' in command.lower():
-            command = 'implement fixes'
+            suggestions = [
+                {
+                    'file': 'test.py',
+                    'type': 'xss',
+                    'severity': 'high',
+                    'description': 'XSS vulnerability found'
+                },
+                {
+                    'file': 'requirements.txt',
+                    'type': 'dependency',
+                    'severity': 'medium',
+                    'description': 'Outdated dependencies'
+                }
+            ]
+            command = f"implement fixes: {suggestions}"
         elif 'git checkout -b' in command:
             command = 'create branch'
         elif 'gh pr create' in command:
