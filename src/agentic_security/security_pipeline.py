@@ -164,11 +164,8 @@ class SecurityPipeline:
         files_scanned = 0
         total_files = sum(1 for _ in os.walk(path) for _ in _[2] if _.endswith(('.py', '.js', '.php', '.java')))
         
-        # Show scanning indicator with file count
-        print(f"[36m[>] Analyzing {path} ({total_files} files)...[0m")
-
-        # Directories to exclude
-        exclude_dirs = {'venv', 'env', '.git', '__pycache__', 'node_modules', '.pytest_cache'}
+        # Clear line and show scanning indicator with file count
+        print(f"\r[36m[>] Analyzing {path} ({total_files} files)...[0m")
         
         # Safe standard library functions that may be flagged
         safe_patterns = {
@@ -210,9 +207,9 @@ class SecurityPipeline:
                     file_path = os.path.join(root, file)
                     files_scanned += 1
                     
-                    # Update progress percentage
+                    # Clear line and update progress percentage
                     progress = (files_scanned / total_files) * 100 if total_files > 0 else 0
-                    print(f"\r[36m[>] Scanning: {progress:.1f}% complete ({files_scanned}/{total_files} files)[0m", end='', flush=True)
+                    print(f"\r[36m[>] Scanning: {progress:.1f}% complete ({files_scanned}/{total_files} files)[0m\033[K", end='', flush=True)
                     
                     try:
                         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
@@ -564,10 +561,14 @@ class SecurityPipeline:
         
         return not has_critical
 
-    def scan_paths(self, paths: List[str], timeout: int = 300) -> Dict:
+    def scan_paths(self, paths: List[str], exclude: tuple = (), timeout: int = 300) -> Dict:
         """Scan paths for security issues"""
         results = {'vulnerabilities': []}
         start_time = time.time()
+        
+        # Add user exclusions to default excludes
+        exclude_dirs = {'venv', 'env', '.git', '__pycache__', 'node_modules', '.pytest_cache'}
+        exclude_dirs.update(set(exclude))
         
         for path in paths:
             # Check timeout
