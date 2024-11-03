@@ -611,24 +611,16 @@ tree = parse(xml_file, forbid_dtd=True, forbid_entities=True)
                         print(f"\033[33m[!] Aider timed out after {timeout}s - skipping this fix\033[0m")
                         continue
 
-                    # Handle specific error cases
+                    # Handle non-zero return codes
                     if result.returncode != 0:
-                        if "repo_url" in result.stderr:
-                            print("\033[33m[!] Skipping repository operations - URL not configured\033[0m")
-                            # Continue processing without git operations
-                        elif "git" in result.stderr.lower():
-                            print("\033[33m[!] Git operation failed - continuing without version control\033[0m")
-                            # Continue processing without git
-                        else:
-                            print(f"\033[31m[!] Aider failed with return code {result.returncode}\033[0m")
-                            if result.stderr:
-                                print(f"\033[31m[!] Error: {result.stderr}\033[0m")
-                            if self.verbose:
-                                print("\033[31m[!] Full output:", result.stdout, "\033[0m")
-                            if self.verbose:
-                                print(f"\033[36m[>] Restoring from backup: {backup_path}\033[0m")
-                            shutil.move(backup_path, file_path)
-                            continue
+                        print(f"\033[31m[!] Aider failed with return code {result.returncode}\033[0m")
+                        if result.stderr and "git" not in result.stderr.lower():
+                            print(f"\033[31m[!] Error: {result.stderr}\033[0m")
+                        if self.verbose:
+                            print("\033[31m[!] Full output:", result.stdout, "\033[0m")
+                            print(f"\033[36m[>] Restoring from backup: {backup_path}\033[0m")
+                        shutil.move(backup_path, file_path)
+                        continue
 
                     # Stage changes if successful and git is available
                     if result.returncode == 0 and "No changes made" not in result.stdout:
