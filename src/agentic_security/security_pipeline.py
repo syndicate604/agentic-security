@@ -562,6 +562,13 @@ class SecurityPipeline:
         
         results = {}
         start_time = time.time()
+        files_scanned = 0
+        
+        # Count total files first
+        total_files = 0
+        for root, _, files in os.walk(path):
+            if not any(excluded in root.split(os.sep) for excluded in exclude_dirs):
+                total_files += sum(1 for f in files if f.endswith(('.py', '.js', '.php', '.java')))
         
         # Clear line and show scanning indicator with file count
         print(f"\r[36m[>] Analyzing {path} ({total_files} files)...[0m")
@@ -595,7 +602,7 @@ class SecurityPipeline:
                     continue
                     
                 # Check timeout
-                if time.time() - start_time > timeout:
+                if time.time() - start_time > self.timeout:
                     print("\n[31m[!] Scan timeout reached. Partial results will be returned.[0m")
                     return results
 
