@@ -155,6 +155,11 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
+            # Get validated column list
+            column_list = [col for col in columns if col in ALLOWED_TABLES['users']]
+            if not column_list:
+                raise DatabaseError("No valid columns specified")
+            
             # Build safe query with validated columns
             query = f"""
                 SELECT {", ".join("?" for _ in column_list)} FROM users 
