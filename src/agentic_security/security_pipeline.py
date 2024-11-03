@@ -452,7 +452,7 @@ class SecurityPipeline:
         """Get detailed description for vulnerability type"""
         descriptions = {
             'sql_injection': 'SQL Injection vulnerability detected - Risk of database manipulation',
-            'command_injection': 'Command Injection vulnerability detected - Risk of arbitrary command execution',
+            'command_injection': 'Command injection vulnerability detected - Risk of arbitrary command execution',
             'xss': 'Cross-Site Scripting (XSS) vulnerability detected - Risk of client-side code injection',
             'weak_crypto': 'Weak cryptographic implementation detected - Risk of data exposure',
             'insecure_deserialization': 'Insecure deserialization vulnerability detected - Risk of code execution'
