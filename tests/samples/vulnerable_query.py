@@ -36,13 +36,13 @@ def get_db_connection():
 
 def validate_table_name(table_name: str) -> bool:
     """
-    Validate if table name is in the allowed list and contains only valid characters
+    Validate if table name is in the allowed list with strict validation
     
     Args:
         table_name: The table name to validate
         
     Returns:
-        bool: True if table name is valid, False otherwise
+        bool: True if table name is valid
         
     Raises:
         DatabaseError: If table name is invalid
@@ -50,15 +50,21 @@ def validate_table_name(table_name: str) -> bool:
     if not isinstance(table_name, str):
         raise DatabaseError("Table name must be a string")
         
+    # Check against whitelist first
     if table_name not in ALLOWED_TABLES:
         raise DatabaseError(f"Table '{table_name}' not in allowed tables list")
+    
+    # Strict format validation
+    if not re.match(r'^[a-z][a-z0-9_]{0,62}[a-z0-9]$', table_name, re.I):
+        raise DatabaseError("Invalid table name format")
         
-    # Additional strict validation against SQL injection patterns
-    if any(char in table_name for char in "';\"\\"):
+    # Additional security checks
+    if any(char in table_name for char in "';\"\\-/[]{}()+=<>,.!@#$%^&*"):
         raise DatabaseError("Invalid characters in table name")
         
-    if not re.match(r'^[a-zA-Z][a-zA-Z0-9_]{0,63}$', table_name):
-        raise DatabaseError("Invalid table name format")
+    # Length check
+    if len(table_name) > 63:
+        raise DatabaseError("Table name too long")
         
     return True
 
@@ -156,25 +162,24 @@ def get_user_data(user_id: str, table_name: str, columns: Optional[List[str]] = 
             if not column_list:
                 raise DatabaseError("No valid columns specified")
                 
-            # Build query using proper parameterization
-            column_list = [col for col in columns if validate_columns(table_name, [col])]
-            if not column_list:
-                raise DatabaseError("No valid columns specified")
-                
-            # Create safe column selection using validated names
-            columns_str = ', '.join(f'"{col}"' for col in column_list)
+            # Use prepared statement with validated table and columns
+            placeholders = {
+                'table_name': table_name,
+                'columns': ','.join(f'"{col}"' for col in column_list)
+            }
             
-            # Use fully parameterized query with no string formatting
-            query = """
-                SELECT """ + columns_str + """
-                FROM """ + table_name + """
-                WHERE id = ? 
-                AND active = 1
+            # Create prepared statement
+            cursor.execute("""
+                PREPARE get_user_stmt AS
+                SELECT :columns 
+                FROM :table_name
+                WHERE id = ?
+                AND active = 1 
                 AND deleted_at IS NULL
-            """
+            """, placeholders)
             
-            # Execute with tuple parameters for better security
-            cursor.execute(query, (user_id,))
+            # Execute prepared statement
+            cursor.execute("EXECUTE get_user_stmt (?)", (user_id,))
             results = cursor.fetchall()
             
             if not results:
@@ -224,27 +229,25 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
             if not column_list:
                 raise DatabaseError("No valid columns specified")
             
-            # Build query with validated columns
-            column_params = []
-            for col in column_list:
-                if col not in ALLOWED_TABLES['users']:
-                    raise DatabaseError(f"Invalid column: {col}")
-                column_params.append(f'"{col}"')
-            columns_str = ','.join(column_params)
+            # Use prepared statement for search
+            placeholders = {
+                'columns': ','.join(f'"{col}"' for col in column_list)
+            }
             
-            # Create parameterized query with named parameters
-            query = f"""
-                SELECT {columns_str}
-                FROM "users" 
-                WHERE name LIKE :pattern ESCAPE '\\' 
+            # Create prepared statement with proper escaping
+            cursor.execute("""
+                PREPARE search_users_stmt AS
+                SELECT :columns
+                FROM users
+                WHERE name LIKE ? ESCAPE '\\'
                 AND active = 1
-                ORDER BY id ASC 
+                ORDER BY id ASC
                 LIMIT 100
-            """
+            """, placeholders)
             
-            # Use named parameter with properly escaped LIKE pattern
+            # Execute with properly escaped LIKE pattern
             search_pattern = f"%{re.escape(keyword)}%"
-            cursor.execute(query, {"pattern": search_pattern})
+            cursor.execute("EXECUTE search_users_stmt (?)", (search_pattern,))
             results = cursor.fetchall()
             
             if not results:
