@@ -94,29 +94,49 @@ class SecurityPipeline:
                 suggestions.append(line.strip()[2:])
         return suggestions
 
-    def implement_fixes(self, suggestions: List[str]) -> bool:
-        """Implement fixes using Claude 3.5 Sonnet"""
-        print("Implementing fixes with Claude 3.5 Sonnet...")
+    def implement_fixes(self, suggestions: List[Dict]) -> bool:
+        """Implement fixes using Claude 3 Sonnet"""
+        print("Implementing fixes with Claude 3 Sonnet...")
         
         success = True
         for suggestion in suggestions:
             try:
+                if not isinstance(suggestion, dict):
+                    print(f"Invalid suggestion format: {suggestion}")
+                    continue
+                    
+                file_path = suggestion.get('file')
+                vuln_type = suggestion.get('type')
+                if not file_path or not vuln_type:
+                    continue
+
+                # Generate fix prompt based on vulnerability type
+                fix_prompt = self.prompt_manager.get_prompt('fix_generation', 
+                    vulnerability_type=vuln_type,
+                    file_path=file_path)
+
                 result = subprocess.run([
                     "aider",
                     "--model", CLAUDE_MODEL,
                     "--edit-format", "diff",
-                    "/code",
-                    f"Implement the following security fix: {suggestion}",
-                    "."
+                    file_path,  # Pass specific file instead of "."
+                    fix_prompt
                 ], capture_output=True, text=True, check=True)
                 
                 if "No changes made" in result.stdout:
-                    print(f"Warning: No changes made for suggestion: {suggestion}")
+                    print(f"\033[33m[!] No changes made for {vuln_type} in {file_path}\033[0m")
                     success = False
-            except subprocess.CalledProcessError:
-                print(f"Error implementing fix for: {suggestion}")
+                else:
+                    print(f"\033[32m[✓] Applied fix for {vuln_type} in {file_path}\033[0m")
+                    
+            except subprocess.CalledProcessError as e:
+                print(f"\033[31m[!] Error implementing fix: {str(e)}\033[0m")
+                print(f"Command output: {e.output}")
                 success = False
-        
+            except Exception as e:
+                print(f"\033[31m[!] Unexpected error: {str(e)}\033[0m")
+                success = False
+                
         return success
 
     def run_security_checks(self) -> Dict:
