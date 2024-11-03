@@ -54,7 +54,9 @@ class SecurityPipeline:
 
     def setup_environment(self) -> None:
         """Set up necessary environment variables and paths"""
-        required_vars = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'SLACK_WEBHOOK']
+        required_vars = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY']
+        if not os.environ.get('CI'):  # Only require webhook outside of CI
+            required_vars.append('SLACK_WEBHOOK')
         missing_vars = [var for var in required_vars if not os.getenv(var)]
         if missing_vars:
             raise EnvironmentError(f"Missing required environment variables: {', '.join(missing_vars)}")
