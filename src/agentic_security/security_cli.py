@@ -270,10 +270,11 @@ def analyze(path: tuple, config: str, auto_fix: bool, verbose: bool):
         
         # Run architecture review
         review_results = pipeline.run_architecture_review()
-    print_cyber_status("\nArchitecture Review Results:", "info")
-    print(f"\033[36m{review_results['output']}\033[0m")
-    
-    if auto_fix and review_results.get('suggestions'):
+        
+        print_cyber_status("\nArchitecture Review Results:", "info")
+        print(f"\033[36m{review_results['output']}\033[0m")
+        
+        if auto_fix and review_results.get('suggestions'):
         print_cyber_status("\nImplementing suggested fixes...", "info")
         if pipeline.implement_fixes(review_results['suggestions']):
             print_cyber_status("Fixes implemented successfully", "success")
