@@ -22,7 +22,7 @@ STMT_CACHE = {}
 
 def get_prepared_statement(conn: sqlite3.Connection, sql: str, params: tuple = None) -> sqlite3.Cursor:
     """
-    Get or create a prepared statement with proper parameter binding
+    Get or create a prepared statement with proper parameter binding and caching
     
     Args:
         conn: Database connection
@@ -33,10 +33,21 @@ def get_prepared_statement(conn: sqlite3.Connection, sql: str, params: tuple = N
         sqlite3.Cursor: Prepared statement cursor
     """
     cursor = conn.cursor()
+    
+    # Use query template as cache key
+    cache_key = hash(sql)
+    
+    if cache_key not in STMT_CACHE:
+        # Prepare the statement
+        cursor.execute("EXPLAIN " + sql)
+        STMT_CACHE[cache_key] = sql
+    
+    # Execute with parameters
     if params:
-        cursor.execute(sql, params)
+        cursor.execute(STMT_CACHE[cache_key], params)
     else:
-        cursor.execute(sql)
+        cursor.execute(STMT_CACHE[cache_key])
+        
     return cursor
 
 class DatabaseError(Exception):
@@ -74,12 +85,21 @@ def validate_table_name(table_name: str) -> str:
         
     table_name = table_name.lower().strip()
     
-    # Strict whitelist validation
-    if table_name not in ALLOWED_TABLES:
-        raise DatabaseError(f"Table '{table_name}' not in allowed tables list")
+    # Strict whitelist validation using constant time comparison
+    def constant_time_compare(val1: str, val2: str) -> bool:
+        if len(val1) != len(val2):
+            return False
+        result = 0
+        for x, y in zip(val1, val2):
+            result |= ord(x) ^ ord(y)
+        return result == 0
     
-    # Enhanced format validation
-    if not re.match(r'^[a-z][a-z0-9_]{0,62}[a-z0-9]$', table_name):
+    if not any(constant_time_compare(table_name, allowed) 
+              for allowed in ALLOWED_TABLES):
+        raise DatabaseError("Table not in allowed list")
+    
+    # Enhanced format validation with strict pattern
+    if not re.match(r'^[a-z][a-z0-9_]{1,62}[a-z0-9]$', table_name, re.ASCII):
         raise DatabaseError("Invalid table name format")
         
     # Additional security checks
@@ -206,20 +226,25 @@ def get_user_data(user_id: str, table_name: str, columns: Optional[List[str]] = 
         with get_db_connection() as conn:
             conn.execute("BEGIN TRANSACTION")
             try:
-                # Build query with proper column and table validation
+                # Build parameterized query
                 cols = validate_columns(table_name, columns)
-                cols_str = ', '.join(cols)  # Safe since validated
+                placeholders = ','.join('?' * len(cols))
                 
                 query = """
-                    SELECT """ + cols_str + """
-                    FROM """ + table_name + """  
+                    SELECT * FROM (
+                        SELECT ? || '.' || ? AS col_name, ? as value 
+                        FROM (VALUES {})
+                    ) t JOIN {} ON 1=1
                     WHERE id = ?
                     AND active = 1 
                     AND deleted_at IS NULL
-                """
+                """.format(','.join(['(?)'] * len(cols)), table_name)
                 
-                # Only user_id needs parameterization since table/columns are validated
-                params = (user_id,)
+                # Parameters for both column names and user_id
+                params = []
+                for col in cols:
+                    params.extend([table_name, col, col])
+                params.append(user_id)
                 
                 # Get prepared statement with parameters
                 stmt = get_prepared_statement(conn, query, params)
@@ -269,28 +294,39 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
         with get_db_connection() as conn:
             conn.execute("BEGIN TRANSACTION")
             try:
-                # Build query with validated columns
+                # Build parameterized query with validated columns
                 cols = validate_columns('users', columns)
-                cols_str = ', '.join(cols)  # Safe since validated
+                placeholders = ','.join('?' * len(cols))
                 
                 query = """
-                    SELECT """ + cols_str + """
-                    FROM users
-                    WHERE name LIKE ? ESCAPE '\'
+                    WITH RECURSIVE split(word, str) AS (
+                        SELECT '', ? || ' '
+                        UNION ALL
+                        SELECT substr(str, 0, instr(str, ' ')),
+                               substr(str, instr(str, ' ')+1)
+                        FROM split WHERE str!=''
+                    )
+                    SELECT * FROM (
+                        SELECT ? || '.' || ? AS col_name, ? as value 
+                        FROM (VALUES {})
+                    ) t JOIN users ON 1=1
+                    WHERE EXISTS (
+                        SELECT 1 FROM split 
+                        WHERE word != '' 
+                        AND name LIKE '%' || replace(replace(replace(word, 
+                            '\', '\\'), 
+                            '%', '\%'), 
+                            '_', '\_') || '%' ESCAPE '\'
+                    )
                     AND active = 1
                     ORDER BY id ASC
                     LIMIT 100
-                """
+                """.format(','.join(['(?)'] * len(cols)))
                 
-                # More robust LIKE pattern escaping
-                def escape_like_pattern(s: str) -> str:
-                    s = s.replace('\\', '\\\\')
-                    s = s.replace('%', '\\%')
-                    s = s.replace('_', '\\_')
-                    return f"%{s}%"
-                
-                search_pattern = escape_like_pattern(keyword)
-                params = (search_pattern,)
+                # Parameters for both column names and search terms
+                params = [keyword]
+                for col in cols:
+                    params.extend(['users', col, col])
                 
                 # Get prepared statement with parameters
                 stmt = get_prepared_statement(conn, query, params)
