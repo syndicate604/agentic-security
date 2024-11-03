@@ -17,6 +17,25 @@ DB_CONFIG = {
     'check_same_thread': False
 }
 
+# Cache for prepared statements
+STMT_CACHE = {}
+
+def get_prepared_statement(conn: sqlite3.Connection, sql: str) -> sqlite3.Cursor:
+    """
+    Get or create a prepared statement with proper parameter binding
+    
+    Args:
+        conn: Database connection
+        sql: SQL query string
+        
+    Returns:
+        sqlite3.Cursor: Prepared statement cursor
+    """
+    if sql not in STMT_CACHE:
+        STMT_CACHE[sql] = conn.cursor()
+        STMT_CACHE[sql].execute(f"PREPARE stmt_{len(STMT_CACHE)} AS {sql}")
+    return STMT_CACHE[sql]
+
 class DatabaseError(Exception):
     """Custom exception for database operations"""
     pass
@@ -34,7 +53,7 @@ def get_db_connection():
         if conn:
             conn.close()
 
-def validate_table_name(table_name: str) -> bool:
+def validate_table_name(table_name: str) -> str:
     """
     Validate if table name is in the allowed list with strict validation
     
@@ -42,7 +61,7 @@ def validate_table_name(table_name: str) -> bool:
         table_name: The table name to validate
         
     Returns:
-        bool: True if table name is valid
+        str: The validated table name
         
     Raises:
         DatabaseError: If table name is invalid
@@ -50,25 +69,23 @@ def validate_table_name(table_name: str) -> bool:
     if not isinstance(table_name, str):
         raise DatabaseError("Table name must be a string")
         
+    table_name = table_name.lower().strip()
+    
     # Check against whitelist first
     if table_name not in ALLOWED_TABLES:
         raise DatabaseError(f"Table '{table_name}' not in allowed tables list")
     
-    # Strict format validation
-    if not re.match(r'^[a-z][a-z0-9_]{0,62}[a-z0-9]$', table_name, re.I):
+    # Strict format validation - only allow lowercase alphanumeric and underscore
+    if not re.match(r'^[a-z][a-z0-9_]{0,62}[a-z0-9]$', table_name):
         raise DatabaseError("Invalid table name format")
-        
-    # Additional security checks
-    if any(char in table_name for char in "';\"\\-/[]{}()+=<>,.!@#$%^&*"):
-        raise DatabaseError("Invalid characters in table name")
-        
+    
     # Length check
     if len(table_name) > 63:
         raise DatabaseError("Table name too long")
         
-    return True
+    return table_name
 
-def validate_columns(table_name: str, columns: List[str]) -> bool:
+def validate_columns(table_name: str, columns: List[str]) -> List[str]:
     """
     Validate if requested columns are allowed for the table and contain only valid characters
     
@@ -77,7 +94,7 @@ def validate_columns(table_name: str, columns: List[str]) -> bool:
         columns: List of column names to validate
         
     Returns:
-        bool: True if all columns are valid
+        List[str]: List of validated column names
         
     Raises:
         DatabaseError: If any column is invalid
@@ -85,22 +102,31 @@ def validate_columns(table_name: str, columns: List[str]) -> bool:
     if not isinstance(columns, list):
         raise DatabaseError("Columns must be provided as a list")
         
+    if not columns:
+        raise DatabaseError("At least one column must be specified")
+        
     if not all(isinstance(col, str) for col in columns):
         raise DatabaseError("All column names must be strings")
     
-    allowed_cols = ALLOWED_TABLES.get(table_name, [])
+    # Get allowed columns for the table
+    allowed_cols = ALLOWED_TABLES.get(table_name.lower(), [])
+    if not allowed_cols:
+        raise DatabaseError(f"No columns defined for table '{table_name}'")
     
+    validated_columns = []
     for col in columns:
+        col = col.lower().strip()
+        
         if col not in allowed_cols:
             raise DatabaseError(f"Column '{col}' not allowed for table '{table_name}'")
             
-        if any(char in col for char in "';\"\\"):
-            raise DatabaseError(f"Invalid characters in column name: {col}")
-            
-        if not re.match(r'^[a-zA-Z][a-zA-Z0-9_]{0,63}$', col):
+        # Strict format validation - only allow lowercase alphanumeric and underscore
+        if not re.match(r'^[a-z][a-z0-9_]{0,63}$', col):
             raise DatabaseError(f"Invalid column name format: {col}")
+            
+        validated_columns.append(col)
     
-    return True
+    return validated_columns
 
 def validate_user_id(user_id: str) -> bool:
     """
@@ -133,51 +159,48 @@ def get_user_data(user_id: str, table_name: str, columns: Optional[List[str]] = 
     Raises:
         DatabaseError: If invalid input or database error occurs
     """
-    # Validate inputs before processing
-    if not all(isinstance(x, str) for x in [table_name, user_id]):
-        raise DatabaseError("Invalid input types")
-        
-    if not validate_table_name(table_name):
-        raise DatabaseError("Invalid table name")
-        
-    if not validate_user_id(user_id):
-        raise DatabaseError("Invalid user ID format")
-    
-    # Use all columns if none specified
-    if columns is None:
-        columns = ALLOWED_TABLES[table_name]
-    elif not validate_columns(table_name, columns):
-        raise DatabaseError("Invalid columns requested")
-    
     try:
+        # Validate inputs
+        if not all(isinstance(x, str) for x in [table_name, user_id]):
+            raise DatabaseError("Invalid input types")
+            
+        table_name = validate_table_name(table_name)
+        
+        if not validate_user_id(user_id):
+            raise DatabaseError("Invalid user ID format")
+        
+        # Use all columns if none specified
+        if columns is None:
+            columns = ALLOWED_TABLES[table_name]
+        columns = validate_columns(table_name, columns)
+        
         with get_db_connection() as conn:
-            cursor = conn.cursor()
-            
-            # Build query with validated table and column names
-            if table_name not in ALLOWED_TABLES:
-                raise DatabaseError("Invalid table access attempt")
+            conn.execute("BEGIN TRANSACTION")
+            try:
+                # Use parameterized query with validated column names
+                placeholders = {
+                    'cols': ', '.join(f'"{col}"' for col in columns),
+                    'table': f'"{table_name}"'
+                }
                 
-            column_list = [col for col in columns if col in ALLOWED_TABLES[table_name]]
-            if not column_list:
-                raise DatabaseError("No valid columns specified")
+                query = """
+                    SELECT %(cols)s 
+                    FROM %(table)s 
+                    WHERE id = ? 
+                    AND active = 1 
+                    AND deleted_at IS NULL
+                """ % placeholders
                 
-            # Construct query with validated identifiers
-            query = f"""
-                SELECT {','.join(f'"{col}"' for col in column_list)}
-                FROM "{table_name}"
-                WHERE id = ? 
-                AND active = 1
-                AND deleted_at IS NULL
-            """
-            
-            # Execute with parameterized user_id
-            cursor.execute(query, (user_id,))
-            results = cursor.fetchall()
-            
-            if not results:
-                return None
+                # Get prepared statement
+                stmt = get_prepared_statement(conn, query)
+                results = stmt.execute(query, (user_id,)).fetchall()
                 
-            return results
+                conn.commit()
+                return results if results else None
+                
+            except Exception:
+                conn.rollback()
+                raise
             
     except sqlite3.Error as e:
         raise DatabaseError(f"Database error occurred: {str(e)}")
@@ -199,47 +222,51 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
     Raises:
         DatabaseError: If database error occurs or invalid input
     """
-    if not isinstance(keyword, str):
-        raise DatabaseError("Search keyword must be a string")
-        
-    # Enhanced keyword validation with additional security checks
-    if not re.match(r'^[a-zA-Z0-9\s-]{3,50}$', keyword):
-        raise DatabaseError("Invalid search keyword format - must be 3-50 chars, alphanumeric with spaces and hyphens only")
-    
-    # Use all columns if none specified
-    if columns is None:
-        columns = ALLOWED_TABLES['users']
-    elif not validate_columns('users', columns):
-        raise DatabaseError("Invalid columns requested")
-    
     try:
+        if not isinstance(keyword, str):
+            raise DatabaseError("Search keyword must be a string")
+            
+        # Enhanced keyword validation
+        keyword = keyword.strip()
+        if not re.match(r'^[a-zA-Z0-9\s-]{3,50}$', keyword):
+            raise DatabaseError("Invalid search keyword format - must be 3-50 chars, alphanumeric with spaces and hyphens only")
+        
+        # Use all columns if none specified
+        if columns is None:
+            columns = ALLOWED_TABLES['users']
+        columns = validate_columns('users', columns)
+        
         with get_db_connection() as conn:
-            cursor = conn.cursor()
-            
-            # Get validated column list
-            column_list = [col for col in columns if col in ALLOWED_TABLES['users']]
-            if not column_list:
-                raise DatabaseError("No valid columns specified")
-            
-            # Construct query with validated columns
-            query = f"""
-                SELECT {','.join(f'"{col}"' for col in column_list)}
-                FROM users
-                WHERE name LIKE ? ESCAPE '\\'
-                AND active = 1 
-                ORDER BY id ASC
-                LIMIT 100
-            """
-            
-            # Execute with properly escaped LIKE pattern
-            search_pattern = f"%{re.escape(keyword)}%"
-            cursor.execute(query, (search_pattern,))
-            results = cursor.fetchall()
-            
-            if not results:
-                return None
+            conn.execute("BEGIN TRANSACTION")
+            try:
+                # Use parameterized query with validated column names
+                placeholders = {
+                    'cols': ', '.join(f'"{col}"' for col in columns)
+                }
                 
-            return results
+                query = """
+                    SELECT %(cols)s
+                    FROM users
+                    WHERE name LIKE ? ESCAPE '\\' 
+                    AND active = 1
+                    ORDER BY id ASC
+                    LIMIT 100
+                """ % placeholders
+                
+                # Get prepared statement and properly escape LIKE pattern
+                stmt = get_prepared_statement(conn, query)
+                search_pattern = ''.join(c if c.isalnum() or c.isspace() 
+                                       else '\\' + c for c in keyword)
+                search_pattern = f"%{search_pattern}%"
+                
+                results = stmt.execute(query, (search_pattern,)).fetchall()
+                
+                conn.commit()
+                return results if results else None
+                
+            except Exception:
+                conn.rollback()
+                raise
             
     except sqlite3.Error as e:
         raise DatabaseError(f"Database error occurred: {str(e)}")
