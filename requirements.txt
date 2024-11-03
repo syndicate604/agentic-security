@@ -11,3 +11,5 @@ cryptography>=41.0.0
 anyio==4.6.2.post1
 bcrypt>=4.0.1
 slack-sdk>=3.26.1
+markupsafe>=2.1.1
+bleach>=6.0.0
