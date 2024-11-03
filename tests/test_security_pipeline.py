@@ -149,10 +149,14 @@ def test_custom_prompts(pipeline):
 def test_pipeline_error_handling(pipeline):
     """Test pipeline error handling"""
     # Test invalid config
-    pipeline.config['security']['critical_threshold'] = -1
+    invalid_config = pipeline.config.copy()
+    invalid_config['security']['critical_threshold'] = -1
+    invalid_config_file = Path(test_config).parent / 'invalid_config.yml'
+    with open(invalid_config_file, 'w') as f:
+        yaml.dump(invalid_config, f)
     with pytest.raises(ValueError):
         # This should raise ValueError during initialization
-        SecurityPipeline(pipeline.config_file)
+        SecurityPipeline(str(invalid_config_file))
     
     # Test missing dependencies
     pipeline.config['security']['scan_targets'] = [
