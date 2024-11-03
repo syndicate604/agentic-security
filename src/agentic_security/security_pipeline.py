@@ -254,16 +254,22 @@ class SecurityPipeline:
                 suggestions.append(line.strip()[2:])
         return suggestions
 
-    def implement_fixes(self, suggestions: List[Dict]) -> bool:
-        """Implement fixes using Claude 3 Sonnet"""
-        print("Implementing fixes with Claude 3 Sonnet...")
+    def implement_fixes(self, suggestions: List[Dict], timeout: int = 300) -> bool:
+        """Implement fixes using Claude 3 Sonnet with timeout
         
+        Args:
+            suggestions: List of vulnerability findings to fix
+            timeout: Maximum time in seconds for each fix attempt (default: 5 minutes)
+        """
         if not suggestions:
             print("\033[33m[!] No suggestions provided for fixes\033[0m")
             return False
 
-        success = True
+        total_fixes = len(suggestions)
         fixes_applied = []
+        success = True
+        
+        print(f"\033[36m[>] Implementing {total_fixes} fixes with Claude 3 Sonnet...\033[0m")
         
         for suggestion in suggestions:
             try:
@@ -302,13 +308,24 @@ class SecurityPipeline:
                     continue
 
                 try:
+                    # Run aider with timeout
                     result = subprocess.run([
                         "aider",
                         "--model", self.analysis_model,
                         "--edit-format", "diff",
+                        "--yes",  # Auto-approve changes
                         file_path,
                         fix_prompt
-                    ], capture_output=True, text=True, check=True)
+                    ], capture_output=True, text=True, timeout=timeout)
+
+                    if result.returncode != 0:
+                        print(f"\033[31m[!] Aider failed with return code {result.returncode}\033[0m")
+                        if result.stderr:
+                            print(f"\033[31m[!] Error: {result.stderr}\033[0m")
+                        success = False
+                        # Restore backup
+                        shutil.move(backup_path, file_path)
+                        continue
                     
                     if "No changes made" in result.stdout:
                         print(f"\033[33m[!] No changes made for {vuln_type} in {file_path}\033[0m")
@@ -323,9 +340,15 @@ class SecurityPipeline:
                             'backup': backup_path
                         })
                         
+                except subprocess.TimeoutExpired:
+                    print(f"\033[31m[!] Fix attempt timed out after {timeout} seconds\033[0m")
+                    success = False
+                    # Restore backup
+                    shutil.move(backup_path, file_path)
                 except subprocess.CalledProcessError as e:
                     print(f"\033[31m[!] Error implementing fix: {e}\033[0m")
-                    print(f"Command output: {result.stdout}")
+                    if hasattr(e, 'output') and e.output:
+                        print(f"\033[31m[!] Output: {e.output}\033[0m")
                     success = False
                     # Restore backup
                     shutil.move(backup_path, file_path)
@@ -340,6 +363,7 @@ class SecurityPipeline:
                     except Exception as restore_err:
                         print(f"\033[31m[!] Failed to restore backup: {str(restore_err)}\033[0m")
 
+        # Final status report
         if fixes_applied:
             print("\n\033[32m[✓] Successfully applied fixes:\033[0m")
             for fix in fixes_applied:
@@ -347,6 +371,22 @@ class SecurityPipeline:
                 # Clean up successful backups
                 if os.path.exists(fix['backup']):
                     os.remove(fix['backup'])
+        else:
+            print("\n\033[33m[!] No fixes were successfully applied\033[0m")
+            
+        # Generate fix report
+        report_file = f"security_fixes_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        try:
+            with open(report_file, 'w') as f:
+                json.dump({
+                    'timestamp': datetime.now().isoformat(),
+                    'total_suggestions': total_fixes,
+                    'fixes_applied': fixes_applied,
+                    'success': success
+                }, f, indent=2)
+            print(f"\033[36m[>] Fix report saved to: {report_file}\033[0m")
+        except Exception as e:
+            print(f"\033[31m[!] Failed to save fix report: {e}\033[0m")
                     
         return success
 
