@@ -74,17 +74,22 @@ def validate_table_name(table_name: str) -> str:
         
     table_name = table_name.lower().strip()
     
-    # Check against whitelist first
+    # Strict whitelist validation
     if table_name not in ALLOWED_TABLES:
         raise DatabaseError(f"Table '{table_name}' not in allowed tables list")
     
-    # Strict format validation - only allow exact matches from whitelist
-    if table_name not in ALLOWED_TABLES:
-        raise DatabaseError(f"Table '{table_name}' not in allowed tables list")
-        
-    # Additional format validation for defense in depth
+    # Enhanced format validation
     if not re.match(r'^[a-z][a-z0-9_]{0,62}[a-z0-9]$', table_name):
         raise DatabaseError("Invalid table name format")
+        
+    # Additional security checks
+    if any(char in table_name for char in "\"';-/\\"):
+        raise DatabaseError("Invalid characters in table name")
+        
+    # Prevent SQL injection attempts
+    if any(keyword.lower() in table_name.lower() 
+           for keyword in ['select', 'insert', 'update', 'delete', 'drop', 'union']):
+        raise DatabaseError("Invalid table name - contains SQL keywords")
     
     # Length check
     if len(table_name) > 63:
@@ -131,12 +136,22 @@ def validate_columns(table_name: str, columns: List[str]) -> List[str]:
     for col in columns:
         col = col.lower().strip()
         
+        # Whitelist check
         if col not in allowed_cols:
             raise DatabaseError(f"Column '{col}' not allowed for table '{table_name}'")
             
-        # Strict format validation - only allow lowercase alphanumeric and underscore
+        # Enhanced format validation
         if not re.match(r'^[a-z][a-z0-9_]{0,63}$', col):
             raise DatabaseError(f"Invalid column name format: {col}")
+            
+        # Additional security checks
+        if any(char in col for char in "\"';-/\\"):
+            raise DatabaseError("Invalid characters in column name")
+            
+        # Prevent SQL injection via column names
+        if any(keyword.lower() in col.lower() 
+               for keyword in ['select', 'insert', 'update', 'delete', 'drop', 'union']):
+            raise DatabaseError("Invalid column name - contains SQL keywords")
             
         validated_columns.append(col)
     
@@ -191,18 +206,20 @@ def get_user_data(user_id: str, table_name: str, columns: Optional[List[str]] = 
         with get_db_connection() as conn:
             conn.execute("BEGIN TRANSACTION")
             try:
-                # Build query safely with proper parameter binding
-                cols_str = ', '.join('?' for _ in columns)
+                # Build query with proper column and table validation
+                cols = validate_columns(table_name, columns)
+                cols_str = ', '.join(cols)  # Safe since validated
+                
                 query = """
-                    SELECT {} 
-                    FROM {} 
-                    WHERE id = ? 
+                    SELECT """ + cols_str + """
+                    FROM """ + table_name + """  
+                    WHERE id = ?
                     AND active = 1 
                     AND deleted_at IS NULL
-                """.format(cols_str, table_name)
+                """
                 
-                # Prepare parameters including column names
-                params = tuple(columns) + (user_id,)
+                # Only user_id needs parameterization since table/columns are validated
+                params = (user_id,)
                 
                 # Get prepared statement with parameters
                 stmt = get_prepared_statement(conn, query, params)
@@ -252,25 +269,28 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
         with get_db_connection() as conn:
             conn.execute("BEGIN TRANSACTION")
             try:
-                # Build query safely with proper parameter binding
-                cols_str = ', '.join('?' for _ in columns)
+                # Build query with validated columns
+                cols = validate_columns('users', columns)
+                cols_str = ', '.join(cols)  # Safe since validated
+                
                 query = """
-                    SELECT {}
+                    SELECT """ + cols_str + """
                     FROM users
-                    WHERE name LIKE ? ESCAPE '^'
+                    WHERE name LIKE ? ESCAPE '\'
                     AND active = 1
                     ORDER BY id ASC
                     LIMIT 100
-                """.format(cols_str)
+                """
                 
-                # Escape special characters in LIKE pattern
-                escaped_keyword = keyword.replace('^', '^^')
-                escaped_keyword = escaped_keyword.replace('%', '^%')
-                escaped_keyword = escaped_keyword.replace('_', '^_')
-                search_pattern = f"%{escaped_keyword}%"
+                # More robust LIKE pattern escaping
+                def escape_like_pattern(s: str) -> str:
+                    s = s.replace('\\', '\\\\')
+                    s = s.replace('%', '\\%')
+                    s = s.replace('_', '\\_')
+                    return f"%{s}%"
                 
-                # Prepare parameters including column names
-                params = tuple(columns) + (search_pattern,)
+                search_pattern = escape_like_pattern(keyword)
+                params = (search_pattern,)
                 
                 # Get prepared statement with parameters
                 stmt = get_prepared_statement(conn, query, params)
