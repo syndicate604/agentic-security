@@ -4,6 +4,7 @@ import subprocess
 import time
 import json
 import os
+import random
 from datetime import datetime
 import yaml
 import requests
@@ -586,19 +587,25 @@ class SecurityPipeline:
             try:
                 # Show progress indicator
                 def progress_indicator():
-                    # Cyberpunk-style spinner characters
-                    chars = "▁▂▃▄▅▆▇█▇▆▅▄▃▂▁"
+                    # Cyberpunk-style matrix characters
+                    matrix_chars = "守破離の術ｦｧｨｩｪｫｬｭｮｯｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ"
                     states = ["ANALYZING", "SCANNING", "PROBING", "DETECTING"]
+                    colors = ["\033[32m", "\033[36m", "\033[35m", "\033[33m"]  # Green, Cyan, Magenta, Yellow
                     i = 0
                     state_idx = 0
                     while True:
                         if time.time() - scan_start > timeout:
-                            raise TimeoutError("\033[31m[CRITICAL] Scan timeout threshold exceeded\033[0m")
+                            raise TimeoutError("\033[31m[CRITICAL] Neural Net Timeout - Connection Lost\033[0m")
+                        
                         state = states[state_idx]
-                        spinner = chars[i]
-                        print(f"\r\033[35m[{spinner}] \033[36m{state} NEURAL NET ACTIVE \033[33m{{'RUNTIME': {time.time() - scan_start:.1f}s}}\033[0m", 
-                              end='', flush=True)
-                        i = (i + 1) % len(chars)
+                        color = colors[state_idx]
+                        matrix = "".join(random.choice(matrix_chars) for _ in range(3))
+                        runtime = time.time() - scan_start
+                        
+                        status = f"\r{color}[{matrix}] {state} :: Neural Net Active :: Runtime: {runtime:.1f}s\033[0m"
+                        print(f"{status}\033[K", end='', flush=True)
+                        
+                        i = (i + 1) % 4
                         if i == 0:
                             state_idx = (state_idx + 1) % len(states)
                         time.sleep(0.1)
