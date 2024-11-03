@@ -3,6 +3,8 @@
 import os
 import json
 import uuid
+import subprocess
+import difflib
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Union
