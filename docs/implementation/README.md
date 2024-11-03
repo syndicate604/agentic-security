@@ -104,13 +104,40 @@ SLACK_WEBHOOK=https://hooks.slack.com/services/your/webhook/url
 
 ```yaml
 security:
-  critical_threshold: 7.5
-  max_fix_attempts: 3
+  critical_threshold: 7.0  # Severity threshold for fixes
+  max_fix_attempts: 3      # Maximum automated fix attempts
   scan_targets:
     - type: web
       url: http://localhost:8080
     - type: code
       path: ./src
+
+ai:
+  models:
+    architecture_review: gpt-4-1106-preview
+    fix_implementation: claude-3-sonnet-20240229
+  
+security_patterns:
+  sql_injection:
+    - "SELECT * FROM"
+    - "INSERT INTO"
+    - "UPDATE"
+    - "DELETE FROM"
+    - "f\"SELECT"
+  command_injection:
+    - "os.system"
+    - "subprocess.call"
+    - "eval("
+    - "exec("
+  xss:
+    - "<script>"
+    - "innerHTML"
+    - "document.write"
+  crypto:
+    - "md5"
+    - "sha1"
+    - "DES"
+    - "RC4"
 
 notifications:
   enabled: true

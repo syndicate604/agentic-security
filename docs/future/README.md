@@ -59,6 +59,10 @@ mindmap
   - Semantic code analysis using LLMs
   - Historical vulnerability correlation
   - Pattern recognition improvements
+  - Multi-model orchestration
+  - Automated fix validation
+  - Smart PR description generation
+  - Context-aware fix suggestions
 
 #### AI-Driven Decision Making
 - **Intelligent Decisions**

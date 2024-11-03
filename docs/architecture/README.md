@@ -16,15 +16,27 @@ flowchart TB
     end
 
     subgraph AI["AI Layer"]
-        OpenAI[OpenAI Service]
-        Claude[Claude Service]
+        OpenAI[GPT-4 1106]
+        Claude[Claude-3 Sonnet]
         Models[AI Models]
+        subgraph Tasks["AI Tasks"]
+            ArchReview[Architecture Review]
+            VulnAnalysis[Vulnerability Analysis]
+            FixGen[Fix Generation]
+        end
     end
 
     subgraph Security["Security Layer"]
         OWASP[OWASP ZAP]
         Nuclei[Nuclei]
         DependencyCheck[Dependency Check]
+        CodeAnalysis[Pattern Analysis]
+        subgraph Patterns["Vulnerability Patterns"]
+            SQL[SQL Injection]
+            CMD[Command Injection]
+            XSS[Cross-Site Scripting]
+            Auth[Auth Vulnerabilities]
+        end
     end
 
     subgraph Integration["Integration Layer"]
