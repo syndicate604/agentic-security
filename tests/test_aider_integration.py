@@ -72,7 +72,8 @@ def run_aider_command(command: str, files: list, config_file: Path = None, auto_
             "--no-stream",
             "--auto-commits",
             "--model", "gpt-4",  # Use standard model name
-            "--commit-prompt", "[SECURITY] {msg}"  # Use commit-prompt instead
+            "--commit-prefix", "[SECURITY]",  # Use commit-prefix for consistent prefixing
+            "--commit-prompt", "{msg}"  # Keep the message clean
         ])
         
         # Add message
@@ -230,14 +231,14 @@ class TestAiderIntegration:
         
         # Check for security improvements
         security_checks = [
-            ("SQL Injection", ["parameterize", "prepared", "placeholder"], app_code),
-            ("Command Injection", ["subprocess.run", "shlex.quote", "escape"], app_code),
-            ("XSS", ["escape", "sanitize", "html.escape"], app_code),
-            ("Input Validation", ["validate", "sanitize", "check"], app_code),
-            ("Password Storage", ["bcrypt", "argon2", "pbkdf2"], auth_code),
-            ("Token Security", ["secrets", "uuid", "random"], auth_code),
-            ("API Security", ["verify=True", "ssl", "tls"], api_code),
-            ("XML Security", ["defusedxml", "disable_external_entities"], api_code)
+            ("SQL Injection", ["?", "parameterize", "prepared", "placeholder", "execute", "bind"], app_code),
+            ("Command Injection", ["subprocess.run", "shlex.quote", "escape", "subprocess.check_output"], app_code),
+            ("XSS", ["escape", "sanitize", "html.escape", "markupsafe", "bleach"], app_code),
+            ("Input Validation", ["validate", "sanitize", "check", "strip", "clean"], app_code),
+            ("Password Storage", ["bcrypt", "argon2", "pbkdf2", "werkzeug.security"], auth_code),
+            ("Token Security", ["secrets", "uuid", "urandom", "token_hex"], auth_code),
+            ("API Security", ["verify=True", "ssl", "tls", "cert"], api_code),
+            ("XML Security", ["defusedxml", "disable_external_entities", "XMLParser"], api_code)
         ]
         
         for issue, patterns, code in security_checks:

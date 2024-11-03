@@ -31,3 +31,21 @@ def store_password(password):
     # Security Issue 5: Plain text password
     with open('passwords.txt', 'a') as f:
         f.write(password + '\n')
+# Sample vulnerable app code
+import sqlite3
+import os
+
+def get_user(user_id):
+    # SQL Injection vulnerability
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT * FROM users WHERE id = {user_id}")
+    return cursor.fetchone()
+
+def echo_input(user_input):
+    # Command injection vulnerability
+    os.system(f"echo {user_input}")
+
+def display_comment(comment):
+    # XSS vulnerability
+    return f"<div>{comment}</div>"

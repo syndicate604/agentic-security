@@ -31,3 +31,13 @@ def verify_token(token):
         return data
     except:
         return None
+# Sample vulnerable auth code
+import hashlib
+
+def store_password(password):
+    # Weak password hashing
+    return hashlib.md5(password.encode()).hexdigest()
+
+def generate_token():
+    # Weak token generation
+    return str(random.randint(1000, 9999))
