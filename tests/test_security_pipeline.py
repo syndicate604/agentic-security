@@ -697,9 +697,12 @@ def render_unsafe(user_input):
     return Markup("<div>{}</div>").format(sanitized)
 ''',
         'crypto_weak.py': '''
-import hashlib
+import bcrypt
+
 def hash_password(password):
-    return hashlib.md5(password.encode()).hexdigest()
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password.encode(), salt)
+    return hashed.decode('utf-8')
 ''',
         'xss_complex.py': '''
 def render_complex(user_input, user_data):
