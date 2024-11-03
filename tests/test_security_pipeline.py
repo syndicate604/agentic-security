@@ -705,11 +705,13 @@ def hash_password(password):
 def render_complex(user_input, user_data):
     from html import escape
     import json
+    from html import escape
+
     template = f"""
         <div class="user-content">
             <script>
                 var userData = {json.dumps(user_data)};
-                document.getElementById('content').textContent = {json.dumps(user_input)};
+                document.getElementById('content').textContent = {json.dumps(escape(user_input))};
             </script>
         </div>
     """
