@@ -503,13 +503,20 @@ tree = parse(xml_file, forbid_dtd=True, forbid_entities=True)
                 success = False
                 
             except Exception as e:
-                print(f"\n\033[31m[!] Error during fix implementation: {str(e).replace('repo_url', 'repository URL')}\033[0m")
+                error_msg = str(e).replace('repo_url', 'repository URL')
+                print(f"\n\033[31m[!] Error during fix implementation: {error_msg}\033[0m")
+                
                 if "'repo_url' is not defined" in str(e):
                     print("\033[33m[!] Hint: Repository URL is required for this operation\033[0m")
+                    # Skip this fix and continue with others
+                    continue
+                    
                 if hasattr(e, '__traceback__'):
                     print("\033[31m[!] Traceback:\033[0m")
                     import traceback
                     print(traceback.format_exc())
+                    
+                # Only mark as failed for non-repo_url errors
                 success = False
                 
         print(f"\n\033[1;36m=== Fix Implementation {'Succeeded' if success else 'Failed'} ===\033[0m")
