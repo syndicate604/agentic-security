@@ -456,7 +456,7 @@ def test_ci_pipeline_execution(mock_run, pipeline):
         # Map specific commands to their step names for verification
         if any(x in command for x in ['nuclei', 'zap', 'dependency-check']):
             command = 'security checks'
-        elif 'aider' in command and 'Review' in command:
+        elif 'aider' in command and '/ask' in command and 'Review' in command:
             command = 'architecture review'
         elif 'aider' in command and 'fix' in command.lower():
             command = 'implement fixes'
