@@ -1,6 +1,6 @@
 # Agentic Security
 
-Automated security scanning and fixing pipeline using AI-powered tools.
+Automated security scanning and fixing (code,arch,ml/devops) pipeline using AI-powered tools.
 
 The pipeline combines OWASP ZAP scans with AI-driven analysis, catching architectural flaws through explicit prompting at design, implementation, and testing phases. For red teaming, it integrates automated vulnerability assessments with AI-guided fixes, which are deployed to a new branch for manual review.
 
