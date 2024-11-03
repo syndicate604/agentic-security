@@ -7,10 +7,9 @@ from typing import Dict, Any, Optional
 class SecurityCache:
     def __init__(self, cache_dir: str = ".security_cache"):
         self.cache_dir = Path(cache_dir)
-        self.cache_dir.mkdir(exist_ok=True)
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.results_dir = self.cache_dir / "results"
-        self.results_dir.mkdir(exist_ok=True)
-        self.results_dir.mkdir(exist_ok=True)
+        self.results_dir.mkdir(parents=True, exist_ok=True)
 
     def save_scan_results(self, scan_id: str, results: Dict[str, Any]) -> None:
         """Save scan results to cache"""
