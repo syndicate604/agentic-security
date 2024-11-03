@@ -438,7 +438,7 @@ class SecurityPipeline:
                         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                             content = f.read()
                     except (PermissionError, FileNotFoundError) as e:
-                        logging.warning(f"Could not access {file_path}: {e}")
+                        print(f"\n[33m[!] Could not access {file_path}: {e}[0m")
                         continue
                     except UnicodeDecodeError:
                         print(f"\n[33m[!] Could not decode {file_path} - skipping[0m")
