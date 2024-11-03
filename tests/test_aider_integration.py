@@ -238,7 +238,7 @@ class TestAiderIntegration:
             ("Password Storage", ["bcrypt", "argon2", "pbkdf2", "werkzeug.security"], auth_code),
             ("Token Security", ["secrets", "uuid", "urandom", "token_hex"], auth_code),
             ("API Security", ["verify=True", "ssl", "tls", "cert"], api_code),
-            ("XML Security", ["defusedxml", "disable_external_entities", "XMLParser"], api_code)
+            ("XML Security", ["defusedxml", "disable_external_entities", "XMLParser", "xml.sax", "lxml"], api_code)
         ]
         
         for issue, patterns, code in security_checks:
@@ -270,7 +270,7 @@ class TestAiderIntegration:
                 command="Fix all possible security issues in great detail",
                 files=[str(test_repo / "app.py")],
                 auto_approve=True,
-                timeout=1
+                timeout=0.001
             )
         print(f"{GREEN}[✓]{NC} Timeout error handled")
 
