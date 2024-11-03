@@ -35,9 +35,6 @@ DEFAULT_CONFIG = {
 class SecurityPipeline:
     def __init__(self, config_file='config.yml'):
         self.load_config(config_file)
-        if self.config['security']['critical_threshold'] < 0:
-            raise ValueError("Critical threshold cannot be negative")
-            
         self.critical_threshold = self.config['security']['critical_threshold']
         self.max_fix_attempts = self.config['security']['max_fix_attempts']
         self.branch_name = f"security-fixes-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
