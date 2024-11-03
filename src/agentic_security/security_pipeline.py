@@ -157,13 +157,13 @@ class SecurityPipeline:
 
     import time  # Add this import at the top if not already present
 
-    def _run_code_security_checks(self, path: str) -> Dict:
+    def _run_code_security_checks(self, path: str, timeout: int = 60) -> Dict:
         """Run code-specific security checks"""
-        print(f"Running security checks for {path}")
-        # Skip delay in CI environment
-        if not os.environ.get('CI', '').lower() == 'true':
-            time.sleep(0.1)
         results = {}
+        start_time = time.time()
+        
+        # Show scanning indicator
+        print(f"[36m[>] Analyzing {path} for security issues...[0m")
 
         # Directories to exclude
         exclude_dirs = {'venv', 'env', '.git', '__pycache__', 'node_modules', '.pytest_cache'}
@@ -543,16 +543,24 @@ class SecurityPipeline:
         
         return not has_critical
 
-    def scan_paths(self, paths: List[str]) -> Dict:
+    def scan_paths(self, paths: List[str], timeout: int = 300) -> Dict:
         """Scan paths for security issues"""
         results = {'vulnerabilities': []}
+        start_time = time.time()
         
         for path in paths:
+            # Check timeout
+            if time.time() - start_time > timeout:
+                print("\n[33m[!] Scan timeout reached. Partial results will be returned.[0m")
+                break
+                
             if not os.path.exists(path):
                 raise FileNotFoundError(f"Path not found: {path}")
-                
-            # Run code security checks
-            security_results = self._run_code_security_checks(path)
+            
+            print(f"\n[36m[>] Scanning: {path}[0m")    
+            try:
+                # Run code security checks with timeout
+                security_results = self._run_code_security_checks(path)
             
             # Format results
             for vuln_type, findings in security_results.items():
