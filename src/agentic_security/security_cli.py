@@ -268,7 +268,8 @@ def test(config, verbose):
 @click.option('--config', '-c', default='config.yml', help='Path to configuration file')
 def review(path, output, verbose, config):
     """Generate security review report"""
-    print_cyber_status("Starting security review...", "info")
+    print_cyber_status("Security Review Report", "info")
+    print_cyber_status("Starting analysis...", "info")
     
     if not path:
         path = ['.']
