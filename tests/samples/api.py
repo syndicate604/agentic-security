@@ -10,10 +10,8 @@ def fetch_user_data(user_id):
     return response.json()
 
 from defusedxml import ElementTree as ET
-
-import logging
-
 import re
+import logging
 
 def parse_xml_data(xml_string):
     """Secure XML parsing with XXE protection"""
@@ -54,7 +52,7 @@ def parse_xml_data(xml_string):
 def sanitize_tree(tree):
     """Sanitize the parsed XML tree to remove potential malicious nodes"""
     # Remove nodes with potentially malicious content
-    malicious_tags = ['ENTITY', 'DOCTYPE']
+    malicious_tags = ['ENTITY', 'DOCTYPE'] 
     for elem in tree.iter():
         if elem.tag in malicious_tags:
             elem.getparent().remove(elem)
