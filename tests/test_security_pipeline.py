@@ -471,17 +471,15 @@ def test_cache_in_ci(pipeline, tmp_path):
     pipeline.cache = SecurityCache(str(tmp_path))
     
     # Set up CI environment
-    with patch.dict(os.environ, {'CI': 'true', 
-                                'OPENAI_API_KEY': 'test-key',
-                                'ANTHROPIC_API_KEY': 'test-key',
-                                'SLACK_WEBHOOK': 'https://example.com/webhook'}):
-        # Mock Slack webhook to prevent actual HTTP requests
-        with patch('requests.post') as mock_post:
-            mock_post.return_value.status_code = 200
-
-            # First run - should skip cache in CI
-            first_results = pipeline.run_pipeline()
-            assert isinstance(first_results, dict), "Pipeline should return results dict"
+    with patch.dict(os.environ, {
+        'CI': 'true', 
+        'OPENAI_API_KEY': 'test-key',
+        'ANTHROPIC_API_KEY': 'test-key'
+    }):
+        # First run - should skip cache in CI
+        first_results = pipeline.run_pipeline()
+        assert isinstance(first_results, dict), "Pipeline should return results dict"
+        assert first_results.get('status') is True, "Pipeline should succeed"
         
         # Verify cache behavior in CI
         cache_files = list(tmp_path.glob('**/*.json'))
