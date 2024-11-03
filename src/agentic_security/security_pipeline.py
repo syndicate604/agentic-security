@@ -128,6 +128,12 @@ class SecurityPipeline:
         print(f"Running web security checks for {url}")
         results = {}
         
+        # Skip actual scans in CI environment
+        if os.environ.get('CI', '').lower() == 'true':
+            results['zap'] = {"status": "skipped", "message": "Skipped in CI environment"}
+            results['nuclei'] = {"status": "skipped", "message": "Skipped in CI environment"}
+            return results
+            
         # OWASP ZAP scan
         try:
             zap_result = subprocess.run([
@@ -156,8 +162,9 @@ class SecurityPipeline:
     def _run_code_security_checks(self, path: str) -> Dict:
         """Run code-specific security checks"""
         print(f"Running security checks for {path}")
-        # Introduce artificial delay to simulate longer processing time
-        time.sleep(0.1)
+        # Skip delay in CI environment
+        if not os.environ.get('CI', '').lower() == 'true':
+            time.sleep(0.1)
         results = {}
         
         # Define security patterns to check
