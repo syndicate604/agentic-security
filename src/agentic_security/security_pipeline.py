@@ -926,6 +926,7 @@ class SecurityPipeline:
         results = {'vulnerabilities': [], 'fixes_applied': []}
         start_time = time.time()
         stop_progress = threading.Event()
+        progress_thread = None
         
         # Add user exclusions to default excludes
         exclude_dirs = {'venv', 'env', '.git', '__pycache__', 'node_modules', '.pytest_cache'}
