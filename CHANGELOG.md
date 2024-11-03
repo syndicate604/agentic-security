@@ -294,3 +294,149 @@ Removed:
   - s = s.replace('%', '\\%')
   - s = s.replace('_', '\\_')
   - search_pattern = escape_like_pattern(keyword)
+
+## Security Fix
+- Applied security fixes to: tests/samples/vulnerable_query.py
+- Changes made based on provided instructions
+
+Changes in tests/samples/vulnerable_query.py:
+Added:
+  - # Direct whitelist check...
+  - New function: build_secure_column_query
+  - """...
+  - Args:...
+  - table_name: Table name...
+  - Tuple of (query_string, parameters)...
+  - """...
+  - validated_cols = validate_columns(table_name, columns)...
+  - placeholders = ','.join(['?'] * len(validated_cols))...
+  - query = f"SELECT {placeholders} FROM ?"...
+  - return query, validated_cols + [table_name]...
+  - SELECT * FROM (...
+  - UNION ALL...
+  - ) cols...
+  - INNER JOIN (...
+  - SELECT * FROM ?...
+  - ) data...
+  - # Build the column list safely...
+  - WITH RECURSIVE split(word, str) AS (...
+  - SELECT '', ? || ' '...
+  - UNION ALL...
+  - SELECT substr(str, 0, instr(str, ' ')),...
+  - substr(str, instr(str, ' ')+1)...
+  - FROM split WHERE str!=''...
+  - SELECT DISTINCT u.*...
+  - FROM users u...
+  - SELECT 1 FROM split...
+  - AND u.name LIKE '%' || replace(replace(replace(word,...
+  - '\\', '\\\\'),...
+  - '%', '\\%'),...
+  - '_', '\\_') || '%' ESCAPE '\\'...
+  - # Pass the keyword directly as parameter...
+
+Modified:
+  - Updated function: get_prepared_statement
+  - Changed: def get_prepared_statement(conn: sqlite3.Connection, sql: str, params: tuple = None, → stmt = get_prepared_statement(conn, query, params)
+  - Changed: identifiers: Dict[str, str] = None) -> sqlite3.Cursor: → def get_prepared_statement(conn: sqlite3.Connection, sql: str, params: tuple = None) -> sqlite3.Cursor:
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed: cursor.execute("EXPLAIN QUERY PLAN " + sql, ()) → cursor.execute("EXPLAIN QUERY PLAN " + sql, params or ())
+  - Changed: return False → Returns:
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed: for allowed in ALLOWED_TABLES): → if table_name not in ALLOWED_TABLES:
+  - Changed: SELECT {columns} → SELECT ? as col_name
+  - Changed: WHERE id = ? → WHERE id = ?
+  - Changed: WHERE id = ? → WHERE EXISTS (
+  - Changed: WHERE id = ? → WHERE word != ''
+  - Changed: AND active = 1 → AND active = 1
+  - Changed: AND active = 1 → AND u.active = 1
+  - Changed: AND deleted_at IS NULL → AND deleted_at IS NULL
+  - Changed: # Get prepared statement with parameters and safe identifiers → # Get prepared statement with parameters
+  - Changed: # Get prepared statement with parameters and safe identifiers → stmt = get_prepared_statement(conn, query, params)
+  - Changed: # Get prepared statement with parameters and safe identifiers → # Get prepared statement with parameters
+  - Changed: stmt = get_prepared_statement( → # Get prepared statement with parameters
+  - Changed: stmt = get_prepared_statement( → stmt = get_prepared_statement(conn, query, params)
+  - Changed: stmt = get_prepared_statement( → # Get prepared statement with parameters
+  - Changed: params=(user_id,), → params = cols + [table_name, user_id]
+  - Changed: params=(user_id,), → params = (keyword,)
+  - Changed: params=(user_id,), → params=params
+  - Changed: 'columns': ', '.join(cols), → columns: List of column names
+  - Changed: 'columns': ', '.join(cols), → placeholders = ','.join(['?'] * len(cols))
+  - Changed: 'columns': ', '.join(cols), → column_list = ', '.join(f'"{col}"' for col in cols)
+  - Changed: ) → )
+  - Changed: ) → )
+  - Changed: # Build parameterized query → Build a secure parameterized query for column selection
+  - Changed: # Build parameterized query → # Build query using proper parameterization
+  - Changed: # Build parameterized query → # Use a safer parameterized query approach
+  - Changed: SELECT {columns} → SELECT ? as col_name
+  - Changed: AND active = 1 → AND active = 1
+  - Changed: AND active = 1 → AND u.active = 1
+  - Changed: ORDER BY id ASC → ORDER BY u.id ASC
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed: # Prepare parameters with escaped LIKE pattern → # Prepare parameters including column names and table
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed: # Get prepared statement with parameters and safe identifiers → # Get prepared statement with parameters
+  - Changed: # Get prepared statement with parameters and safe identifiers → stmt = get_prepared_statement(conn, query, params)
+  - Changed: # Get prepared statement with parameters and safe identifiers → # Get prepared statement with parameters
+  - Changed: params=(search_pattern,), → params = (keyword,)
+  - Changed: params=(search_pattern,), → params=params
+  - Changed: 'columns': ', '.join(cols), → columns: List of column names
+  - Changed: 'columns': ', '.join(cols), → placeholders = ','.join(['?'] * len(cols))
+  - Changed: 'columns': ', '.join(cols), → column_list = ', '.join(f'"{col}"' for col in cols)
+
+Removed:
+  - identifiers: Dict of table/column identifiers to safely insert into query
+  - # Safely insert any table/column identifiers
+  - if identifiers:
+  - # Validate all identifiers
+  - for key, value in identifiers.items():
+  - if not re.match(r'^[a-zA-Z][a-zA-Z0-9_]*$', value):
+  - raise DatabaseError(f"Invalid identifier format: {value}")
+  - # Format the SQL with validated identifiers
+  - try:
+  - sql = sql.format(**{k: f'"{v}"' for k, v in identifiers.items()})
+  - except (KeyError, ValueError) as e:
+  - raise DatabaseError(f"Error formatting SQL with identifiers: {str(e)}")
+  - # Strict whitelist validation using constant time comparison
+  - def constant_time_compare(val1: str, val2: str) -> bool:
+  - if len(val1) != len(val2):
+  - result = 0
+  - for x, y in zip(val1, val2):
+  - result |= ord(x) ^ ord(y)
+  - return result == 0
+  - if not any(constant_time_compare(table_name, allowed)
+  - FROM {table}
+  - conn,
+  - query,
+  - identifiers={
+  - 'table': table_name
+  - FROM {table}
+  - WHERE name LIKE ? ESCAPE '\'
+  - # Properly escape LIKE pattern
+  - def escape_like_pattern(pattern: str) -> str:
+  - escape_chars = ['\\', '%', '_']
+  - for char in escape_chars:
+  - pattern = pattern.replace(char, '\\' + char)
+  - return f"%{pattern}%"
+  - search_pattern = escape_like_pattern(keyword)
+  - identifiers={
+  - 'table': 'users'
