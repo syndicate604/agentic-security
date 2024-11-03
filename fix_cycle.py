@@ -57,12 +57,14 @@ class FixCycle:
     def _generate_fix(self, finding: Dict) -> Optional[Dict]:
         """Generate fix instructions based on vulnerability type"""
         if not isinstance(finding, dict):
+            logger.warning("Invalid finding format")
             return None
             
         file_path = finding.get('file')
         vuln_type = finding.get('type')
         
         if not file_path or not vuln_type:
+            logger.warning(f"Missing required fields in finding: {finding}")
             return None
             
         fix_instructions = {
@@ -71,7 +73,9 @@ class FixCycle:
                 'fixes': [
                     'Replace string formatting with query parameters',
                     'Use prepared statements',
-                    'Implement proper input validation'
+                    'Implement proper input validation',
+                    'Use ORM when possible',
+                    'Validate and sanitize all user inputs'
                 ]
             },
             'command_injection': {
@@ -79,7 +83,9 @@ class FixCycle:
                 'fixes': [
                     'Use subprocess.run with shell=False',
                     'Implement strict input validation',
-                    'Use allowlist for permitted commands'
+                    'Use allowlist for permitted commands',
+                    'Avoid shell=True in subprocess calls',
+                    'Sanitize all command arguments'
                 ]
             },
             'xss': {
@@ -87,7 +93,9 @@ class FixCycle:
                 'fixes': [
                     'Implement proper HTML escaping',
                     'Use Content Security Policy',
-                    'Validate and sanitize user input'
+                    'Validate and sanitize user input',
+                    'Use secure template engines',
+                    'Implement XSS filters'
                 ]
             },
             'weak_crypto': {
@@ -95,7 +103,9 @@ class FixCycle:
                 'fixes': [
                     'Use strong hashing algorithms (SHA-256/512)',
                     'Implement proper key management',
-                    'Use secure random number generation'
+                    'Use secure random number generation',
+                    'Use established crypto libraries',
+                    'Implement proper salting'
                 ]
             },
             'insecure_deserialization': {
@@ -103,7 +113,29 @@ class FixCycle:
                 'fixes': [
                     'Use safe serialization formats',
                     'Implement strict input validation',
-                    'Avoid using pickle with untrusted data'
+                    'Avoid using pickle with untrusted data',
+                    'Validate all deserialized data',
+                    'Use JSON when possible'
+                ]
+            },
+            'path_traversal': {
+                'message': 'Prevent path traversal attacks',
+                'fixes': [
+                    'Use os.path.abspath to resolve paths',
+                    'Validate file paths against allowlist',
+                    'Implement proper access controls',
+                    'Sanitize file paths',
+                    'Use secure file handling libraries'
+                ]
+            },
+            'xxe': {
+                'message': 'Prevent XXE attacks',
+                'fixes': [
+                    'Use defusedxml library',
+                    'Disable external entity processing',
+                    'Implement proper XML parsing controls',
+                    'Validate XML input',
+                    'Use secure XML parsers'
                 ]
             }
         }
@@ -120,15 +152,56 @@ class FixCycle:
         return None
 
     def _save_report(self, report: Dict) -> None:
-        """Save fix report to security_reports directory"""
+        """Save fix report to security_reports directory with enhanced formatting"""
         report_file = self.reports_dir / f"security_fix_{self.timestamp}_{self.fix_id}.json"
         
+        # Add metadata to report
+        enhanced_report = {
+            'metadata': {
+                'timestamp': self.timestamp,
+                'fix_id': self.fix_id,
+                'version': '2.0',
+                'generated_by': 'FixCycle'
+            },
+            'summary': {
+                'total_fixes': len(report.get('fixes_applied', [])),
+                'status': 'success' if report.get('fixes_applied') else 'no_fixes_needed'
+            },
+            'details': report
+        }
+        
         try:
+            # Save JSON report
             with open(report_file, 'w') as f:
-                json.dump(report, f, indent=2)
+                json.dump(enhanced_report, f, indent=2)
             logger.info(f"Fix report saved to {report_file}")
+            
+            # Generate markdown summary
+            md_file = self.reports_dir / f"security_fix_{self.timestamp}_{self.fix_id}.md"
+            with open(md_file, 'w') as f:
+                f.write(f"# Security Fix Report\n\n")
+                f.write(f"## Overview\n")
+                f.write(f"- Fix ID: {self.fix_id}\n")
+                f.write(f"- Timestamp: {self.timestamp}\n")
+                f.write(f"- Total fixes: {enhanced_report['summary']['total_fixes']}\n\n")
+                
+                if report.get('fixes_applied'):
+                    f.write("## Applied Fixes\n\n")
+                    for fix in report['fixes_applied']:
+                        f.write(f"### {fix['type']}\n")
+                        f.write(f"- File: {fix['file']}\n")
+                        f.write(f"- Severity: {fix.get('severity', 'unknown')}\n")
+                        if fix.get('instructions'):
+                            f.write("- Instructions:\n")
+                            for item in fix['instructions'].get('fixes', []):
+                                f.write(f"  - {item}\n")
+                        f.write("\n")
+                
+            logger.info(f"Markdown report saved to {md_file}")
+            
         except Exception as e:
             logger.error(f"Error saving fix report: {str(e)}")
+            logger.debug("Report data:", exc_info=True)
 
     def run_fix_cycle(self, files: List[str], message: str, max_attempts: int = 3) -> bool:
         """Run fix cycle using aider with direct message passing"""
