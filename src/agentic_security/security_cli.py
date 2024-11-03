@@ -149,7 +149,9 @@ def scan(path, auto_fix, timeout, exclude, output, verbose, no_progress):
     if not validate_environment():
         sys.exit(1)
 
+    # Set environment variable for verbose mode
     if verbose:
+        os.environ['SECURITY_DEBUG'] = 'true'
         print("\n[36m[>] Starting security scan in verbose mode[0m")
         print(f"[36m[>] Scan time: {time.strftime('%Y-%m-%d %H:%M:%S')}[0m")
         print(f"[36m[>] Timeout: {timeout} seconds[0m")
