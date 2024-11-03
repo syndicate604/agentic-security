@@ -1,19 +1,50 @@
 import sqlite3
-from typing import List, Optional
+from typing import List, Optional, Dict
 import re
+from contextlib import contextmanager
 
-# Whitelist of allowed table names
-ALLOWED_TABLES = {'users', 'profiles', 'settings'}
+# Whitelist of allowed tables and their columns
+ALLOWED_TABLES: Dict[str, List[str]] = {
+    'users': ['id', 'name', 'email'],
+    'profiles': ['id', 'bio', 'avatar'],
+    'settings': ['id', 'preferences']
+}
+
+# Database configuration
+DB_CONFIG = {
+    'timeout': 5.0,
+    'isolation_level': 'EXCLUSIVE',
+    'check_same_thread': False
+}
 
 class DatabaseError(Exception):
     """Custom exception for database operations"""
     pass
 
+@contextmanager
+def get_db_connection():
+    """
+    Context manager for database connections with proper configuration
+    """
+    conn = None
+    try:
+        conn = sqlite3.connect('users.db', **DB_CONFIG)
+        yield conn
+    finally:
+        if conn:
+            conn.close()
+
 def validate_table_name(table_name: str) -> bool:
     """
     Validate if table name is in the allowed list
     """
-    return table_name in ALLOWED_TABLES
+    return table_name in ALLOWED_TABLES.keys()
+
+def validate_columns(table_name: str, columns: List[str]) -> bool:
+    """
+    Validate if requested columns are allowed for the table
+    """
+    return all(col in ALLOWED_TABLES[table_name] for col in columns)
 
 def validate_user_id(user_id: str) -> bool:
     """
@@ -21,13 +52,14 @@ def validate_user_id(user_id: str) -> bool:
     """
     return bool(re.match(r'^\d+$', str(user_id)))
 
-def get_user_data(user_id: str, table_name: str) -> Optional[List[tuple]]:
+def get_user_data(user_id: str, table_name: str, columns: Optional[List[str]] = None) -> Optional[List[tuple]]:
     """
     Safely get user data using parameterized queries and prepared statements
     
     Args:
         user_id: The user ID to query
         table_name: The table to query from
+        columns: Optional list of columns to retrieve
         
     Returns:
         List of tuples containing user data or None if error occurs
@@ -45,21 +77,18 @@ def get_user_data(user_id: str, table_name: str) -> Optional[List[tuple]]:
     if not validate_user_id(user_id):
         raise DatabaseError(f"Invalid user ID format: {user_id}")
     
-    # Map of allowed tables to their valid columns
-    table_queries = {
-        'users': 'SELECT id, name, email FROM users WHERE id = ?',
-        'profiles': 'SELECT id, bio, avatar FROM profiles WHERE id = ?',
-        'settings': 'SELECT id, preferences FROM settings WHERE id = ?'
-    }
+    # Use all columns if none specified
+    if columns is None:
+        columns = ALLOWED_TABLES[table_name]
+    elif not validate_columns(table_name, columns):
+        raise DatabaseError("Invalid columns requested")
     
-    if table_name not in table_queries:
-        raise DatabaseError("Table not allowed")
-        
     try:
-        with sqlite3.connect('users.db') as conn:
+        with get_db_connection() as conn:
             cursor = conn.cursor()
-            # Use pre-defined query for the table
-            query = table_queries[table_name]
+            # Construct safe query using validated columns
+            columns_str = ', '.join(columns)
+            query = f"SELECT {columns_str} FROM {table_name} WHERE id = ?"
             cursor.execute(query, (user_id,))
             results = cursor.fetchall()
             
@@ -74,12 +103,13 @@ def get_user_data(user_id: str, table_name: str) -> Optional[List[tuple]]:
         if 'conn' in locals():
             conn.close()
 
-def search_users(keyword: str) -> Optional[List[tuple]]:
+def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[List[tuple]]:
     """
     Safely search users using parameterized queries with input validation
     
     Args:
         keyword: Search term for user names
+        columns: Optional list of columns to retrieve
         
     Returns:
         List of tuples containing matching users or None if error occurs
@@ -90,12 +120,18 @@ def search_users(keyword: str) -> Optional[List[tuple]]:
     if not isinstance(keyword, str):
         raise DatabaseError("Search keyword must be a string")
         
-    # Validate keyword contains only allowed characters
-    if not re.match(r'^[a-zA-Z0-9\s-]{1,50}$', keyword):
-        raise DatabaseError("Invalid search keyword format")
+    # Stricter keyword validation
+    if not re.match(r'^[a-zA-Z0-9\s-]{3,50}$', keyword):
+        raise DatabaseError("Invalid search keyword format - must be 3-50 chars, alphanumeric with spaces and hyphens only")
+    
+    # Use all columns if none specified
+    if columns is None:
+        columns = ALLOWED_TABLES['users']
+    elif not validate_columns('users', columns):
+        raise DatabaseError("Invalid columns requested")
     
     try:
-        with sqlite3.connect('users.db') as conn:
+        with get_db_connection() as conn:
             cursor = conn.cursor()
             # Use parameterized query with specific columns
             query = """
