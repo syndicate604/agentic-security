@@ -138,7 +138,7 @@ class SecurityPipeline:
         
         # Define security patterns to check
         security_patterns = {
-            'sql_injection': ['execute(', 'cursor.execute(', 'raw_query'],
+            'sql_injection': ['execute(', 'cursor.execute(', 'raw_query', 'SELECT * FROM', 'INSERT INTO', 'UPDATE', 'DELETE FROM'],
             'command_injection': ['os.system', 'subprocess.call', 'eval(', 'exec('],
             'xss': ['<script>', 'innerHTML', 'document.write'],
             'weak_crypto': ['md5', 'sha1', 'DES', 'RC4'],
@@ -282,11 +282,15 @@ class SecurityPipeline:
     def run_pipeline(self) -> bool:
         """Execute the complete security pipeline"""
         try:
-            # Architecture review with o1-preview
-            review_results = self.run_architecture_review()
-            
-            # Run initial security checks
+            # Run initial security checks first
             security_results = self.run_security_checks()
+            
+            # Try architecture review if aider is available
+            try:
+                review_results = self.run_architecture_review()
+            except subprocess.CalledProcessError:
+                print("Warning: Architecture review skipped - aider not available")
+                review_results = {"suggestions": []}
             
             # Check if fixes are needed
             max_severity = max(
