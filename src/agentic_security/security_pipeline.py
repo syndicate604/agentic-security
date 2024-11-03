@@ -66,7 +66,7 @@ class SecurityPipeline:
         if 'ai' in self.config and 'custom_prompts' in self.config['ai']:
             self.prompt_manager = PromptManager(self.config['ai']['custom_prompts'])
             
-        # Set verbose output flag
+        # Set verbose output flag from environment
         self.verbose = os.environ.get('SECURITY_DEBUG', '').lower() == 'true'
 
     def load_config(self, config_file: str) -> None:
