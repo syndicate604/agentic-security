@@ -108,26 +108,49 @@ def cli():
     pass
 
 @cli.command()
+@click.option('--path', '-p', multiple=True, help='Paths to scan (files or directories)')
+@click.option('--auto-fix/--no-auto-fix', default=False, help='Automatically apply fixes without prompting')
+@click.option('--output', '-o', type=click.Path(), help='Output markdown report path')
+@click.option('--verbose/--no-verbose', '-v/', default=False, help='Verbose output')
+@click.option('--test/--no-test', default=False, help='Run in test mode')
 @click.option('--config', '-c', default='config.yml', help='Path to configuration file')
-def scan(config: str):
-    """Run security scans without implementing fixes"""
+def scan(path, auto_fix, output, verbose, test, config):
+    """Run security scans on specified paths"""
     print(CYBER_BANNER)
     if not validate_environment():
         return
-    
+
     print_cyber_status("Initializing security scan...", "info")
-    pipeline = SecurityPipeline(config)
-    results = pipeline.run_security_checks()
     
-    # Display results
-    for check_type, check_results in results.items():
-        print_cyber_status(f"\n{check_type.upper()} Scan Results:", "info")
-        for result in check_results:
-            max_severity = pipeline._get_max_severity(result)
-            print_cyber_status(f"Maximum severity: {max_severity}", 
-                           "error" if max_severity >= pipeline.critical_threshold else "info")
-            if max_severity >= pipeline.critical_threshold:
-                print_cyber_status("Critical vulnerabilities found!", "error")
+    if not path:
+        path = ['.']  # Default to current directory
+        
+    try:
+        pipeline = SecurityPipeline(config)
+        
+        if test:
+            print_cyber_status("Running in test mode", "info")
+            pipeline.run_tests()
+            return
+
+        results = pipeline.scan_paths(path)
+        
+        if results.get('vulnerabilities'):
+            if auto_fix:
+                print_cyber_status("Automatically applying fixes...", "info")
+                pipeline.apply_fixes(results['vulnerabilities'])
+            else:
+                for vuln in results['vulnerabilities']:
+                    if click.confirm(f"Fix vulnerability in {vuln['file']}?"):
+                        pipeline.apply_fix(vuln)
+        
+        if output:
+            pipeline.generate_report(results, output, verbose)
+            print_cyber_status(f"Report generated at {output}", "success")
+            
+    except Exception as e:
+        print_cyber_status(f"Error: {str(e)}", "error")
+        sys.exit(1)
 
 @cli.command()
 @click.option('--config', '-c', default='config.yml', help='Path to configuration file')
@@ -193,6 +216,57 @@ def validate(config: str):
         exit(1)
     
     print_cyber_status("Configuration is valid", "success")
+
+@cli.command()
+@click.option('--config', '-c', default='config.yml', help='Path to configuration file')
+@click.option('--verbose/--no-verbose', '-v/', default=False, help='Verbose output')
+def test(config, verbose):
+    """Run security pipeline tests"""
+    print_cyber_status("Running security pipeline tests...", "info")
+    
+    try:
+        import pytest
+        args = ['tests/test_security_pipeline.py']
+        if verbose:
+            args.append('-v')
+        
+        exit_code = pytest.main(args)
+        if exit_code == 0:
+            print_cyber_status("All tests passed!", "success")
+        else:
+            print_cyber_status("Some tests failed", "error")
+            sys.exit(1)
+    except Exception as e:
+        print_cyber_status(f"Error running tests: {str(e)}", "error")
+        sys.exit(1)
+
+@cli.command()
+@click.option('--path', '-p', multiple=True, help='Paths to review')
+@click.option('--output', '-o', type=click.Path(), help='Output markdown report path')
+@click.option('--verbose/--no-verbose', '-v/', default=False, help='Verbose output')
+def review(path, output, verbose):
+    """Generate security review report"""
+    print_cyber_status("Starting security review...", "info")
+    
+    if not path:
+        path = ['.']
+        
+    try:
+        from .security_pipeline import SecurityPipeline
+        pipeline = SecurityPipeline(config)
+        
+        results = pipeline.review_paths(path, verbose)
+        
+        if output:
+            pipeline.generate_review_report(results, output)
+            print_cyber_status(f"Review report generated at {output}", "success")
+        else:
+            # Print review results to console
+            pipeline.print_review_results(results, verbose)
+            
+    except Exception as e:
+        print_cyber_status(f"Error: {str(e)}", "error")
+        sys.exit(1)
 
 @cli.command()
 def version():
