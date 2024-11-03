@@ -534,15 +534,15 @@ class SecurityPipeline:
         if not isinstance(self.config['security'], dict):
             raise ValueError("Invalid configuration structure")
             
-        # Check threshold before scan targets
+        # Check scan targets first
+        if not self.config['security'].get('scan_targets'):
+            return {'status': False, 'error': 'No scan targets configured'}
+
+        # Then check threshold
         threshold = self.config['security'].get('critical_threshold', 0)
         if threshold < 0:
             return {'status': False, 'error': 'Critical threshold cannot be negative'}
         self.critical_threshold = threshold  # Update instance variable
-
-        # Then check scan targets
-        if not self.config['security'].get('scan_targets'):
-            return {'status': False, 'error': 'No scan targets configured'}
 
         if not any(target.get('type') in ['web', 'code'] 
                   for target in self.config['security']['scan_targets']):
