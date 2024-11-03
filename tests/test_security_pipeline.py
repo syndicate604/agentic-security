@@ -2,6 +2,9 @@ import pytest
 import os
 import yaml
 import time
+import subprocess
+import json
+from unittest.mock import patch, MagicMock
 from datetime import datetime
 from pathlib import Path
 from src.agentic_security.security_pipeline import SecurityPipeline
@@ -323,6 +326,152 @@ def test_cli_review_integration(pipeline, tmp_path):
     result = runner.invoke(review, ['--path', str(tmp_path)])
     assert result.exit_code == 0
     assert "Security Review" in result.output
+
+def test_github_actions_integration():
+    """Test GitHub Actions workflow integration"""
+    workflow_file = Path('.github/workflows/security_pipeline.yml')
+    assert workflow_file.exists(), "GitHub Actions workflow file not found"
+    
+    with open(workflow_file) as f:
+        workflow = yaml.safe_load(f)
+    
+    # Verify required workflow components
+    assert 'on' in workflow, "Workflow triggers not defined"
+    assert 'jobs' in workflow, "Workflow jobs not defined"
+    assert 'security-check' in workflow['jobs'], "Security check job not defined"
+    
+    # Verify required steps
+    steps = [step.get('name', '') for step in workflow['jobs']['security-check']['steps']]
+    required_steps = [
+        'Install Security Tools',
+        'Install Aider',
+        'Run security pipeline',
+        'Upload Security Report',
+        'Create Pull Request'
+    ]
+    
+    for required in required_steps:
+        assert any(required in step for step in steps), f"Missing required step: {required}"
+
+def test_docker_integration():
+    """Test Docker container integration"""
+    dockerfile = Path('Dockerfile')
+    assert dockerfile.exists(), "Dockerfile not found"
+    
+    # Test Docker build
+    try:
+        result = subprocess.run(
+            ['docker', 'build', '-t', 'agentic-security-test', '.'],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        assert result.returncode == 0, "Docker build failed"
+    except subprocess.CalledProcessError as e:
+        pytest.fail(f"Docker build failed: {e.stderr}")
+
+def test_installation_script():
+    """Test installation script functionality"""
+    install_script = Path('install.sh')
+    assert install_script.exists(), "Installation script not found"
+    
+    # Verify script is executable
+    assert os.access(install_script, os.X_OK), "Installation script not executable"
+    
+    # Test script content
+    with open(install_script) as f:
+        content = f.read()
+        required_sections = [
+            'Install Security Tools',
+            'Install Python Dependencies',
+            'Install GitHub CLI',
+            'Configure Docker'
+        ]
+        for section in required_sections:
+            assert section in content, f"Missing required section: {section}"
+
+@patch('subprocess.run')
+def test_ci_pipeline_execution(mock_run, pipeline):
+    """Test CI pipeline execution"""
+    # Mock successful command executions
+    mock_run.return_value = MagicMock(
+        returncode=0,
+        stdout="Test output",
+        stderr=""
+    )
+    
+    # Run pipeline in CI mode
+    pipeline._skip_cache = True  # Skip caching in CI
+    assert pipeline.run_pipeline()
+    
+    # Verify expected commands were called
+    expected_calls = [
+        'security checks',
+        'architecture review',
+        'implement fixes',
+        'create branch',
+        'create pull request'
+    ]
+    
+    call_args = [call[0][0] for call in mock_run.call_args_list]
+    for expected in expected_calls:
+        assert any(expected in str(args) for args in call_args), f"Missing CI step: {expected}"
+
+def test_notification_integration(pipeline):
+    """Test notification system integration"""
+    # Mock Slack webhook
+    with patch('requests.post') as mock_post:
+        mock_post.return_value.status_code = 200
+        
+        # Trigger notification
+        result = pipeline.run_pipeline()
+        
+        # Verify notification was sent
+        assert mock_post.called, "Notification not sent"
+        
+        # Verify notification content
+        call_args = mock_post.call_args[1]
+        notification_data = json.loads(call_args['json'])
+        assert 'text' in notification_data, "Missing notification text"
+        assert 'Security scan complete' in notification_data['text']
+
+def test_artifact_generation(pipeline, tmp_path):
+    """Test security report artifact generation"""
+    report_file = tmp_path / "security-report.md"
+    
+    # Run pipeline with artifact generation
+    results = pipeline.run_pipeline()
+    pipeline.generate_review_report(results, report_file)
+    
+    # Verify artifact was created
+    assert report_file.exists(), "Security report not generated"
+    
+    # Verify report content
+    content = report_file.read_text()
+    required_sections = [
+        "# Security Review Report",
+        "## Findings",
+        "## Recommendations"
+    ]
+    for section in required_sections:
+        assert section in content, f"Missing report section: {section}"
+
+def test_cache_in_ci(pipeline, tmp_path):
+    """Test caching behavior in CI environment"""
+    # Set up CI environment
+    with patch.dict(os.environ, {'CI': 'true'}):
+        # First run - should create cache
+        first_results = pipeline.run_pipeline()
+        
+        # Verify cache was created
+        cache_files = list(tmp_path.glob('**/*.json'))
+        assert len(cache_files) > 0, "Cache not created in CI"
+        
+        # Second run - should use cache
+        second_results = pipeline.run_pipeline()
+        
+        # Verify results match
+        assert first_results == second_results, "Cache not working in CI"
 
 @pytest.mark.parametrize('test_file,expected_findings', [
     ('sql_injection.py', ['sql_injection']),
