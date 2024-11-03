@@ -24,9 +24,16 @@ def send_request(url, data):
 
 def process_response(response_data):
     """Insecure response handling"""
-    # Security Issue 6: Unsafe deserialization
-    # Security Issue 7: No content type validation
-    return eval(response_data)
+    import json
+
+    # Secure deserialization
+    try:
+        data = json.loads(response_data)
+    except ValueError:
+        # Handle invalid JSON
+        return None
+    else:
+        return data
 # Sample vulnerable API code
 import requests
 from defusedxml import ElementTree as ET
