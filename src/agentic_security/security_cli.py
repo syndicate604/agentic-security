@@ -3,6 +3,7 @@
 import click
 import yaml
 import os
+import sys
 from .security_pipeline import SecurityPipeline
 from typing import Optional
 
@@ -244,7 +245,8 @@ def test(config, verbose):
 @click.option('--path', '-p', multiple=True, help='Paths to review')
 @click.option('--output', '-o', type=click.Path(), help='Output markdown report path')
 @click.option('--verbose/--no-verbose', '-v/', default=False, help='Verbose output')
-def review(path, output, verbose):
+@click.option('--config', '-c', default='config.yml', help='Path to configuration file')
+def review(path, output, verbose, config):
     """Generate security review report"""
     print_cyber_status("Starting security review...", "info")
     
