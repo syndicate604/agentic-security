@@ -1,6 +1,6 @@
 name: Security Pipeline
 
-on:
+"on":
   pull_request:
     branches: [ main ]
   workflow_dispatch:

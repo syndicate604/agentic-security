@@ -474,7 +474,25 @@ class SecurityPipeline:
             
             if isinstance(results, bool):
                 f.write("No security issues found.\n\n")
-                return
+            else:
+                for review in results.get('reviews', []):
+                    f.write(f"### {review.get('file', 'Unknown File')}\n\n")
+                    f.write(f"- Type: {review.get('type', 'Unknown')}\n")
+                    f.write(f"- Severity: {review.get('severity', 'Unknown')}\n\n")
+
+                    if review.get('findings'):
+                        f.write("#### Details\n\n")
+                        for finding in review['findings']:
+                            description = self._get_vulnerability_description(review['type'])
+                            f.write(f"- {description}\n")
+                            if finding.get('description'):
+                                f.write(f"  Details: {finding['description']}\n")
+                    f.write("\n")
+
+            f.write("## Recommendations\n\n")
+            f.write("1. Review and address all identified vulnerabilities\n")
+            f.write("2. Implement security best practices\n")
+            f.write("3. Regular security scanning and monitoring\n")
                 
             for review in results.get('reviews', []):
                 f.write(f"### {review.get('file', 'Unknown File')}\n\n")
