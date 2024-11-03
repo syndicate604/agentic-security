@@ -180,7 +180,7 @@ def scan(path, auto_fix, output, verbose, test, config):
             else:
                 print_cyber_status("Run with --auto-fix to attempt automatic fixes", "info")
         else:
-            print("\n[32m[✓] No vulnerabilities found. Your project is secure![0m\n")
+            print("\n[32m[✓] No vulnerabilities found. Your project is secure![0m")
             
     except Exception as e:
         print_cyber_status(f"Error: {str(e)}", "error")
