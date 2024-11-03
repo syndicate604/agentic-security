@@ -150,7 +150,7 @@ class SecurityPipeline:
 
     def _run_code_security_checks(self, path: str) -> Dict:
         """Run code-specific security checks"""
-        print(f"Running code security checks for {path}")
+        print(f"Running security checks for {path}")
         results = {}
         
         # Define security patterns to check
@@ -312,8 +312,17 @@ class SecurityPipeline:
     def run_pipeline(self) -> Dict:
         """Execute the complete security pipeline"""
         try:
+            # Check if we should skip cache
+            skip_cache = getattr(self, '_skip_cache', False)
+            
             results = {'status': True, 'reviews': []}
             self.progress.start("Starting security pipeline")
+            
+            # Use cache if available and not skipped
+            if not skip_cache:
+                cached_results = self.cache.get_scan_results("latest_scan")
+                if cached_results:
+                    return cached_results['results']
             
             # Generate unique scan ID based on current timestamp
             scan_id = f"pipeline_scan_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -374,10 +383,19 @@ class SecurityPipeline:
             
             # Send notification
             if 'SLACK_WEBHOOK' in os.environ:
-                requests.post(
-                    os.environ['SLACK_WEBHOOK'],
-                    json={'text': 'Security scan complete'}
-                )
+                try:
+                    requests.post(
+                        os.environ['SLACK_WEBHOOK'],
+                        json={
+                            'text': f'Security scan complete\nFindings: {len(results.get("reviews", []))} issues found'
+                        }
+                    )
+                except Exception as e:
+                    print(f"Error sending notification: {str(e)}")
+            
+            # Cache results before returning
+            if not getattr(self, '_skip_cache', False):
+                self.cache.save_scan_results("latest_scan", {'results': results})
             
             return results
             
