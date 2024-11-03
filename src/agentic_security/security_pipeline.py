@@ -270,6 +270,10 @@ class SecurityPipeline:
             print("\033[33m[!] No suggestions provided for fixes\033[0m")
             return False
 
+        if self.verbose:
+            print("\n[36m[>] Starting fix implementation in verbose mode[0m")
+            print(f"[36m[>] Total fixes to implement: {len(suggestions)}[0m")
+
         total_fixes = len(suggestions)
         fixes_applied = []
         success = True
@@ -1062,7 +1066,7 @@ class SecurityPipeline:
         print("\n[32m[✓] All fixes validated successfully[0m")
         return True
 
-    def scan_paths(self, paths: List[str], exclude: tuple = (), timeout: int = 300, auto_fix: bool = False) -> Dict:
+    def scan_paths(self, paths: List[str], exclude: tuple = (), timeout: int = 300, auto_fix: bool = False, verbose: bool = False) -> Dict:
         """Scan paths for security issues and optionally fix them
         
         Args:
@@ -1070,7 +1074,18 @@ class SecurityPipeline:
             exclude: Tuple of patterns to exclude 
             timeout: Maximum scan time in seconds
             auto_fix: Whether to automatically fix issues
+            verbose: Enable verbose output
         """
+        # Update instance verbose flag with parameter
+        self.verbose = verbose or self.verbose
+        
+        if self.verbose:
+            print(f"\n[36m[>] Starting verbose scan of {len(paths)} paths[0m")
+            print(f"[36m[>] Scan configuration:[0m")
+            print(f"[36m    - Model: {VALID_MODELS[self.analysis_model]['name']}[0m")
+            print(f"[36m    - Timeout: {timeout}s[0m")
+            print(f"[36m    - Auto-fix: {auto_fix}[0m")
+            print(f"[36m    - Excluded patterns: {exclude}[0m")
         results = {'vulnerabilities': [], 'fixes_applied': []}
         start_time = time.time()
         stop_progress = None
