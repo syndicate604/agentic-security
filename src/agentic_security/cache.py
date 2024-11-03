@@ -13,41 +13,26 @@ class SecurityCache:
 
     def save_scan_results(self, scan_id: str, results: Dict[str, Any]) -> None:
         """Save scan results to cache"""
-        timestamp = datetime.now().isoformat()
-        result_file = self.results_dir / f"{scan_id}_{timestamp}.json"
-        
+        # Overwrite existing results for the same scan_id
+        result_file = self.results_dir / f"{scan_id}_latest.json"
+
         with open(result_file, 'w') as f:
             json.dump({
-                'timestamp': timestamp,
+                'timestamp': datetime.now().isoformat(),
                 'results': results
             }, f, indent=2)
 
     def get_scan_results(self, scan_id: str) -> Optional[Dict[str, Any]]:
-        """Retrieve most recent scan results"""
-        # First try exact match for better performance
-        latest_file = self.results_dir / f"{scan_id}_latest.json"
-        if latest_file.exists():
+        """Retrieve cached scan results by scan_id"""
+        result_file = self.results_dir / f"{scan_id}_latest.json"
+        if result_file.exists():
             try:
-                with open(latest_file) as f:
+                with open(result_file) as f:
                     data = json.load(f)
                     if 'timestamp' in data and 'results' in data:
                         return data['results']
             except (json.JSONDecodeError, KeyError):
                 pass
-
-        # Fallback to glob search
-        files = list(self.results_dir.glob(f"{scan_id}_*.json"))
-        if not files:
-            return None
-            
-        latest_file = max(files, key=os.path.getctime)
-        try:
-            with open(latest_file) as f:
-                data = json.load(f)
-                if 'timestamp' in data and 'results' in data:
-                    return data['results']
-        except (json.JSONDecodeError, KeyError):
-            pass
         return None
 
     def clear_old_results(self, days: int = 30) -> None:
