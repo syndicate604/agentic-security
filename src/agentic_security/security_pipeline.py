@@ -9,6 +9,10 @@ import requests
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
+from .cache import SecurityCache
+from .prompts import PromptManager
+from .progress import ProgressReporter
+
 # Configuration Variables
 OPENAI_MODEL = "gpt-4-1106-preview"  # o1-preview model
 CLAUDE_MODEL = "claude-3-sonnet-20240229"  # Latest Sonnet model
@@ -26,6 +30,14 @@ class SecurityPipeline:
         self.critical_threshold = self.config['security']['critical_threshold']
         self.max_fix_attempts = self.config['security']['max_fix_attempts']
         self.branch_name = f"security-fixes-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+        
+        self.cache = SecurityCache()
+        self.prompt_manager = PromptManager()
+        self.progress = ProgressReporter()
+        
+        # Load custom prompts if specified
+        if 'ai' in self.config and 'custom_prompts' in self.config['ai']:
+            self.prompt_manager = PromptManager(self.config['ai']['custom_prompts'])
 
     def load_config(self, config_file: str) -> None:
         """Load configuration from YAML file or use defaults"""
