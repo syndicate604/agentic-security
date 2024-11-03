@@ -356,9 +356,6 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
                         'table': 'users'
                     }
                 )
-                
-                # Get prepared statement with parameters
-                stmt = get_prepared_statement(conn, query, params)
                 results = stmt.fetchall()
                 
                 conn.commit()
