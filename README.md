@@ -2,6 +2,8 @@
 
 Automated security scanning and fixing pipeline using AI-powered tools.
 
+The pipeline combines OWASP ZAP scans with AI-driven analysis, catching architectural flaws through explicit prompting at design, implementation, and testing phases. For red teaming, it integrates automated vulnerability assessments with AI-guided fixes, which are deployed to a new branch for manual review.
+
 **Created by rUv, cause he could.**
 
 ---
@@ -81,8 +83,6 @@ Automated security scanning and fixing pipeline using AI-powered tools.
 
 1. **Architectural Analysis**: Utilizes Aider in `/architect` mode with OpenAI's `o1-preview` model to analyze structural vulnerabilities.
 2. **Recursive Implementation**: Employs Aider in editor mode using Claude 3.5 Sonnet for recursive fixes until optimized.
-
-The pipeline combines OWASP ZAP scans with AI-driven analysis, catching architectural flaws through explicit prompting at design, implementation, and testing phases. For red teaming, it integrates automated vulnerability assessments with AI-guided fixes, which are deployed to a new branch for manual review each morning.
 
 ---
 
