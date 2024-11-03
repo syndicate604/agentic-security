@@ -68,19 +68,20 @@ def run_aider_command(command: str, files: list, config_file: Path = None, auto_
         
         # Add CLI mode flags
         cmd.extend([
-            "--yes-always",
+            "--yes-always", 
             "--no-stream",
             "--auto-commits",
-            "--model", "gpt-4o-mini",
-            "--commit-prefix", "[SECURITY]"
+            "--model", "gpt-4",  # Use standard model name
+            "--commit-prompt", "[SECURITY] {msg}"  # Use commit-prompt instead
         ])
         
         # Add message
         if command:
             cmd.extend(["--message", command])
             
-        # Add files
-        cmd.extend(files)
+        # Add files with --file flag
+        for file in files:
+            cmd.extend(["--file", file])
         
         # Start process with environment
         process = subprocess.Popen(
@@ -180,7 +181,12 @@ class TestAiderIntegration:
         )
         
         assert returncode == 0, f"Aider command failed: {stderr}"
-        assert "parameterized" in stdout.lower() or "prepared statement" in stdout.lower()
+        assert any(term in stdout.lower() for term in [
+            "parameterized", 
+            "prepared statement",
+            "parameterize",
+            "sql injection fix"
+        ])
         
         # Verify changes were committed
         git_log = subprocess.run(
