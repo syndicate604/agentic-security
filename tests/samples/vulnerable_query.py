@@ -38,15 +38,21 @@ def get_prepared_statement(conn: sqlite3.Connection, sql: str, params: tuple = N
     cache_key = hash(sql)
     
     if cache_key not in STMT_CACHE:
-        # Prepare the statement
-        cursor.execute("EXPLAIN " + sql)
-        STMT_CACHE[cache_key] = sql
+        try:
+            # Validate the SQL before caching
+            cursor.execute("EXPLAIN QUERY PLAN " + sql)
+            STMT_CACHE[cache_key] = sql
+        except sqlite3.Error as e:
+            raise DatabaseError(f"Invalid SQL statement: {str(e)}")
     
-    # Execute with parameters
-    if params:
-        cursor.execute(STMT_CACHE[cache_key], params)
-    else:
-        cursor.execute(STMT_CACHE[cache_key])
+    try:
+        # Execute with parameters using proper binding
+        if params:
+            cursor.execute(STMT_CACHE[cache_key], tuple(params))
+        else:
+            cursor.execute(STMT_CACHE[cache_key])
+    except sqlite3.Error as e:
+        raise DatabaseError(f"Error executing statement: {str(e)}")
         
     return cursor
 
@@ -115,12 +121,23 @@ def validate_table_name(table_name: str) -> str:
     if len(table_name) > 63:
         raise DatabaseError("Table name too long")
         
-    # Verify table exists in database
+    # Verify table exists in database with transaction
     with get_db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
-        if not cursor.fetchone():
-            raise DatabaseError(f"Table '{table_name}' does not exist in database")
+        try:
+            conn.execute("BEGIN TRANSACTION")
+            cursor = conn.cursor()
+            # Use prepared statement
+            stmt = get_prepared_statement(
+                conn,
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name=? AND sql NOT LIKE '%--'",
+                (table_name,)
+            )
+            if not stmt.fetchone():
+                raise DatabaseError(f"Table '{table_name}' does not exist in database")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
         
     return table_name
 
@@ -226,25 +243,22 @@ def get_user_data(user_id: str, table_name: str, columns: Optional[List[str]] = 
         with get_db_connection() as conn:
             conn.execute("BEGIN TRANSACTION")
             try:
-                # Build parameterized query
+                # Build safe parameterized query
                 cols = validate_columns(table_name, columns)
-                placeholders = ','.join('?' * len(cols))
                 
-                query = """
-                    SELECT * FROM (
-                        SELECT ? || '.' || ? AS col_name, ? as value 
-                        FROM (VALUES {})
-                    ) t JOIN {} ON 1=1
+                # Create dynamic column selection safely
+                column_list = ', '.join(f'"{col}"' for col in cols)
+                
+                query = f"""
+                    SELECT {column_list}
+                    FROM "{table_name}"
                     WHERE id = ?
                     AND active = 1 
                     AND deleted_at IS NULL
-                """.format(','.join(['(?)'] * len(cols)), table_name)
+                """
                 
-                # Parameters for both column names and user_id
-                params = []
-                for col in cols:
-                    params.extend([table_name, col, col])
-                params.append(user_id)
+                # Only user_id needs to be parameterized
+                params = (user_id,)
                 
                 # Get prepared statement with parameters
                 stmt = get_prepared_statement(conn, query, params)
@@ -294,39 +308,32 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
         with get_db_connection() as conn:
             conn.execute("BEGIN TRANSACTION")
             try:
-                # Build parameterized query with validated columns
+                # Build safe parameterized query
                 cols = validate_columns('users', columns)
-                placeholders = ','.join('?' * len(cols))
+                column_list = ', '.join(f'"{col}"' for col in cols)
                 
-                query = """
-                    WITH RECURSIVE split(word, str) AS (
-                        SELECT '', ? || ' '
-                        UNION ALL
-                        SELECT substr(str, 0, instr(str, ' ')),
-                               substr(str, instr(str, ' ')+1)
-                        FROM split WHERE str!=''
-                    )
-                    SELECT * FROM (
-                        SELECT ? || '.' || ? AS col_name, ? as value 
-                        FROM (VALUES {})
-                    ) t JOIN users ON 1=1
-                    WHERE EXISTS (
-                        SELECT 1 FROM split 
-                        WHERE word != '' 
-                        AND name LIKE '%' || replace(replace(replace(word, 
-                            '\', '\\'), 
-                            '%', '\%'), 
-                            '_', '\_') || '%' ESCAPE '\'
-                    )
+                # Split search terms and escape LIKE patterns
+                search_terms = [term.strip() for term in keyword.split()]
+                escaped_terms = []
+                for term in search_terms:
+                    escaped_term = term.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+                    escaped_terms.append(f"%{escaped_term}%")
+                
+                # Build WHERE clause for each search term
+                where_clauses = []
+                params = []
+                for _ in escaped_terms:
+                    where_clauses.append('name LIKE ? ESCAPE "\\"')
+                    params.append(_)
+                
+                query = f"""
+                    SELECT {column_list}
+                    FROM users
+                    WHERE {' AND '.join(where_clauses)}
                     AND active = 1
                     ORDER BY id ASC
                     LIMIT 100
-                """.format(','.join(['(?)'] * len(cols)))
-                
-                # Parameters for both column names and search terms
-                params = [keyword]
-                for col in cols:
-                    params.extend(['users', col, col])
+                """
                 
                 # Get prepared statement with parameters
                 stmt = get_prepared_statement(conn, query, params)
