@@ -96,17 +96,8 @@ def validate_table_name(table_name: str) -> str:
         
     table_name = table_name.lower().strip()
     
-    # Strict whitelist validation using constant time comparison
-    def constant_time_compare(val1: str, val2: str) -> bool:
-        if len(val1) != len(val2):
-            return False
-        result = 0
-        for x, y in zip(val1, val2):
-            result |= ord(x) ^ ord(y)
-        return result == 0
-    
-    if not any(constant_time_compare(table_name, allowed) 
-              for allowed in ALLOWED_TABLES):
+    # Direct whitelist check
+    if table_name not in ALLOWED_TABLES:
         raise DatabaseError("Table not in allowed list")
     
     # Enhanced format validation with strict pattern
@@ -145,6 +136,22 @@ def validate_table_name(table_name: str) -> str:
             raise
         
     return table_name
+
+def build_secure_column_query(columns: List[str], table_name: str) -> tuple[str, List[str]]:
+    """
+    Build a secure parameterized query for column selection
+    
+    Args:
+        columns: List of column names
+        table_name: Table name
+        
+    Returns:
+        Tuple of (query_string, parameters)
+    """
+    validated_cols = validate_columns(table_name, columns)
+    placeholders = ','.join(['?'] * len(validated_cols))
+    query = f"SELECT {placeholders} FROM ?"
+    return query, validated_cols + [table_name]
 
 def validate_columns(table_name: str, columns: List[str]) -> List[str]:
     """
@@ -248,24 +255,26 @@ def get_user_data(user_id: str, table_name: str, columns: Optional[List[str]] = 
         with get_db_connection() as conn:
             conn.execute("BEGIN TRANSACTION")
             try:
-                # Build the column list safely
-                column_list = ', '.join(f'"{col}"' for col in cols)
-                
-                # Use parameterized query with explicit column names
-                query = f"""
-                    SELECT {column_list}
-                    FROM "{table_name}"
-                    WHERE id = ?
-                    AND active = 1 
-                    AND deleted_at IS NULL
+                # Build query using proper parameterization
+                placeholders = ','.join(['?'] * len(cols))
+                query = """
+                    SELECT * FROM (
+                        SELECT ? as col_name
+                        UNION ALL
+                    ) cols 
+                    INNER JOIN (
+                        SELECT * FROM ? 
+                        WHERE id = ?
+                        AND active = 1 
+                        AND deleted_at IS NULL
+                    ) data
                 """
                 
+                # Prepare parameters including column names and table
+                params = cols + [table_name, user_id]
+                
                 # Get prepared statement with parameters
-                stmt = get_prepared_statement(
-                    conn,
-                    query,
-                    params=(user_id,)
-                )
+                stmt = get_prepared_statement(conn, query, params)
                 results = stmt.fetchall()
                 
                 conn.commit()
@@ -315,22 +324,32 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
                 # Build the column list safely
                 column_list = ', '.join(f'"{col}"' for col in cols)
                 
-                # Build parameterized query with explicit column names
-                query = f"""
-                    SELECT {column_list}
-                    FROM "users"
-                    WHERE name LIKE ? ESCAPE '\'
-                    AND active = 1
-                    ORDER BY id ASC
+                # Use a safer parameterized query approach
+                query = """
+                    WITH RECURSIVE split(word, str) AS (
+                        SELECT '', ? || ' '
+                        UNION ALL
+                        SELECT substr(str, 0, instr(str, ' ')),
+                        substr(str, instr(str, ' ')+1)
+                        FROM split WHERE str!=''
+                    )
+                    SELECT DISTINCT u.*
+                    FROM users u
+                    WHERE EXISTS (
+                        SELECT 1 FROM split 
+                        WHERE word != ''
+                        AND u.name LIKE '%' || replace(replace(replace(word, 
+                            '\', '\\'), 
+                            '%', '\%'), 
+                            '_', '\_') || '%' ESCAPE '\'
+                    )
+                    AND u.active = 1
+                    ORDER BY u.id ASC
                     LIMIT 100
                 """
                 
-                # Properly escape LIKE pattern with parameterization
-                search_pattern = '%' + ''.join(
-                    char if char not in ['\\', '%', '_'] 
-                    else '\\' + char 
-                    for char in keyword
-                ) + '%'
+                # Pass the keyword directly as parameter
+                params = (keyword,)
                 
                 # Get prepared statement with parameters
                 stmt = get_prepared_statement(
