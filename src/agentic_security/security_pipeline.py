@@ -261,43 +261,63 @@ class SecurityPipeline:
         return suggestions
 
     def implement_fixes(self, suggestions: List[Dict], timeout: int = 300) -> bool:
-        """Implement fixes using aider with focused approach"""
+        """Implement fixes using aider with batched approach"""
         if not suggestions:
             return False
+
+        # Group suggestions by file to reduce aider calls
+        fixes_by_file = {}
+        for suggestion in suggestions:
+            file_path = suggestion.get('file')
+            if not file_path or not os.path.exists(file_path):
+                continue
+            if file_path not in fixes_by_file:
+                fixes_by_file[file_path] = []
+            fixes_by_file[file_path].append(suggestion)
 
         # Create fix branch if needed
         if not self.branch_name.startswith('security-fixes-'):
             try:
                 subprocess.run(['git', 'checkout', '-b', self.branch_name], check=True)
+                print(f"\033[36m[>] Created fix branch: {self.branch_name}\033[0m")
             except subprocess.CalledProcessError as e:
                 print(f"\033[31m[!] Failed to create fix branch: {e}\033[0m")
                 return False
 
         success = True
-        for suggestion in suggestions:
-            file_path = suggestion.get('file')
-            vuln_type = suggestion.get('type')
+        total_files = len(fixes_by_file)
+        for idx, (file_path, file_suggestions) in enumerate(fixes_by_file.items(), 1):
+            print(f"\033[36m[>] Processing fixes for {file_path} ({idx}/{total_files})\033[0m")
             
-            if not file_path or not vuln_type or not os.path.exists(file_path):
-                continue
-                
             try:
-                # Run aider with focused fix attempt
+                # Combine vulnerability types for more efficient fixing
+                vuln_types = [s.get('type') for s in file_suggestions]
+                fix_prompt = f"Fix the following vulnerabilities in this file: {', '.join(vuln_types)}"
+                
+                # Run aider with combined fixes and shorter timeout
+                file_timeout = min(timeout // total_files, 60)  # Max 60 seconds per file
                 result = subprocess.run([
                     "aider",
                     "--model", self.analysis_model,
                     "--yes",
                     "--no-auto-commits",
+                    "--edit-format", "diff",
                     file_path,
-                    f"Fix {vuln_type} vulnerability in this file"
-                ], capture_output=True, text=True, timeout=timeout)
+                    fix_prompt
+                ], capture_output=True, text=True, timeout=file_timeout)
                 
-                if result.returncode == 0:
+                if result.returncode == 0 and "No changes made" not in result.stdout:
                     subprocess.run(['git', 'add', file_path], check=True)
-                    subprocess.run(['git', 'commit', '-m', f'Fix {vuln_type} in {file_path}'], check=True)
+                    commit_msg = f"Fix security issues in {file_path}: {', '.join(vuln_types)}"
+                    subprocess.run(['git', 'commit', '-m', commit_msg], check=True)
+                    print(f"\033[32m[✓] Applied fixes to {file_path}\033[0m")
                 else:
+                    print(f"\033[33m[!] No changes made to {file_path}\033[0m")
                     success = False
                     
+            except subprocess.TimeoutExpired:
+                print(f"\033[31m[!] Timeout while fixing {file_path}\033[0m")
+                success = False
             except Exception as e:
                 print(f"\033[31m[!] Error fixing {file_path}: {str(e)}\033[0m")
                 success = False
