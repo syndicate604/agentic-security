@@ -165,3 +165,4 @@ testing_reports/*
 !testing_reports/.gitkeep
 .security_cache
 dependency-check
+dependency-check-report.json
