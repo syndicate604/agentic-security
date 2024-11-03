@@ -105,6 +105,27 @@ echo -e "${CYAN}╚════════════════════�
 
 execute_with_animation "curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg && echo \"deb [arch=\$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main\" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null && sudo apt update && sudo apt install gh -y" "Installing GitHub CLI"
 
+# Install and configure Docker
+echo -e "\n${CYAN}╔══════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${CYAN}║${NC}                  Configuring Docker                        ${CYAN}║${NC}"
+echo -e "${CYAN}╚══════════════════════════════════════════════════════════════╝${NC}\n"
+
+if ! command -v docker &> /dev/null; then
+    execute_with_animation "curl -fsSL https://get.docker.com | sh" "Installing Docker"
+    execute_with_animation "sudo usermod -aG docker $USER" "Adding user to docker group"
+fi
+
+# Pull required Docker images
+execute_with_animation "docker pull owasp/zap2docker-stable" "Pulling OWASP ZAP image"
+
+# Configure cache directory
+echo -e "\n${CYAN}╔══════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${CYAN}║${NC}                  Setting up Cache                         ${CYAN}║${NC}"
+echo -e "${CYAN}╚══════════════════════════════════════════════════════════════╝${NC}\n"
+
+execute_with_animation "mkdir -p .security_cache" "Creating cache directory"
+execute_with_animation "chmod 755 .security_cache" "Setting cache permissions"
+
 # Make scripts executable
 execute_with_animation "chmod +x run_pipeline.sh src/agentic_security/security_cli.py" "Making scripts executable"
 
