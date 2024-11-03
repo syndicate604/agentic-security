@@ -245,17 +245,17 @@ def scan(path, auto_fix, timeout, exclude, output, verbose, no_progress):
 @click.option('--verbose/--no-verbose', '-v/', default=False, help='Verbose output')
 def analyze(path: tuple, config: str, auto_fix: bool, verbose: bool):
     """Analyze security issues and optionally implement fixes"""
-    print(CYBER_BANNER)
-    if not validate_environment():
-        return
-    
-    print_cyber_status("Initializing security analysis...", "info")
-    pipeline = SecurityPipeline(config)
-    
-    if not path:
-        path = ['.']  # Default to current directory if no path specified
-        
     try:
+        print(CYBER_BANNER)
+        if not validate_environment():
+            return
+        
+        print_cyber_status("Initializing security analysis...", "info")
+        pipeline = SecurityPipeline(config)
+        
+        if not path:
+            path = ['.']  # Default to current directory if no path specified
+            
         # Run security analysis on specified paths
         results = pipeline.scan_paths(path, auto_fix=auto_fix)
         
@@ -280,6 +280,9 @@ def analyze(path: tuple, config: str, auto_fix: bool, verbose: bool):
                 print_cyber_status("Fixes implemented successfully", "success")
             else:
                 print_cyber_status("Some fixes could not be implemented", "warning")
+    except Exception as e:
+        print_cyber_status(f"Error during analysis: {str(e)}", "error")
+        sys.exit(1)
 
 @cli.command()
 @click.option('--config', '-c', default='config.yml', help='Path to configuration file')
