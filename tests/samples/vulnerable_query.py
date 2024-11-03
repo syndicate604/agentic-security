@@ -36,15 +36,25 @@ def get_db_connection():
 
 def validate_table_name(table_name: str) -> bool:
     """
-    Validate if table name is in the allowed list
+    Validate if table name is in the allowed list and contains only valid characters
     """
-    return table_name in ALLOWED_TABLES.keys()
+    if not isinstance(table_name, str):
+        return False
+    # Check if table is in allowed list and contains only alphanumeric chars and underscores
+    return (table_name in ALLOWED_TABLES.keys() and 
+            bool(re.match(r'^[a-zA-Z0-9_]+$', table_name)))
 
 def validate_columns(table_name: str, columns: List[str]) -> bool:
     """
-    Validate if requested columns are allowed for the table
+    Validate if requested columns are allowed for the table and contain only valid characters
     """
-    return all(col in ALLOWED_TABLES[table_name] for col in columns)
+    if not isinstance(columns, list) or not all(isinstance(col, str) for col in columns):
+        return False
+    
+    # Validate each column name format and presence in allowed list
+    return all(col in ALLOWED_TABLES[table_name] and 
+              bool(re.match(r'^[a-zA-Z0-9_]+$', col)) 
+              for col in columns)
 
 def validate_user_id(user_id: str) -> bool:
     """
@@ -106,11 +116,12 @@ def get_user_data(user_id: str, table_name: str, columns: Optional[List[str]] = 
             if not column_list:
                 raise DatabaseError("No valid columns specified")
                 
-            # Build safe query with validated table name
-            query = f'SELECT {", ".join("?" for _ in column_list)} FROM {table_name} WHERE id = ?'
+            # Build safe query using proper parameter binding
+            placeholders = ', '.join(column_list)
+            query = f'SELECT {placeholders} FROM {table_name} WHERE id = ?'
             
-            # Execute with all parameters properly bound
-            cursor.execute(query, (*column_list, user_id))
+            # Execute with properly bound parameter
+            cursor.execute(query, (user_id,))
             results = cursor.fetchall()
             
             if not results:
@@ -161,17 +172,18 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
                 raise DatabaseError("No valid columns specified")
             
             # Build safe query with validated columns
+            placeholders = ', '.join(column_list)
             query = f"""
-                SELECT {", ".join("?" for _ in column_list)} FROM users 
+                SELECT {placeholders} FROM users 
                 WHERE name LIKE ? ESCAPE '\\' 
                 AND active = 1
                 ORDER BY id ASC 
                 LIMIT 100
             """
             
-            # Properly escape LIKE pattern and bind all parameters including columns
+            # Properly escape LIKE pattern and use parameterized query
             search_pattern = "%" + keyword.replace("%", "\\%").replace("_", "\\_") + "%"
-            cursor.execute(query, (*column_list, search_pattern))
+            cursor.execute(query, (search_pattern,))
             results = cursor.fetchall()
             
             if not results:
