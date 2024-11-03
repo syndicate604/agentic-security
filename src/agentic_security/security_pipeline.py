@@ -680,6 +680,34 @@ class SecurityPipeline:
         
         if results['vulnerabilities']:
             print("\n[31m[!] Vulnerabilities found. Please review the report and address the issues.[0m")
+            
+            # Attempt fixes if auto_fix is enabled
+            if auto_fix:
+                print("\n[36m[>] Attempting automatic fixes...[0m")
+                
+                # Create fix branch
+                if self.create_fix_branch():
+                    # Implement fixes using AI
+                    fix_attempts = 0
+                    while fix_attempts < self.max_fix_attempts:
+                        if self.implement_fixes([v['details'] for v in results['vulnerabilities']]):
+                            if self.validate_fixes():
+                                results['fixes_applied'].append({
+                                    'status': 'success',
+                                    'branch': self.branch_name
+                                })
+                                # Create PR with fixes
+                                if self.create_pull_request():
+                                    print("\n[32m[✓] Fixes applied and PR created![0m")
+                                    break
+                        fix_attempts += 1
+                    
+                    if fix_attempts >= self.max_fix_attempts:
+                        print("\n[31m[!] Max fix attempts reached without success[0m")
+                else:
+                    print("\n[31m[!] Failed to create fix branch[0m")
+            else:
+                print("\n[36m[>] Run with --auto-fix to attempt automatic fixes[0m")
         else:
             print("\n[32m[✓] No vulnerabilities found. Your project is secure![0m")
             
