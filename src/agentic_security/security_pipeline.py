@@ -380,11 +380,12 @@ class SecurityPipeline:
                 for result in check_type
             )
             
-            if max_severity >= self.critical_threshold:
+            # In CI mode, always attempt fixes
+            if os.environ.get('CI', '').lower() == 'true' or max_severity >= self.critical_threshold:
                 self.progress.update(70, "Creating fix branch")
                 if not self.create_fix_branch():
                     self.progress.finish("Failed to create fix branch")
-                    return False
+                    return {'status': False, 'error': 'Failed to create branch'}
                 
                 # Implement fixes
                 fix_attempts = 0
@@ -400,12 +401,13 @@ class SecurityPipeline:
                     self.progress.update(90, "Creating pull request")
                     success = self.create_pull_request()
                     self.progress.finish("Pipeline completed successfully" if success else "Failed to create PR")
-                    return success
+                    return {'status': success}
                 else:
                     self.progress.finish("Max fix attempts reached without success")
-                    return False
+                    return {'status': False, 'error': 'Max fix attempts reached'}
             
             self.progress.finish("No critical vulnerabilities found")
+            return {'status': True}
             
             # Send notification
             webhook_url = os.environ.get('SLACK_WEBHOOK')
