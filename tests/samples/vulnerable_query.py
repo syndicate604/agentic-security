@@ -153,33 +153,25 @@ def get_user_data(user_id: str, table_name: str, columns: Optional[List[str]] = 
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
-            # Use parameterized query with validated table/column names
-            allowed_tables = list(ALLOWED_TABLES.keys())
-            if table_name not in allowed_tables:
+            # Build query with validated table and column names
+            if table_name not in ALLOWED_TABLES:
                 raise DatabaseError("Invalid table access attempt")
                 
             column_list = [col for col in columns if col in ALLOWED_TABLES[table_name]]
             if not column_list:
                 raise DatabaseError("No valid columns specified")
                 
-            # Use prepared statement with validated table and columns
-            placeholders = {
-                'table_name': table_name,
-                'columns': ','.join(f'"{col}"' for col in column_list)
-            }
-            
-            # Create prepared statement
-            cursor.execute("""
-                PREPARE get_user_stmt AS
-                SELECT :columns 
-                FROM :table_name
-                WHERE id = ?
-                AND active = 1 
+            # Construct query with validated identifiers
+            query = f"""
+                SELECT {','.join(f'"{col}"' for col in column_list)}
+                FROM "{table_name}"
+                WHERE id = ? 
+                AND active = 1
                 AND deleted_at IS NULL
-            """, placeholders)
+            """
             
-            # Execute prepared statement
-            cursor.execute("EXECUTE get_user_stmt (?)", (user_id,))
+            # Execute with parameterized user_id
+            cursor.execute(query, (user_id,))
             results = cursor.fetchall()
             
             if not results:
@@ -229,25 +221,19 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
             if not column_list:
                 raise DatabaseError("No valid columns specified")
             
-            # Use prepared statement for search
-            placeholders = {
-                'columns': ','.join(f'"{col}"' for col in column_list)
-            }
-            
-            # Create prepared statement with proper escaping
-            cursor.execute("""
-                PREPARE search_users_stmt AS
-                SELECT :columns
+            # Construct query with validated columns
+            query = f"""
+                SELECT {','.join(f'"{col}"' for col in column_list)}
                 FROM users
                 WHERE name LIKE ? ESCAPE '\\'
-                AND active = 1
+                AND active = 1 
                 ORDER BY id ASC
                 LIMIT 100
-            """, placeholders)
+            """
             
             # Execute with properly escaped LIKE pattern
             search_pattern = f"%{re.escape(keyword)}%"
-            cursor.execute("EXECUTE search_users_stmt (?)", (search_pattern,))
+            cursor.execute(query, (search_pattern,))
             results = cursor.fetchall()
             
             if not results:
