@@ -61,13 +61,15 @@ class SecurityPipeline:
 
     def setup_environment(self) -> None:
         """Set up necessary environment variables and paths"""
-        # Load environment variables from .env file
-        load_dotenv()
+        # Load environment variables from .env file unless skipped
+        if not os.getenv('SKIP_DOTENV'):
+            load_dotenv()
         
+        # Check for required environment variables
         required_vars = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY']
         missing_vars = [var for var in required_vars if not os.getenv(var)]
         if missing_vars:
-            raise EnvironmentError(f"Missing required environment variables: {', '.join(missing_vars)}")
+            raise OSError(f"Missing required environment variables: {', '.join(missing_vars)}")
 
     def run_architecture_review(self) -> Dict:
         """Run architecture review using OpenAI o1-preview"""
@@ -534,10 +536,10 @@ class SecurityPipeline:
         if not isinstance(self.config['security'], dict):
             raise ValueError("Invalid configuration structure")
             
-        # Check threshold before scan targets
+        # Check threshold first
         threshold = self.config['security'].get('critical_threshold', 0)
         if threshold < 0:
-            raise ValueError("Critical threshold cannot be negative")
+            return {'status': False, 'error': 'Critical threshold cannot be negative'}
         self.critical_threshold = threshold  # Update instance variable
 
         # Then check scan targets
@@ -549,14 +551,6 @@ class SecurityPipeline:
             return {'status': False, 'error': 'Invalid scan target types'}
 
         try:
-
-            # Then check scan targets
-            if not self.config['security'].get('scan_targets'):
-                return {'status': False, 'error': 'No scan targets configured'}
-
-            if not any(target.get('type') in ['web', 'code'] 
-                      for target in self.config['security']['scan_targets']):
-                return {'status': False, 'error': 'Invalid scan target types'}
 
             # Initialize results
             results = {'status': True, 'reviews': []}
