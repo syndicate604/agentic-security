@@ -5,6 +5,7 @@ import yaml
 import os
 import sys
 import time
+from dotenv import load_dotenv
 from .security_pipeline import SecurityPipeline
 from typing import Optional
 
@@ -109,6 +110,9 @@ def load_config(config_file: str) -> dict:
 
 def validate_environment() -> bool:
     """Validate required environment variables"""
+    # Load environment variables from .env file
+    load_dotenv()
+    
     required_vars = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY']
     missing_vars = [var for var in required_vars if not os.getenv(var)]
     
