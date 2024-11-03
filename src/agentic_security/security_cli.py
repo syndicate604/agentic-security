@@ -135,13 +135,8 @@ def cli():
 
 @cli.command()
 @click.option('--path', '-p', multiple=True, help='Paths to scan (files or directories)')
-@click.option('--exclude', '-e', multiple=True, help='Directories to exclude from scan')
 @click.option('--auto-fix/--no-auto-fix', default=False, help='Automatically apply fixes without prompting')
-@click.option('--output', '-o', type=click.Path(), help='Output markdown report path')
-@click.option('--verbose/--no-verbose', '-v/', default=False, help='Verbose output')
-@click.option('--test/--no-test', default=False, help='Run in test mode')
-@click.option('--config', '-c', default='config.yml', help='Path to configuration file')
-def scan(path, exclude, auto_fix, output, verbose, test, config):
+def scan(path, auto_fix):
     """Run security scans on specified paths"""
     print(CYBER_BANNER)
     if not validate_environment():
@@ -166,20 +161,15 @@ def scan(path, exclude, auto_fix, output, verbose, test, config):
         path = ['.']  # Default to current directory
             
     try:
-        pipeline = SecurityPipeline(config)
-            
-        if test:
-            print("\033[35m[TEST MODE] \033[36mInitiating diagnostic sequence\033[0m")
-            pipeline.run_tests()
-            return
-
-        # Animated scanning sequence
-        scan_messages = [
-            "\033[35m[SCAN] \033[36mInitiating source code analysis\033[0m",
-            "\033[35m[SCAN] \033[36mMapping dependency structure\033[0m",
-            "\033[35m[SCAN] \033[36mLaunching vulnerability detection\033[0m",
-            "\033[35m[SCAN] \033[36mEngaging pattern recognition\033[0m"
-        ]
+        pipeline = SecurityPipeline('config.yml')
+        results = pipeline.scan_paths(path or ['.'], auto_fix=auto_fix)
+        
+        if auto_fix and results.get('fixes_applied'):
+            print("\n[32m[✓] Fixes applied successfully![0m")
+            if results['fixes_applied'].get('branch'):
+                print(f"\n[32m[✓] Created branch: {results['fixes_applied']['branch']}[0m")
+        elif auto_fix:
+            print("\n[31m[!] Some or all fixes could not be applied[0m")
             
         for msg in scan_messages:
             print(f"\r{msg}")
