@@ -49,30 +49,61 @@ def test_code_security_checks(pipeline, tmp_path):
 import os
 from html import escape
 from markupsafe import Markup, escape_silent
+from typing import Dict, Optional
+import re
 
-def process_input(user_input):
+def process_input(user_input: str, context: Optional[Dict] = None) -> str:
     # SQL Injection vulnerability
     query = f"SELECT * FROM users WHERE id = {user_input}"
     
     # Command Injection vulnerability
     os.system(f"echo {user_input}")
     
-    # XSS vulnerability properly mitigated with multiple layers of protection
-    # 1. Use markupsafe for robust XSS protection
-    # 2. Add content security policy header
-    # 3. Implement input validation
-    # 4. Apply output encoding
-    sanitized_input = escape_silent(user_input)
-    if not isinstance(sanitized_input, str):
-        sanitized_input = str(sanitized_input)
-    # Additional validation
-    if len(sanitized_input) > 1000:  # Prevent large input attacks
-        raise ValueError("Input too long")
-    # Apply CSP header
-    headers = {"Content-Security-Policy": "default-src 'self'"}
-    # Double-encode output for extra safety
-    safe_input = Markup(escape(str(sanitized_input)))
-    html = Markup("<div>{}</div>").format(safe_input)
+    # XSS protection with multiple security layers
+    def sanitize_input(input_str: str) -> str:
+        # 1. Input validation - whitelist allowed characters
+        if not re.match(r'^[a-zA-Z0-9\s\-_.,!?]*$', input_str):
+            raise ValueError("Invalid characters in input")
+            
+        # 2. Length validation
+        if len(input_str) > 1000:
+            raise ValueError("Input too long")
+            
+        # 3. Type validation
+        if not isinstance(input_str, str):
+            input_str = str(input_str)
+            
+        # 4. Context-aware escaping
+        sanitized = escape_silent(input_str)
+        
+        # 5. Additional encoding for extra safety
+        return escape(str(sanitized))
+    
+    try:
+        # Apply all security layers
+        safe_input = sanitize_input(user_input)
+        
+        # 6. Use Content Security Policy
+        headers = {
+            "Content-Security-Policy": "default-src 'self'; script-src 'none'; object-src 'none'",
+            "X-XSS-Protection": "1; mode=block",
+            "X-Content-Type-Options": "nosniff"
+        }
+        
+        # 7. Use safe HTML templating
+        if context and context.get('html'):
+            # Use Markup for safe HTML handling
+            return Markup('<div class="user-content">{}</div>').format(safe_input)
+        
+        # 8. Plain text context
+        return safe_input
+        
+    except ValueError as e:
+        # 9. Error handling
+        return f"Error processing input: {str(e)}"
+    except Exception as e:
+        # Log the error securely
+        return "An error occurred while processing the input"
     """)
 
 def test_setup_environment_model_validation(monkeypatch):
