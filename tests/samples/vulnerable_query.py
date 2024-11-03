@@ -20,21 +20,24 @@ DB_CONFIG = {
 # Cache for prepared statements
 STMT_CACHE = {}
 
-def get_prepared_statement(conn: sqlite3.Connection, sql: str) -> sqlite3.Cursor:
+def get_prepared_statement(conn: sqlite3.Connection, sql: str, params: tuple = None) -> sqlite3.Cursor:
     """
     Get or create a prepared statement with proper parameter binding
     
     Args:
         conn: Database connection
         sql: SQL query string
+        params: Query parameters
         
     Returns:
         sqlite3.Cursor: Prepared statement cursor
     """
-    if sql not in STMT_CACHE:
-        STMT_CACHE[sql] = conn.cursor()
-        STMT_CACHE[sql].execute(f"PREPARE stmt_{len(STMT_CACHE)} AS {sql}")
-    return STMT_CACHE[sql]
+    cursor = conn.cursor()
+    if params:
+        cursor.execute(sql, params)
+    else:
+        cursor.execute(sql)
+    return cursor
 
 class DatabaseError(Exception):
     """Custom exception for database operations"""
@@ -75,13 +78,24 @@ def validate_table_name(table_name: str) -> str:
     if table_name not in ALLOWED_TABLES:
         raise DatabaseError(f"Table '{table_name}' not in allowed tables list")
     
-    # Strict format validation - only allow lowercase alphanumeric and underscore
+    # Strict format validation - only allow exact matches from whitelist
+    if table_name not in ALLOWED_TABLES:
+        raise DatabaseError(f"Table '{table_name}' not in allowed tables list")
+        
+    # Additional format validation for defense in depth
     if not re.match(r'^[a-z][a-z0-9_]{0,62}[a-z0-9]$', table_name):
         raise DatabaseError("Invalid table name format")
     
     # Length check
     if len(table_name) > 63:
         raise DatabaseError("Table name too long")
+        
+    # Verify table exists in database
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
+        if not cursor.fetchone():
+            raise DatabaseError(f"Table '{table_name}' does not exist in database")
         
     return table_name
 
@@ -177,23 +191,22 @@ def get_user_data(user_id: str, table_name: str, columns: Optional[List[str]] = 
         with get_db_connection() as conn:
             conn.execute("BEGIN TRANSACTION")
             try:
-                # Use parameterized query with validated column names
-                placeholders = {
-                    'cols': ', '.join(f'"{col}"' for col in columns),
-                    'table': f'"{table_name}"'
-                }
-                
+                # Build query safely with proper parameter binding
+                cols_str = ', '.join('?' for _ in columns)
                 query = """
-                    SELECT %(cols)s 
-                    FROM %(table)s 
+                    SELECT {} 
+                    FROM {} 
                     WHERE id = ? 
                     AND active = 1 
                     AND deleted_at IS NULL
-                """ % placeholders
+                """.format(cols_str, table_name)
                 
-                # Get prepared statement
-                stmt = get_prepared_statement(conn, query)
-                results = stmt.execute(query, (user_id,)).fetchall()
+                # Prepare parameters including column names
+                params = tuple(columns) + (user_id,)
+                
+                # Get prepared statement with parameters
+                stmt = get_prepared_statement(conn, query, params)
+                results = stmt.fetchall()
                 
                 conn.commit()
                 return results if results else None
@@ -239,27 +252,29 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
         with get_db_connection() as conn:
             conn.execute("BEGIN TRANSACTION")
             try:
-                # Use parameterized query with validated column names
-                placeholders = {
-                    'cols': ', '.join(f'"{col}"' for col in columns)
-                }
-                
+                # Build query safely with proper parameter binding
+                cols_str = ', '.join('?' for _ in columns)
                 query = """
-                    SELECT %(cols)s
+                    SELECT {}
                     FROM users
-                    WHERE name LIKE ? ESCAPE '\\' 
+                    WHERE name LIKE ? ESCAPE '^'
                     AND active = 1
                     ORDER BY id ASC
                     LIMIT 100
-                """ % placeholders
+                """.format(cols_str)
                 
-                # Get prepared statement and properly escape LIKE pattern
-                stmt = get_prepared_statement(conn, query)
-                search_pattern = ''.join(c if c.isalnum() or c.isspace() 
-                                       else '\\' + c for c in keyword)
-                search_pattern = f"%{search_pattern}%"
+                # Escape special characters in LIKE pattern
+                escaped_keyword = keyword.replace('^', '^^')
+                escaped_keyword = escaped_keyword.replace('%', '^%')
+                escaped_keyword = escaped_keyword.replace('_', '^_')
+                search_pattern = f"%{escaped_keyword}%"
                 
-                results = stmt.execute(query, (search_pattern,)).fetchall()
+                # Prepare parameters including column names
+                params = tuple(columns) + (search_pattern,)
+                
+                # Get prepared statement with parameters
+                stmt = get_prepared_statement(conn, query, params)
+                results = stmt.fetchall()
                 
                 conn.commit()
                 return results if results else None
