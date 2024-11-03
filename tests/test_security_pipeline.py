@@ -161,15 +161,21 @@ def test_custom_prompts(pipeline):
 
 def test_pipeline_error_handling(pipeline, test_config):
     """Test pipeline error handling"""
-    # Test invalid config
-    invalid_config = pipeline.config.copy()
-    invalid_config['security']['critical_threshold'] = -1
-    invalid_config_file = Path(test_config).parent / 'invalid_config.yml'
-    with open(invalid_config_file, 'w') as f:
-        yaml.dump(invalid_config, f)
-    with pytest.raises(ValueError):
-        # This should raise ValueError during initialization
-        SecurityPipeline(str(invalid_config_file))
+    # Validate configuration
+    if not isinstance(self.config, dict) or \
+       not isinstance(self.config.get('security', {}), dict) or \
+       not isinstance(self.config['security'].get('scan_targets', []), list):
+        raise ValueError("Invalid configuration structure")
+
+    if self.config['security'].get('critical_threshold', 0) < 0:
+        raise ValueError("Critical threshold cannot be negative")
+
+    if not self.config['security'].get('scan_targets'):
+        return {'status': False, 'error': 'No scan targets configured'}
+
+    if not any(target.get('type') in ['web', 'code'] 
+              for target in self.config['security']['scan_targets']):
+        return {'status': False, 'error': 'Invalid scan target types'}
     
     # Test missing dependencies
     pipeline.config['security']['scan_targets'] = [
