@@ -279,6 +279,9 @@ def test_review_output_formats(pipeline, tmp_path, capsys):
 
 def test_review_with_cache(pipeline, tmp_path):
     """Test review functionality with caching"""
+    # Configure cache directory to tmp_path
+    pipeline.cache = SecurityCache(str(tmp_path / '.security_cache'))
+
     # Create test file
     test_file = tmp_path / "cached_test.py"
     test_file.write_text("""
@@ -295,8 +298,8 @@ def test_review_with_cache(pipeline, tmp_path):
     second_results = pipeline.review_paths([str(tmp_path)])
     second_run_time = time.time() - start_time
     
-    # Verify cache effectiveness
-    assert second_run_time < first_run_time, "Cached review should be faster"
+    # Verify cache effectiveness with a small margin
+    assert second_run_time < first_run_time - 0.05, "Cached review should be significantly faster"
     assert first_results == second_results, "Cached results should match"
 
 def test_review_error_handling(pipeline, tmp_path):
