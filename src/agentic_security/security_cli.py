@@ -108,7 +108,7 @@ def load_config(config_file: str) -> dict:
 
 def validate_environment() -> bool:
     """Validate required environment variables"""
-    required_vars = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'SLACK_WEBHOOK']
+    required_vars = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY']
     missing_vars = [var for var in required_vars if not os.getenv(var)]
     
     if missing_vars:

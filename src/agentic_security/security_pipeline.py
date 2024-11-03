@@ -56,8 +56,6 @@ class SecurityPipeline:
     def setup_environment(self) -> None:
         """Set up necessary environment variables and paths"""
         required_vars = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY']
-        if not os.environ.get('CI'):  # Only require webhook outside of CI
-            required_vars.append('SLACK_WEBHOOK')
         missing_vars = [var for var in required_vars if not os.getenv(var)]
         if missing_vars:
             raise EnvironmentError(f"Missing required environment variables: {', '.join(missing_vars)}")
@@ -416,7 +414,7 @@ class SecurityPipeline:
             self.progress.finish("No critical vulnerabilities found")
             return {'status': True}
             
-            # Send notification
+            # Send notification if Slack webhook is configured
             webhook_url = os.environ.get('SLACK_WEBHOOK')
             if webhook_url:
                 try:
@@ -430,9 +428,8 @@ class SecurityPipeline:
                     )
                     response.raise_for_status()
                 except Exception as e:
-                    print(f"Error sending notification: {str(e)}")
-                    if os.environ.get('CI'):
-                        raise  # Fail in CI environment
+                    print(f"Warning: Failed to send Slack notification: {str(e)}")
+                    # Don't raise error since Slack is optional
             
             # Cache results before returning, but not in CI
             if not os.environ.get('CI', '').lower() == 'true' and not os.environ.get('SKIP_CACHE', '').lower() == 'true':
