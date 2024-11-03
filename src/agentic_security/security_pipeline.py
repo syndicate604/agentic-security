@@ -236,16 +236,22 @@ class SecurityPipeline:
                                     })
             
             # Run dependency check if available
-            try:
-                dep_check_result = subprocess.run([
-                    "./dependency-check/bin/dependency-check.sh",
-                    "--scan", path,
-                    "--format", "JSON",
-                    "--out", "dependency-check-report.json"
-                ], capture_output=True, text=True)
-                results['dependency'] = self._parse_dependency_results("dependency-check-report.json")
-            except Exception as e:
-                print(f"Warning: Dependency check failed: {str(e)}")
+            dependency_check_path = os.path.join(os.getcwd(), "dependency-check", "bin", "dependency-check.sh")
+            if os.path.exists(dependency_check_path):
+                try:
+                    dep_check_result = subprocess.run([
+                        dependency_check_path,
+                        "--scan", path,
+                        "--format", "JSON",
+                        "--out", "dependency-check-report.json"
+                    ], capture_output=True, text=True)
+                    results['dependency'] = self._parse_dependency_results("dependency-check-report.json")
+                except Exception as e:
+                    print(f"Warning: Dependency check failed to run: {str(e)}")
+            else:
+                print("Note: OWASP Dependency Check not found - skipping dependency scanning")
+                print("To enable dependency scanning, install OWASP Dependency Check:")
+                print("https://owasp.org/www-project-dependency-check/")
                 
         except Exception as e:
             print(f"Error running code security checks: {str(e)}")
