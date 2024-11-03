@@ -1,53 +1,85 @@
 import sqlite3
+from typing import List, Optional
+import re
 
-def get_user_data(user_id, table_name):
-    """
-    Vulnerable function with SQL injection
-    DO NOT USE IN PRODUCTION
-    
-    Issues:
-    1. Direct string formatting in SQL query
-    2. No input validation
-    3. No error handling
-    4. Table name injection possible
-    """
-    conn = sqlite3.connect('users.db')
-    cursor = conn.cursor()
-    
-    # Vulnerable query construction
-    query = f"SELECT * FROM {table_name} WHERE id = {user_id}"
-    cursor.execute(query)
-    
-    result = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    
-    return result
+# Whitelist of allowed table names
+ALLOWED_TABLES = {'users', 'profiles', 'settings'}
 
-def search_users(keyword):
+class DatabaseError(Exception):
+    """Custom exception for database operations"""
+    pass
+
+def validate_table_name(table_name: str) -> bool:
     """
-    Another vulnerable function with SQL injection
-    DO NOT USE IN PRODUCTION
-    
-    Issues:
-    1. No parameter binding
-    2. Direct string concatenation
-    3. No input sanitization
+    Validate if table name is in the allowed list
     """
-    conn = sqlite3.connect('users.db')
-    cursor = conn.cursor()
+    return table_name in ALLOWED_TABLES
+
+def validate_user_id(user_id: str) -> bool:
+    """
+    Validate if user_id contains only digits
+    """
+    return bool(re.match(r'^\d+$', str(user_id)))
+
+def get_user_data(user_id: str, table_name: str) -> Optional[List[tuple]]:
+    """
+    Safely get user data using parameterized queries
     
-    # Vulnerable query construction
-    query = "SELECT * FROM users WHERE name LIKE '%" + keyword + "%'"
-    cursor.execute(query)
+    Args:
+        user_id: The user ID to query
+        table_name: The table to query from
+        
+    Returns:
+        List of tuples containing user data or None if error occurs
+        
+    Raises:
+        DatabaseError: If invalid input or database error occurs
+    """
+    if not validate_table_name(table_name):
+        raise DatabaseError(f"Invalid table name: {table_name}")
+        
+    if not validate_user_id(user_id):
+        raise DatabaseError(f"Invalid user ID format: {user_id}")
+        
+    try:
+        with sqlite3.connect('users.db') as conn:
+            cursor = conn.cursor()
+            # Use parameterized query with ? placeholder
+            query = f"SELECT * FROM {table_name} WHERE id = ?"
+            cursor.execute(query, (user_id,))
+            return cursor.fetchall()
+            
+    except sqlite3.Error as e:
+        raise DatabaseError(f"Database error occurred: {str(e)}")
+
+def search_users(keyword: str) -> Optional[List[tuple]]:
+    """
+    Safely search users using parameterized queries
     
-    result = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    
-    return result
+    Args:
+        keyword: Search term for user names
+        
+    Returns:
+        List of tuples containing matching users or None if error occurs
+        
+    Raises:
+        DatabaseError: If database error occurs
+    """
+    try:
+        with sqlite3.connect('users.db') as conn:
+            cursor = conn.cursor()
+            # Use parameterized query with ? placeholder
+            query = "SELECT * FROM users WHERE name LIKE ?"
+            cursor.execute(query, (f"%{keyword}%",))
+            return cursor.fetchall()
+            
+    except sqlite3.Error as e:
+        raise DatabaseError(f"Database error occurred: {str(e)}")
 
 if __name__ == "__main__":
-    # Example usage (VULNERABLE!)
-    print(get_user_data("1 OR 1=1", "users"))  # SQL Injection possible
-    print(search_users("' OR '1'='1"))  # SQL Injection possible
+    try:
+        # Safe usage examples
+        print(get_user_data("123", "users"))
+        print(search_users("John"))
+    except DatabaseError as e:
+        print(f"Error: {e}")
