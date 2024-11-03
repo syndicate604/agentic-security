@@ -312,8 +312,15 @@ class SecurityPipeline:
     def run_pipeline(self) -> Union[Dict, bool]:
         """Execute the complete security pipeline"""
         try:
+            # Initialize results
+            results = {'status': True, 'reviews': []}
+            
             # Check if we should skip cache
             skip_cache = getattr(self, '_skip_cache', False)
+            
+            # Set up environment variables for CI
+            if os.environ.get('CI'):
+                skip_cache = True
             
             # Validate scan targets
             if not any(target['type'] in ['web', 'code'] for target in self.config['security']['scan_targets']):
@@ -390,19 +397,22 @@ class SecurityPipeline:
             self.progress.finish("No critical vulnerabilities found")
             
             # Send notification
-            try:
-                if os.environ.get('SLACK_WEBHOOK'):
+            webhook_url = os.environ.get('SLACK_WEBHOOK')
+            if webhook_url:
+                try:
+                    findings_count = len(results.get("reviews", []))
                     response = requests.post(
-                        os.environ['SLACK_WEBHOOK'],
+                        webhook_url,
                         json={
-                            'text': f'Security scan complete\nFindings: {len(results.get("reviews", []))} issues found'
+                            'text': f'Security scan complete\nFindings: {findings_count} issues found'
                         },
                         timeout=10
                     )
                     response.raise_for_status()
-            except Exception as e:
-                print(f"Error sending notification: {str(e)}")
-                # Don't fail the pipeline on notification error
+                except Exception as e:
+                    print(f"Error sending notification: {str(e)}")
+                    if os.environ.get('CI'):
+                        raise  # Fail in CI environment
             
             # Cache results before returning
             if not getattr(self, '_skip_cache', False):

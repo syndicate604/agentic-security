@@ -24,6 +24,18 @@ class SecurityCache:
 
     def get_scan_results(self, scan_id: str) -> Optional[Dict[str, Any]]:
         """Retrieve most recent scan results"""
+        # First try exact match for better performance
+        latest_file = self.results_dir / f"{scan_id}_latest.json"
+        if latest_file.exists():
+            try:
+                with open(latest_file) as f:
+                    data = json.load(f)
+                    if 'timestamp' in data and 'results' in data:
+                        return data['results']
+            except (json.JSONDecodeError, KeyError):
+                pass
+
+        # Fallback to glob search
         files = list(self.results_dir.glob(f"{scan_id}_*.json"))
         if not files:
             return None
@@ -32,9 +44,8 @@ class SecurityCache:
         try:
             with open(latest_file) as f:
                 data = json.load(f)
-                # Verify cache is valid
                 if 'timestamp' in data and 'results' in data:
-                    return data
+                    return data['results']
         except (json.JSONDecodeError, KeyError):
             pass
         return None
