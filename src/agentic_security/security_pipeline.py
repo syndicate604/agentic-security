@@ -460,6 +460,30 @@ class SecurityPipeline:
         
         return not has_critical
 
+    def scan_paths(self, paths: List[str]) -> Dict:
+        """Scan paths for security issues"""
+        results = {'vulnerabilities': []}
+        
+        for path in paths:
+            if not os.path.exists(path):
+                raise FileNotFoundError(f"Path not found: {path}")
+                
+            # Run code security checks
+            security_results = self._run_code_security_checks(path)
+            
+            # Format results
+            for vuln_type, findings in security_results.items():
+                if isinstance(findings, list):
+                    for finding in findings:
+                        results['vulnerabilities'].append({
+                            'file': finding.get('file', path),
+                            'type': vuln_type,
+                            'severity': finding.get('severity', 'unknown'),
+                            'details': finding
+                        })
+        
+        return results
+
     def review_paths(self, paths: List[str], verbose: bool = False) -> Dict:
         """Review paths for security issues"""
         results = {'reviews': []}
