@@ -561,9 +561,9 @@ class SecurityPipeline:
             try:
                 # Run code security checks with timeout
                 security_results = self._run_code_security_checks(path)
-            
-            # Format results
-            for vuln_type, findings in security_results.items():
+                
+                # Format results
+                for vuln_type, findings in security_results.items():
                 if isinstance(findings, list):
                     for finding in findings:
                         if finding.get('file'):  # Only include findings with valid files
@@ -573,6 +573,9 @@ class SecurityPipeline:
                                 'severity': finding.get('severity', 'high'),
                                 'details': finding
                             })
+            except Exception as e:
+                print(f"\n[31m[!] Error scanning {path}: {str(e)}[0m")
+                continue
 
         # Generate report
         print("\n[36m[>] Generating report...[0m")
