@@ -278,19 +278,140 @@ class SecurityPipeline:
                 print(f"\033[31m[!] Failed to create fix branch: {e}\033[0m")
                 return False
 
-        prompts_logger = logging.getLogger('prompts')
-        success = True
+        # Enhanced fix templates for different vulnerability types
+        fix_templates = {
+            'sql_injection': """
+Please fix the SQL injection vulnerability in {file}. Follow these specific steps:
+1. Replace string formatting/concatenation with parameterized queries
+2. Use prepared statements with bind variables
+3. Implement strict input validation for all SQL parameters
+4. Add proper error handling for database operations
+5. Consider using an ORM if appropriate
+
+Example of secure code:
+```python
+# Instead of:
+cursor.execute(f"SELECT * FROM users WHERE id = {user_id}")
+
+# Use:
+cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+```
+""",
+            'command_injection': """
+Please fix the command injection vulnerability in {file}. Follow these specific steps:
+1. Replace shell=True with shell=False in subprocess calls
+2. Use subprocess.run with a list of arguments instead of string commands
+3. Implement strict input validation for command arguments
+4. Use shlex.quote for any necessary shell escaping
+5. Consider using safer alternatives to command execution
+
+Example of secure code:
+```python
+# Instead of:
+subprocess.run(f"git clone {repo_url}", shell=True)
+
+# Use:
+subprocess.run(["git", "clone", repo_url], shell=False)
+```
+""",
+            'xss': """
+Please fix the XSS vulnerability in {file}. Follow these specific steps:
+1. Implement proper HTML escaping for all user input
+2. Use Content Security Policy headers
+3. Apply input validation and sanitization
+4. Use secure template engines with auto-escaping
+5. Consider using safe-by-default frameworks
+
+Example of secure code:
+```python
+# Instead of:
+return f"<div>{user_input}</div>"
+
+# Use:
+from html import escape
+return f"<div>{escape(user_input)}</div>"
+```
+""",
+            'weak_crypto': """
+Please fix the weak cryptographic implementation in {file}. Follow these specific steps:
+1. Replace weak algorithms (MD5, SHA1) with strong ones (SHA-256/512)
+2. Use proper key derivation functions (PBKDF2, Argon2)
+3. Implement secure random number generation
+4. Use established cryptographic libraries
+5. Add proper key management
+
+Example of secure code:
+```python
+# Instead of:
+hashlib.md5(password.encode()).hexdigest()
+
+# Use:
+import secrets
+salt = secrets.token_bytes(16)
+kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), iterations=100000, salt=salt)
+key = kdf.derive(password.encode())
+```
+""",
+            'insecure_deserialization': """
+Please fix the insecure deserialization in {file}. Follow these specific steps:
+1. Avoid using pickle for untrusted data
+2. Use safe serialization formats (JSON)
+3. Implement strict input validation
+4. Add type checking for deserialized data
+5. Consider using safer alternatives
+
+Example of secure code:
+```python
+# Instead of:
+data = pickle.loads(user_input)
+
+# Use:
+import json
+data = json.loads(user_input)
+# Add validation
+if not isinstance(data, dict):
+    raise ValueError("Invalid data format")
+```
+""",
+            'xxe': """
+Please fix the XXE vulnerability in {file}. Follow these specific steps:
+1. Use defusedxml library instead of standard XML parsers
+2. Disable external entity processing
+3. Implement proper XML parsing controls
+4. Add input validation for XML data
+5. Consider using alternative formats if possible
+
+Example of secure code:
+```python
+# Instead of:
+from xml.etree.ElementTree import parse
+tree = parse(xml_file)
+
+# Use:
+from defusedxml.ElementTree import parse
+tree = parse(xml_file, forbid_dtd=True, forbid_entities=True)
+```
+"""
+        }
 
         for idx, suggestion in enumerate(suggestions, 1):
-            print(f"\n\033[1;36m--- Processing Fix {idx}/{len(suggestions)} ---\033[0m")
-            print("\033[36m[>] Suggestion details:\033[0m")
-            print(json.dumps(suggestion, indent=2))
-
+            print(f"\n\033[1;36m[>] Processing fix {idx}/{len(suggestions)}\033[0m")
+            
+            vuln_type = suggestion.get('type')
             file_path = suggestion.get('file')
-            if not file_path or not os.path.exists(file_path):
-                print(f"\033[31m[!] Invalid or missing file: {file_path}\033[0m")
-                success = False
+            
+            if not vuln_type or not file_path:
+                print("\033[33m[!] Missing required fields in suggestion\033[0m")
                 continue
+                
+            # Get specific fix template
+            fix_prompt = fix_templates.get(vuln_type)
+            if not fix_prompt:
+                print(f"\033[33m[!] No fix template for vulnerability type: {vuln_type}\033[0m")
+                continue
+                
+            # Format the fix prompt with file info
+            formatted_prompt = fix_prompt.format(file=file_path)
 
             try:
                 # Get the fix generation prompt
