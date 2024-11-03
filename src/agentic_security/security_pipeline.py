@@ -21,10 +21,14 @@ from .cache import SecurityCache
 from .prompts import PromptManager
 from .progress import ProgressReporter
 
-# Load model choice from environment
-ANALYSIS_MODEL = os.getenv('ANALYSIS_MODEL', 'claude-3-sonnet-20240229')  # Default to Claude 3.5
-OPENAI_MODEL = "gpt-4o-mini"  # Lightweight OpenAI model
-CLAUDE_MODEL = "claude-3-sonnet-20240229"  # Latest Sonnet model
+# AI Model Configuration
+VALID_MODELS = {
+    'claude-3-sonnet-20240229': {'provider': 'anthropic', 'name': 'Claude 3 Sonnet'},
+    'gpt-4-turbo-preview': {'provider': 'openai', 'name': 'GPT-4 Turbo'},
+    'gpt-4': {'provider': 'openai', 'name': 'GPT-4'},
+    'gpt-3.5-turbo': {'provider': 'openai', 'name': 'GPT-3.5 Turbo'}
+}
+DEFAULT_MODEL = 'claude-3-sonnet-20240229'
 DEFAULT_CONFIG = {
     "security": {
         "critical_threshold": 7.0,
@@ -66,14 +70,22 @@ class SecurityPipeline:
         if not os.getenv('SKIP_DOTENV'):
             load_dotenv()
             
-        # Validate analysis model choice
-        valid_models = {CLAUDE_MODEL, OPENAI_MODEL}
-        analysis_model = os.getenv('ANALYSIS_MODEL')
-        if analysis_model and analysis_model not in valid_models:
-            raise ValueError(f"Invalid ANALYSIS_MODEL. Must be one of: {', '.join(valid_models)}")
+        # Get and validate model choice
+        analysis_model = os.getenv('ANALYSIS_MODEL', DEFAULT_MODEL)
+        if analysis_model not in VALID_MODELS:
+            raise ValueError(
+                f"Invalid ANALYSIS_MODEL. Must be one of: {', '.join(VALID_MODELS.keys())}"
+            )
         
-        # Check for required environment variables
-        required_vars = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY']
+        # Check for required API keys based on model provider
+        model_provider = VALID_MODELS[analysis_model]['provider']
+        required_vars = []
+        
+        if model_provider == 'anthropic' or analysis_model == DEFAULT_MODEL:
+            required_vars.append('ANTHROPIC_API_KEY')
+        if model_provider == 'openai':
+            required_vars.append('OPENAI_API_KEY')
+            
         missing_vars = [var for var in required_vars if not os.getenv(var)]
         if missing_vars:
             raise OSError(f"Missing required environment variables: {', '.join(missing_vars)}")
