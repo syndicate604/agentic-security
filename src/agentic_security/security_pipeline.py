@@ -420,8 +420,8 @@ class SecurityPipeline:
                     if os.environ.get('CI'):
                         raise  # Fail in CI environment
             
-            # Cache results before returning
-            if not getattr(self, '_skip_cache', False):
+            # Cache results before returning, but not in CI
+            if not getattr(self, '_skip_cache', False) and not os.environ.get('CI'):
                 self.cache.save_scan_results("latest_scan", {'results': results})
             
             return results
