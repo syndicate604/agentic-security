@@ -1128,6 +1128,39 @@ class SecurityPipeline:
             else:
                 print(f"- {review['file']}: {review['type']} ({review['severity']})")
 
+    def _detect_sql_injection(self, content: str) -> bool:
+        """Detect potential SQL injection vulnerabilities in code
+        
+        Args:
+            content: Source code content to analyze
+            
+        Returns:
+            bool: True if SQL injection vulnerability detected
+        """
+        # Look for string formatting in SQL queries
+        sql_formatting_patterns = [
+            r"SELECT.*\%.*FROM",
+            r"INSERT.*\%.*INTO", 
+            r"UPDATE.*\%.*SET",
+            r"DELETE.*\%.*FROM",
+            r".*execute\(.*%.*\)",
+            r".*executemany\(.*%.*\)",
+            r".*cursor\.execute\(.*%.*\)",
+            r".*cursor\.executemany\(.*%.*\)",
+            r".*\.format\(.*\)",
+            r"f\".*SELECT.*{.*}.*\"",
+            r"f\".*INSERT.*{.*}.*\"", 
+            r"f\".*UPDATE.*{.*}.*\"",
+            r"f\".*DELETE.*{.*}.*\""
+        ]
+        
+        import re
+        for pattern in sql_formatting_patterns:
+            if re.search(pattern, content, re.IGNORECASE | re.MULTILINE):
+                return True
+                
+        return False
+
     def _get_vulnerability_description(self, vuln_type: str) -> str:
         """Get detailed description for vulnerability type"""
         descriptions = {
