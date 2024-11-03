@@ -171,8 +171,11 @@ def test_pipeline_error_handling(pipeline, test_config):
 
 def test_pipeline_performance(pipeline, tmp_path):
     """Test pipeline performance and caching"""
-    # Configure cache for test
+    # Configure clean cache for test
     pipeline.cache = SecurityCache(str(tmp_path))
+    
+    # Use consistent scan ID
+    scan_id = "test_scan_001"
     
     # Create test scan results
     test_results = {
@@ -180,20 +183,21 @@ def test_pipeline_performance(pipeline, tmp_path):
         'code': [{'test': 'data'}]
     }
     
-    # First run - save to cache
-    scan_id = datetime.now().strftime('%Y%m%d_%H%M%S')
+    # Pre-populate cache with test data
     pipeline.cache.save_scan_results(scan_id, test_results)
     
-    # First pipeline run
+    # First pipeline run without cache
+    pipeline.cache.clear_old_results(days=0)  # Clear cache
     start_time = time.time()
     pipeline.run_pipeline()
     first_run_time = time.time() - start_time
     
-    # Second run - should use cached results
+    # Second run - with populated cache
+    pipeline.cache.save_scan_results(scan_id, test_results)  # Ensure cache is populated
     start_time = time.time()
     pipeline.run_pipeline()
     second_run_time = time.time() - start_time
     
     # Second run should be faster due to caching
     assert second_run_time < first_run_time, \
-           f"Second run ({second_run_time:.2f}s) was not faster than first run ({first_run_time:.2f}s)"
+           f"Second run ({second_run_time:.2f}s) was not faster than first run ({first_run_time:.2f}s) - Cache not working correctly"
