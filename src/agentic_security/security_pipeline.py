@@ -388,10 +388,12 @@ class SecurityPipeline:
                         os.environ['SLACK_WEBHOOK'],
                         json={
                             'text': f'Security scan complete\nFindings: {len(results.get("reviews", []))} issues found'
-                        }
+                        },
+                        timeout=10
                     )
                 except Exception as e:
                     print(f"Error sending notification: {str(e)}")
+                    return False
             
             # Cache results before returning
             if not getattr(self, '_skip_cache', False):
@@ -500,9 +502,10 @@ class SecurityPipeline:
         """Run a new security scan and cache results"""
         self.progress.update(20, "Running security checks")
         security_results = self.run_security_checks()
+        results = {'results': security_results}
         if not getattr(self, '_skip_cache', False):
-            self.cache.save_scan_results(scan_id, security_results)
-        return security_results
+            self.cache.save_scan_results(scan_id, results)
+        return results
 
     def _validate_cached_results(self, results: Dict) -> bool:
         """Validate cached results structure and content"""
