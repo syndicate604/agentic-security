@@ -138,7 +138,9 @@ def cli():
 @click.option('--auto-fix/--no-auto-fix', default=False, help='Automatically apply fixes without prompting')
 @click.option('--timeout', '-t', default=300, help='Scan timeout in seconds', type=int)
 @click.option('--exclude', '-e', multiple=True, help='Patterns to exclude from scan')
-def scan(path, auto_fix, timeout, exclude):
+@click.option('--output', '-o', type=click.Path(), help='Output report path')
+@click.option('--verbose/--no-verbose', '-v/', default=False, help='Verbose output')
+def scan(path, auto_fix, timeout, exclude, output, verbose):
     """Run security scans on specified paths"""
     print(CYBER_BANNER)
     if not validate_environment():
@@ -173,10 +175,6 @@ def scan(path, auto_fix, timeout, exclude):
         elif auto_fix:
             print("\n[31m[!] Some or all fixes could not be applied[0m")
             
-        for msg in scan_messages:
-            print(f"\r{msg}")
-            time.sleep(0.5)
-        
         try:
             results = pipeline.scan_paths(path, exclude=exclude, timeout=300)  # 5 minute timeout
         except KeyboardInterrupt:
