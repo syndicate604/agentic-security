@@ -49,12 +49,14 @@ RUN apt-get update && apt-get install -y \
     docker.io \
     && rm -rf /var/lib/apt/lists/*
 
-# Install security tools
-RUN curl -s https://api.github.com/repos/projectdiscovery/nuclei/releases/latest | \
+# Install wget and security tools
+RUN apt-get update && apt-get install -y wget && \
+    curl -s https://api.github.com/repos/projectdiscovery/nuclei/releases/latest | \
     grep 'browser_download_url.*linux_amd64.zip' | cut -d '"' -f 4 | wget -qi - && \
     unzip -q nuclei-*-linux_amd64.zip && \
     mv nuclei /usr/local/bin/ && \
-    rm nuclei-*-linux_amd64.zip
+    rm nuclei-*-linux_amd64.zip && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Set up working directory
 WORKDIR /app

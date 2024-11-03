@@ -309,9 +309,10 @@ class SecurityPipeline:
             print(f"Error creating pull request: {str(e)}")
             return False
 
-    def run_pipeline(self) -> bool:
+    def run_pipeline(self) -> Dict:
         """Execute the complete security pipeline"""
         try:
+            results = {'status': True, 'reviews': []}
             self.progress.start("Starting security pipeline")
             
             # Generate unique scan ID based on current timestamp
@@ -370,7 +371,15 @@ class SecurityPipeline:
                     return False
             
             self.progress.finish("No critical vulnerabilities found")
-            return True
+            
+            # Send notification
+            if 'SLACK_WEBHOOK' in os.environ:
+                requests.post(
+                    os.environ['SLACK_WEBHOOK'],
+                    json={'text': 'Security scan complete'}
+                )
+            
+            return results
             
         except Exception as e:
             print(f"Pipeline failed: {str(e)}")
