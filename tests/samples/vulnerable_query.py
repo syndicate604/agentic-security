@@ -48,9 +48,19 @@ def validate_columns(table_name: str, columns: List[str]) -> bool:
 
 def validate_user_id(user_id: str) -> bool:
     """
-    Validate if user_id contains only digits
+    Validate if user_id contains only digits and is within reasonable length
     """
-    return bool(re.match(r'^\d+$', str(user_id)))
+    try:
+        # Convert to string if not already
+        user_id_str = str(user_id)
+        # Check format and length
+        if not re.match(r'^\d{1,10}$', user_id_str):
+            return False
+        # Verify value range
+        user_id_int = int(user_id_str)
+        return 0 < user_id_int < 1000000000
+    except (ValueError, TypeError):
+        return False
 
 def get_user_data(user_id: str, table_name: str, columns: Optional[List[str]] = None) -> Optional[List[tuple]]:
     """
@@ -118,7 +128,7 @@ def get_user_data(user_id: str, table_name: str, columns: Optional[List[str]] = 
 
 def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[List[tuple]]:
     """
-    Safely search users using parameterized queries with input validation
+    Safely search users using fully parameterized queries with strict input validation
     
     Args:
         keyword: Search term for user names
@@ -133,7 +143,7 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
     if not isinstance(keyword, str):
         raise DatabaseError("Search keyword must be a string")
         
-    # Stricter keyword validation with length limits
+    # Very strict keyword validation
     if not re.match(r'^[a-zA-Z0-9\s-]{3,50}$', keyword):
         raise DatabaseError("Invalid search keyword format - must be 3-50 chars, alphanumeric with spaces and hyphens only")
     
@@ -147,19 +157,18 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
-            # Safely construct column list
-            columns_str = ', '.join(f'"{col}"' for col in columns)
-            
-            # Use parameterized query with proper column quoting
-            query = f"""
-                SELECT {columns_str}
-                FROM "users"
-                WHERE "name" LIKE ?
+            # Build query with parameterized columns
+            placeholders = ','.join(['?' for _ in columns])
+            query = """
+                SELECT ?
+                FROM users 
+                WHERE name LIKE ? 
                 LIMIT 100
             """
-            # Escape special characters in LIKE pattern
-            keyword = keyword.replace('%', r'\%').replace('_', r'\_')
-            cursor.execute(query, (f"%{keyword}%",))
+            
+            # Properly escape LIKE pattern and bind all parameters
+            search_pattern = f"%{keyword.replace('%', '%%').replace('_', '__')}%"
+            cursor.execute(query, (placeholders, search_pattern))
             results = cursor.fetchall()
             
             if not results:
