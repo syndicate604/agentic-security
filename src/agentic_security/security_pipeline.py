@@ -455,7 +455,7 @@ class SecurityPipeline:
                 raise ValueError("Critical threshold cannot be negative")
 
             if not self.config['security'].get('scan_targets'):
-                return {'status': False, 'error': 'No scan targets configured'}
+                raise ValueError("No scan targets configured")
 
             if not any(target.get('type') in ['web', 'code'] 
                       for target in self.config['security']['scan_targets']):
