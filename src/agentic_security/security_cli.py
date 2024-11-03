@@ -141,7 +141,7 @@ def cli():
 @click.option('--timeout', '-t', default=600, help='Scan timeout in seconds', type=int)
 @click.option('--exclude', '-e', multiple=True, help='Patterns to exclude from scan')
 @click.option('--output', '-o', type=click.Path(), help='Output report path')
-@click.option('--verbose/--no-verbose', '-v/', default=False, help='Verbose output')
+@click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
 @click.option('--no-progress', is_flag=True, help='Disable progress animation')
 def scan(path, auto_fix, timeout, exclude, output, verbose, no_progress):
     """Run security scans on specified paths"""
@@ -150,13 +150,13 @@ def scan(path, auto_fix, timeout, exclude, output, verbose, no_progress):
         sys.exit(1)
 
     if verbose:
-        print("\nStarting security scan...")
-        print(f"Scan time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"Timeout: {timeout} seconds")
-        print(f"Paths: {', '.join(path) or '.'}")
+        print("\n[36m[>] Starting security scan in verbose mode[0m")
+        print(f"[36m[>] Scan time: {time.strftime('%Y-%m-%d %H:%M:%S')}[0m")
+        print(f"[36m[>] Timeout: {timeout} seconds[0m")
+        print(f"[36m[>] Paths: {', '.join(path) or '.'}[0m")
         if exclude:
-            print(f"Excluding: {', '.join(exclude)}")
-        print("\nScanning files...")
+            print(f"[36m[>] Excluding: {', '.join(exclude)}[0m")
+        print("\n[36m[>] Scanning files...[0m")
 
     # Only show initialization sequence if progress is enabled
     if not no_progress:
@@ -190,7 +190,13 @@ def scan(path, auto_fix, timeout, exclude, output, verbose, no_progress):
             print("\n[31m[!] Some or all fixes could not be applied[0m")
             
         try:
-            results = pipeline.scan_paths(path, exclude=exclude, timeout=timeout)
+            results = pipeline.scan_paths(
+                paths=list(path),
+                exclude=exclude,
+                timeout=timeout,
+                auto_fix=auto_fix,
+                verbose=verbose
+            )
         except KeyboardInterrupt:
             print("\n[33m[!] Scan interrupted by user. Partial results may be available.[0m")
             return
