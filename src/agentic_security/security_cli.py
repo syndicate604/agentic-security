@@ -275,11 +275,11 @@ def analyze(path: tuple, config: str, auto_fix: bool, verbose: bool):
         print(f"\033[36m{review_results['output']}\033[0m")
         
         if auto_fix and review_results.get('suggestions'):
-        print_cyber_status("\nImplementing suggested fixes...", "info")
-        if pipeline.implement_fixes(review_results['suggestions']):
-            print_cyber_status("Fixes implemented successfully", "success")
-        else:
-            print_cyber_status("Some fixes could not be implemented", "warning")
+            print_cyber_status("\nImplementing suggested fixes...", "info")
+            if pipeline.implement_fixes(review_results['suggestions']):
+                print_cyber_status("Fixes implemented successfully", "success")
+            else:
+                print_cyber_status("Some fixes could not be implemented", "warning")
 
 @cli.command()
 @click.option('--config', '-c', default='config.yml', help='Path to configuration file')
