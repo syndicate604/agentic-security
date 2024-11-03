@@ -24,17 +24,12 @@ def send_request(url, data):
     return response.text
 
 def process_response(response_data):
-    """Insecure response handling"""
-    import json
-
-    # Secure deserialization
+    """Secure response handling"""
     try:
-        data = json.loads(response_data)
-    except ValueError:
-        # Handle invalid JSON
+        return json.loads(response_data)
+    except json.JSONDecodeError:
+        # Handle invalid JSON data
         return None
-    else:
-        return data
 # Sample vulnerable API code
 import requests
 from defusedxml import ElementTree as ET
