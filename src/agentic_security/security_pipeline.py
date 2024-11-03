@@ -3,6 +3,8 @@
 import logging
 import subprocess
 import threading
+import traceback
+import shutil
 import time
 import json
 import json
@@ -63,6 +65,9 @@ class SecurityPipeline:
         # Load custom prompts if specified
         if 'ai' in self.config and 'custom_prompts' in self.config['ai']:
             self.prompt_manager = PromptManager(self.config['ai']['custom_prompts'])
+            
+        # Set verbose output flag
+        self.verbose = os.environ.get('SECURITY_DEBUG', '').lower() == 'true'
 
     def load_config(self, config_file: str) -> None:
         """Load configuration from YAML file or use defaults"""
@@ -269,9 +274,16 @@ class SecurityPipeline:
         fixes_applied = []
         success = True
         
-        print(f"\033[36m[>] Implementing {total_fixes} fixes with Claude 3 Sonnet...\033[0m")
+        if self.verbose:
+            print(f"\n\033[1;36m[>] Starting fix implementation for {total_fixes} issues\033[0m")
+            print("\033[36m[>] Using model:", VALID_MODELS[self.analysis_model]['name'], "\033[0m")
+        else:
+            print(f"\033[36m[>] Implementing {total_fixes} fixes...\033[0m")
         
-        for suggestion in suggestions:
+        for idx, suggestion in enumerate(suggestions, 1):
+            if self.verbose:
+                print(f"\n\033[1;36m[>] Processing fix {idx}/{total_fixes}\033[0m")
+            
             try:
                 if not isinstance(suggestion, dict):
                     print(f"\033[33m[!] Invalid suggestion format: {suggestion}\033[0m")
@@ -281,34 +293,49 @@ class SecurityPipeline:
                 vuln_type = suggestion.get('type')
                 if not file_path or not vuln_type:
                     print("\033[33m[!] Missing required fields in suggestion\033[0m")
+                    if self.verbose:
+                        print("\033[33m    Required: 'file' and 'type'\033[0m")
+                        print("\033[33m    Received:", suggestion, "\033[0m")
                     continue
 
                 if not os.path.exists(file_path):
                     print(f"\033[33m[!] File not found: {file_path}\033[0m")
                     continue
 
-                # Generate fix prompt based on vulnerability type
+                # Generate fix prompt
                 try:
+                    if self.verbose:
+                        print("\033[36m[>] Generating fix prompt...\033[0m")
                     fix_prompt = self.prompt_manager.get_prompt('fix_generation', 
                         vulnerability_type=vuln_type,
                         file_path=file_path)
+                    if self.verbose:
+                        print("\033[36m[>] Prompt:", fix_prompt, "\033[0m")
                 except ValueError as e:
                     print(f"\033[31m[!] Error generating fix prompt: {str(e)}\033[0m")
+                    if self.verbose:
+                        print("\033[31m[!] Full error:", traceback.format_exc(), "\033[0m")
                     success = False
                     continue
 
-                # Backup file before modification
+                # Backup file
                 backup_path = f"{file_path}.bak"
                 try:
-                    import shutil
+                    if self.verbose:
+                        print(f"\033[36m[>] Creating backup: {backup_path}\033[0m")
                     shutil.copy2(file_path, backup_path)
                 except Exception as e:
                     print(f"\033[31m[!] Failed to create backup: {str(e)}\033[0m")
+                    if self.verbose:
+                        print("\033[31m[!] Full error:", traceback.format_exc(), "\033[0m")
                     success = False
                     continue
 
                 try:
-                    # Run aider with timeout
+                    # Run aider
+                    if self.verbose:
+                        print("\033[36m[>] Running aider...\033[0m")
+                    
                     result = subprocess.run([
                         "aider",
                         "--model", self.analysis_model,
@@ -322,71 +349,108 @@ class SecurityPipeline:
                         print(f"\033[31m[!] Aider failed with return code {result.returncode}\033[0m")
                         if result.stderr:
                             print(f"\033[31m[!] Error: {result.stderr}\033[0m")
+                        if self.verbose:
+                            print("\033[31m[!] Full output:", result.stdout, "\033[0m")
                         success = False
-                        # Restore backup
+                        if self.verbose:
+                            print(f"\033[36m[>] Restoring from backup: {backup_path}\033[0m")
                         shutil.move(backup_path, file_path)
                         continue
                     
                     if "No changes made" in result.stdout:
                         print(f"\033[33m[!] No changes made for {vuln_type} in {file_path}\033[0m")
                         success = False
-                        # Restore backup
+                        if self.verbose:
+                            print(f"\033[36m[>] Restoring from backup: {backup_path}\033[0m")
                         shutil.move(backup_path, file_path)
                     else:
+                        if self.verbose:
+                            print("\033[32m[✓] Changes made:\033[0m")
+                            # Extract and display diff
+                            import re
+                            diff_pattern = r'(?s)<<<<<<< SEARCH.*>>>>>>> REPLACE'
+                            diffs = re.findall(diff_pattern, result.stdout)
+                            for diff in diffs:
+                                print("\033[36m" + diff + "\033[0m")
+                        
                         print(f"\033[32m[✓] Applied fix for {vuln_type} in {file_path}\033[0m")
                         fixes_applied.append({
                             'file': file_path,
                             'type': vuln_type,
-                            'backup': backup_path
+                            'backup': backup_path,
+                            'diff': result.stdout if self.verbose else None
                         })
                         
                 except subprocess.TimeoutExpired:
                     print(f"\033[31m[!] Fix attempt timed out after {timeout} seconds\033[0m")
                     success = False
-                    # Restore backup
+                    if self.verbose:
+                        print(f"\033[36m[>] Restoring from backup: {backup_path}\033[0m")
                     shutil.move(backup_path, file_path)
                 except subprocess.CalledProcessError as e:
                     print(f"\033[31m[!] Error implementing fix: {e}\033[0m")
                     if hasattr(e, 'output') and e.output:
                         print(f"\033[31m[!] Output: {e.output}\033[0m")
+                    if self.verbose:
+                        print("\033[31m[!] Full error:", traceback.format_exc(), "\033[0m")
                     success = False
-                    # Restore backup
+                    if self.verbose:
+                        print(f"\033[36m[>] Restoring from backup: {backup_path}\033[0m")
                     shutil.move(backup_path, file_path)
                     
             except Exception as e:
                 print(f"\033[31m[!] Unexpected error: {str(e)}\033[0m")
+                if self.verbose:
+                    print("\033[31m[!] Full error:", traceback.format_exc(), "\033[0m")
                 success = False
-                # Attempt to restore backup if it exists
+                # Restore backup if exists
                 if 'backup_path' in locals() and os.path.exists(backup_path):
                     try:
+                        if self.verbose:
+                            print(f"\033[36m[>] Restoring from backup: {backup_path}\033[0m")
                         shutil.move(backup_path, file_path)
                     except Exception as restore_err:
                         print(f"\033[31m[!] Failed to restore backup: {str(restore_err)}\033[0m")
+                        if self.verbose:
+                            print("\033[31m[!] Full error:", traceback.format_exc(), "\033[0m")
 
-        # Final status report
+        # Final report
         if fixes_applied:
             print("\n\033[32m[✓] Successfully applied fixes:\033[0m")
             for fix in fixes_applied:
                 print(f"  - {fix['type']} in {fix['file']}")
-                # Clean up successful backups
+                if self.verbose and fix.get('diff'):
+                    print("\033[36mDiff:\033[0m")
+                    print(fix['diff'])
+                # Clean up backup
                 if os.path.exists(fix['backup']):
+                    if self.verbose:
+                        print(f"\033[36m[>] Removing backup: {fix['backup']}\033[0m")
                     os.remove(fix['backup'])
         else:
             print("\n\033[33m[!] No fixes were successfully applied\033[0m")
             
-        # Generate fix report
+        # Generate report
         report_file = f"security_fixes_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         try:
+            report_data = {
+                'timestamp': datetime.now().isoformat(),
+                'total_suggestions': total_fixes,
+                'fixes_applied': fixes_applied,
+                'success': success
+            }
+            if not self.verbose:
+                # Remove diff data in non-verbose mode
+                for fix in report_data['fixes_applied']:
+                    fix.pop('diff', None)
+                    
             with open(report_file, 'w') as f:
-                json.dump({
-                    'timestamp': datetime.now().isoformat(),
-                    'total_suggestions': total_fixes,
-                    'fixes_applied': fixes_applied,
-                    'success': success
-                }, f, indent=2)
+                json.dump(report_data, f, indent=2)
             print(f"\033[36m[>] Fix report saved to: {report_file}\033[0m")
         except Exception as e:
             print(f"\033[31m[!] Failed to save fix report: {e}\033[0m")
+            if self.verbose:
+                print("\033[31m[!] Full error:", traceback.format_exc(), "\033[0m")
                     
         return success
 
