@@ -9,10 +9,10 @@ def fetch_user_data(user_id):
     return response.json()
 
 def parse_xml_data(xml_string):
-    """Insecure XML parsing"""
-    # Security Issue 3: XML External Entity (XXE) vulnerability
-    parser = ET.XMLParser()
-    tree = ET.fromstring(xml_string, parser=parser)
+    """Secure XML parsing with XXE protection"""
+    from defusedxml.ElementTree import parse, XMLParser
+    parser = XMLParser(forbid_dtd=True)  # Prevent XXE
+    tree = parse(xml_string, parser=parser)
     return tree
 
 def send_request(url, data):
