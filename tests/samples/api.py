@@ -39,7 +39,8 @@ import defusedxml.ElementTree as ET
 
 def parse_xml(xml_string):
     # Secure XML parsing
-    return ET.fromstring(xml_string, defusedxml.ElementTree.XMLParser(resolve_entities=False))
+    parser = ET.XMLParser(resolve_entities=False)
+    return ET.fromstring(xml_string, parser=parser)
 import requests
 import xml.etree.ElementTree as ET
 import subprocess
