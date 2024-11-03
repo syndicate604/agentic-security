@@ -5,6 +5,7 @@ import time
 import json
 import os
 import random
+from dotenv import load_dotenv
 from datetime import datetime
 import yaml
 import requests
@@ -61,6 +62,9 @@ class SecurityPipeline:
 
     def setup_environment(self) -> None:
         """Set up necessary environment variables and paths"""
+        # Load environment variables from .env file
+        load_dotenv()
+        
         required_vars = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY']
         missing_vars = [var for var in required_vars if not os.getenv(var)]
         if missing_vars:
