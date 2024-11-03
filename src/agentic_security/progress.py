@@ -30,10 +30,10 @@ class ProgressReporter:
     def _update_progress(self, message: str) -> None:
         """Update progress bar"""
         current_time = time.time()
-        if current_time - self.last_update < 0.1 and self.current_step < self.total_steps:
-            return
-
-        self.last_update = current_time
+        # Always update on message change
+        if message != getattr(self, '_last_message', None) or current_time - self.last_update >= 0.1:
+            self.last_update = current_time
+            self._last_message = message
         percentage = (self.current_step / self.total_steps) * 100
         bar_length = 40
         filled_length = int(bar_length * self.current_step // self.total_steps)
