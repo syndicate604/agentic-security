@@ -440,6 +440,22 @@ class SecurityPipeline:
     def run_pipeline(self) -> Union[Dict, bool]:
         """Execute the complete security pipeline"""
         try:
+            # Validate configuration structure
+            if not isinstance(self.config, dict) or \
+               not isinstance(self.config.get('security', {}), dict) or \
+               not isinstance(self.config['security'].get('scan_targets', []), list):
+                raise ValueError("Invalid configuration structure")
+
+            if self.config['security'].get('critical_threshold', 0) < 0:
+                raise ValueError("Critical threshold cannot be negative")
+
+            if not self.config['security'].get('scan_targets'):
+                return {'status': False, 'error': 'No scan targets configured'}
+
+            if not any(target.get('type') in ['web', 'code'] 
+                      for target in self.config['security']['scan_targets']):
+                return {'status': False, 'error': 'Invalid scan target types'}
+
             # Initialize results
             results = {'status': True, 'reviews': []}
             

@@ -161,22 +161,46 @@ def test_custom_prompts(pipeline):
 
 def test_pipeline_error_handling(pipeline, test_config):
     """Test pipeline error handling"""
-    # Validate configuration
-    if not isinstance(self.config, dict) or \
-       not isinstance(self.config.get('security', {}), dict) or \
-       not isinstance(self.config['security'].get('scan_targets', []), list):
-        raise ValueError("Invalid configuration structure")
+    # Test invalid configuration structure
+    invalid_config = {
+        'not_security': {}
+    }
+    with pytest.raises(ValueError, match="Invalid configuration structure"):
+        pipeline.config = invalid_config
+        pipeline.run_pipeline()
 
-    if self.config['security'].get('critical_threshold', 0) < 0:
-        raise ValueError("Critical threshold cannot be negative")
+    # Test negative threshold
+    invalid_config = {
+        'security': {
+            'critical_threshold': -1,
+            'scan_targets': []
+        }
+    }
+    with pytest.raises(ValueError, match="Critical threshold cannot be negative"):
+        pipeline.config = invalid_config
+        pipeline.run_pipeline()
 
-    if not self.config['security'].get('scan_targets'):
-        return {'status': False, 'error': 'No scan targets configured'}
+    # Test missing scan targets
+    invalid_config = {
+        'security': {
+            'critical_threshold': 7.0
+        }
+    }
+    result = pipeline.run_pipeline()
+    assert result == {'status': False, 'error': 'No scan targets configured'}
 
-    if not any(target.get('type') in ['web', 'code'] 
-              for target in self.config['security']['scan_targets']):
-        return {'status': False, 'error': 'Invalid scan target types'}
-    
+    # Test invalid scan target types
+    invalid_config = {
+        'security': {
+            'critical_threshold': 7.0,
+            'scan_targets': [
+                {'type': 'invalid', 'path': '/tmp'}
+            ]
+        }
+    }
+    result = pipeline.run_pipeline()
+    assert result == {'status': False, 'error': 'Invalid scan target types'}
+
     # Test missing dependencies
     pipeline.config['security']['scan_targets'] = [
         {'type': 'invalid', 'url': 'http://example.com'}
