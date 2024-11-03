@@ -15,7 +15,8 @@ class SecurityCache:
         """Save scan results to cache"""
         # Overwrite existing results for the same scan_id
         result_file = self.results_dir / f"{scan_id}_latest.json"
-
+        result_file.parent.mkdir(parents=True, exist_ok=True)
+        
         with open(result_file, 'w') as f:
             json.dump({
                 'timestamp': datetime.now().isoformat(),
