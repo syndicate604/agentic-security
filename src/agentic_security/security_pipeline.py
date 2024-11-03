@@ -45,11 +45,12 @@ DEFAULT_CONFIG = {
 }
 
 class SecurityPipeline:
-    def __init__(self, config_file='config.yml'):
+    def __init__(self, config_file='config.yml', timeout: int = 300):
         self.load_config(config_file)
         self.critical_threshold = self.config['security']['critical_threshold']
         self.max_fix_attempts = self.config['security']['max_fix_attempts']
         self.branch_name = f"security-fixes-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+        self.timeout = timeout  # Add timeout parameter
         
         # Initialize model configuration
         self.analysis_model = os.getenv('ANALYSIS_MODEL', DEFAULT_MODEL)
@@ -260,19 +261,48 @@ class SecurityPipeline:
         return suggestions
 
     def implement_fixes(self, suggestions: List[Dict], timeout: int = 300) -> bool:
-        """Implement fixes using Claude 3 Sonnet with timeout
-        
-        Args:
-            suggestions: List of vulnerability findings to fix
-            timeout: Maximum time in seconds for each fix attempt (default: 5 minutes)
-        """
+        """Implement fixes using aider with focused approach"""
         if not suggestions:
-            print("\033[33m[!] No suggestions provided for fixes\033[0m")
             return False
 
-        if self.verbose:
-            print("\n[36m[>] Starting fix implementation in verbose mode[0m")
-            print(f"[36m[>] Total fixes to implement: {len(suggestions)}[0m")
+        # Create fix branch if needed
+        if not self.branch_name.startswith('security-fixes-'):
+            try:
+                subprocess.run(['git', 'checkout', '-b', self.branch_name], check=True)
+            except subprocess.CalledProcessError as e:
+                print(f"\033[31m[!] Failed to create fix branch: {e}\033[0m")
+                return False
+
+        success = True
+        for suggestion in suggestions:
+            file_path = suggestion.get('file')
+            vuln_type = suggestion.get('type')
+            
+            if not file_path or not vuln_type or not os.path.exists(file_path):
+                continue
+                
+            try:
+                # Run aider with focused fix attempt
+                result = subprocess.run([
+                    "aider",
+                    "--model", self.analysis_model,
+                    "--yes",
+                    "--no-auto-commits",
+                    file_path,
+                    f"Fix {vuln_type} vulnerability in this file"
+                ], capture_output=True, text=True, timeout=timeout)
+                
+                if result.returncode == 0:
+                    subprocess.run(['git', 'add', file_path], check=True)
+                    subprocess.run(['git', 'commit', '-m', f'Fix {vuln_type} in {file_path}'], check=True)
+                else:
+                    success = False
+                    
+            except Exception as e:
+                print(f"\033[31m[!] Error fixing {file_path}: {str(e)}\033[0m")
+                success = False
+                
+        return success
 
         # Create and switch to fix branch if not already on it
         if not self.branch_name.startswith('security-fixes-'):
@@ -525,14 +555,13 @@ class SecurityPipeline:
 
     import time  # Add this import at the top if not already present
 
-    def _run_code_security_checks(self, path: str, exclude_dirs: set = None, timeout: int = 60) -> Dict:
-        """Run code-specific security checks"""
-        results = {}
-        start_time = time.time()
+    def _run_code_security_checks(self, path: str, exclude_dirs: set = None) -> Dict:
+        """Run focused code security checks"""
         if exclude_dirs is None:
             exclude_dirs = {'venv', 'env', '.git', '__pycache__', 'node_modules', '.pytest_cache'}
-        files_scanned = 0
-        total_files = sum(1 for _ in os.walk(path) for _ in _[2] if _.endswith(('.py', '.js', '.php', '.java')))
+        
+        results = {}
+        start_time = time.time()
         
         # Clear line and show scanning indicator with file count
         print(f"\r[36m[>] Analyzing {path} ({total_files} files)...[0m")
@@ -1487,3 +1516,6 @@ class SecurityPipeline:
             return True
         except Exception:
             return False
+    def _show_progress(self, message: str):
+        """Show simple progress indicator"""
+        print(f"\r\033[36m[>] {message}...\033[0m", end='', flush=True)
