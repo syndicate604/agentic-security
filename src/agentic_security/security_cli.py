@@ -34,7 +34,7 @@ CYBER_HELP = """
 
 \033[35m[>] scan\033[0m
     Run security scans without implementing fixes
-    Usage: agentic-security scan [--config CONFIG]
+    Usage: agentic-security scan [--config CONFIG] [--path PATH]...
 
 \033[35m[>] analyze\033[0m
     Analyze security issues and optionally implement fixes
@@ -44,9 +44,17 @@ CYBER_HELP = """
     Run the complete security pipeline
     Usage: agentic-security run [--config CONFIG]
 
+\033[35m[>] review\033[0m
+    Generate security review report
+    Usage: agentic-security review [--path PATH]... [--output OUTPUT]
+
 \033[35m[>] validate\033[0m
     Validate configuration file
     Usage: agentic-security validate [--config CONFIG]
+
+\033[35m[>] test\033[0m
+    Run security pipeline tests
+    Usage: agentic-security test [--verbose]
 
 \033[35m[>] version\033[0m
     Show version information
@@ -58,6 +66,18 @@ CYBER_HELP = """
 
 \033[35m--config, -c\033[0m
     Path to configuration file (default: config.yml)
+
+\033[35m--path, -p\033[0m
+    Paths to scan or review (can be specified multiple times)
+
+\033[35m--output, -o\033[0m
+    Output markdown report path
+
+\033[35m--verbose, -v\033[0m
+    Enable verbose output
+
+\033[35m--auto-fix\033[0m
+    Automatically apply fixes without prompting
 
 \033[35m--help\033[0m
     Show this cyberpunk-styled help message
@@ -271,6 +291,34 @@ def review(path, output, verbose, config):
         sys.exit(1)
 
 @cli.command()
+@cli.command()
+@click.option('--path', '-p', multiple=True, help='Paths to review')
+@click.option('--output', '-o', type=click.Path(), help='Output markdown report path')
+@click.option('--verbose/--no-verbose', '-v/', default=False, help='Verbose output')
+@click.option('--config', '-c', default='config.yml', help='Path to configuration file')
+def review(path, output, verbose, config):
+    """Generate security review report"""
+    print_cyber_status("Starting security review...", "info")
+    
+    if not path:
+        path = ['.']
+        
+    try:
+        pipeline = SecurityPipeline(config)
+        
+        results = pipeline.review_paths(path, verbose)
+        
+        if output:
+            pipeline.generate_review_report(results, output)
+            print_cyber_status(f"Review report generated at {output}", "success")
+        else:
+            # Print review results to console
+            pipeline.print_review_results(results, verbose)
+            
+    except Exception as e:
+        print_cyber_status(f"Error: {str(e)}", "error")
+        sys.exit(1)
+
 def version():
     """Show version information"""
     print(CYBER_BANNER)
