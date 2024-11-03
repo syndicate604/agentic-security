@@ -29,8 +29,15 @@ class SecurityCache:
             return None
             
         latest_file = max(files, key=os.path.getctime)
-        with open(latest_file) as f:
-            return json.load(f)
+        try:
+            with open(latest_file) as f:
+                data = json.load(f)
+                # Verify cache is valid
+                if 'timestamp' in data and 'results' in data:
+                    return data
+        except (json.JSONDecodeError, KeyError):
+            pass
+        return None
 
     def clear_old_results(self, days: int = 30) -> None:
         """Clear results older than specified days"""

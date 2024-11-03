@@ -314,7 +314,8 @@ class SecurityPipeline:
         try:
             self.progress.start("Starting security pipeline")
             
-            scan_id = datetime.now().strftime('%Y%m%d_%H%M%S')
+            # Use consistent scan ID for caching
+            scan_id = "pipeline_scan"
         
             # Check cache for recent results
             cached_results = self.cache.get_scan_results(scan_id)
@@ -452,10 +453,9 @@ class SecurityPipeline:
                 if review.get('findings'):
                     print("Findings:")
                     for finding in review['findings']:
-                        description = finding.get('description')
-                        if description:
-                            print(f"Description: {description}")
-                        print(f"- {self._get_vulnerability_description(review['type'])}")
+                        description = self._get_vulnerability_description(review['type'])
+                        print(f"Description: {description}")
+                        print(f"- {description}")
             else:
                 print(f"- {review['file']}: {review['type']} ({review['severity']})")
 
