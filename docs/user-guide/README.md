@@ -2,6 +2,48 @@
 
 Welcome to the Agentic Security user guide. This guide covers everything from basic usage to advanced features.
 
+## Advanced Features
+
+### Pattern-Based Security Analysis
+
+The system detects various vulnerability patterns including:
+- SQL Injection patterns
+- Command Injection vulnerabilities
+- Cross-Site Scripting (XSS)
+- Weak Cryptography
+- Insecure Deserialization
+- XXE Vulnerabilities
+- Path Traversal
+- Authentication Weaknesses
+
+### Caching System
+
+- Performance-optimized result caching
+- Configurable cache duration
+- Automatic cache cleanup
+- Cache validation checks
+
+### Review System
+
+Three output modes available:
+1. **Basic Mode**: Simple vulnerability listing
+2. **Verbose Mode**: Detailed findings with descriptions
+3. **Report Mode**: Comprehensive markdown reports
+
+### AI Integration
+
+- **Architecture Review**: Uses GPT-4 for high-level security analysis
+- **Fix Generation**: Uses Claude-3 for precise fix implementation
+- **PR Description**: AI-generated detailed pull request descriptions
+- **Vulnerability Analysis**: Smart severity scoring and prioritization
+
+### Performance Optimization
+
+- Smart caching for repeated scans
+- Parallel processing capabilities
+- Resource-aware scanning
+- Incremental analysis support
+
 ## Command Overview
 
 ```mermaid
