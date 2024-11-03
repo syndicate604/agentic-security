@@ -564,10 +564,10 @@ class SecurityPipeline:
                 
                 # Format results
                 for vuln_type, findings in security_results.items():
-                if isinstance(findings, list):
-                    for finding in findings:
-                        if finding.get('file'):  # Only include findings with valid files
-                            results['vulnerabilities'].append({
+                    if isinstance(findings, list):
+                        for finding in findings:
+                            if finding.get('file'):  # Only include findings with valid files
+                                results['vulnerabilities'].append({
                                 'file': finding['file'],
                                 'type': vuln_type,
                                 'severity': finding.get('severity', 'high'),
