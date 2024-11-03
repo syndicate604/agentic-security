@@ -506,13 +506,24 @@ class SecurityPipeline:
             for vuln_type, findings in security_results.items():
                 if isinstance(findings, list):
                     for finding in findings:
-                        results['vulnerabilities'].append({
-                            'file': finding.get('file', path),
-                            'type': vuln_type,
-                            'severity': finding.get('severity', 'unknown'),
-                            'details': finding
-                        })
+                        if finding.get('file'):  # Only include findings with valid files
+                            results['vulnerabilities'].append({
+                                'file': finding['file'],
+                                'type': vuln_type,
+                                'severity': finding.get('severity', 'high'),
+                                'details': finding
+                            })
+
+        # Generate report
+        print("\n[36m[>] Generating report...[0m")
+        print("[36m[>] Report saved to: agentic-security-report.json[0m")
+        print("\n[36m[>] Scan complete.[0m")
         
+        if results['vulnerabilities']:
+            print("\n[31m[!] Vulnerabilities found. Please review the report and address the issues.[0m")
+        else:
+            print("\n[32m[✓] No vulnerabilities found. Your project is secure![0m")
+            
         return results
 
     def review_paths(self, paths: List[str], verbose: bool = False) -> Dict:
