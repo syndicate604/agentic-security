@@ -441,9 +441,10 @@ class SecurityPipeline:
         """Execute the complete security pipeline"""
         try:
             # Validate configuration structure
-            if not isinstance(self.config, dict) or \
-               not isinstance(self.config.get('security', {}), dict) or \
-               not isinstance(self.config['security'].get('scan_targets', []), list):
+            if 'security' not in self.config:
+                raise ValueError("Invalid configuration structure")
+
+            if not isinstance(self.config['security'], dict):
                 raise ValueError("Invalid configuration structure")
 
             if self.config['security'].get('critical_threshold', 0) < 0:
