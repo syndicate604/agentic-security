@@ -31,6 +31,11 @@ class SecurityPipeline:
         self.max_fix_attempts = self.config['security']['max_fix_attempts']
         self.branch_name = f"security-fixes-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
         
+        # Initialize components
+        self.cache = SecurityCache()
+        self.prompt_manager = PromptManager()
+        self.progress = ProgressReporter(total_steps=100)
+        
         self.cache = SecurityCache()
         self.prompt_manager = PromptManager()
         self.progress = ProgressReporter()
@@ -307,17 +312,27 @@ class SecurityPipeline:
     def run_pipeline(self) -> bool:
         """Execute the complete security pipeline"""
         try:
-            # Run initial security checks first
-            security_results = self.run_security_checks()
+            self.progress.start("Starting security pipeline")
+            
+            # Check cache for recent results
+            cached_results = self.cache.get_scan_results("latest_scan")
+            if cached_results:
+                self.progress.update(10, "Found cached results")
+                security_results = cached_results['results']
+            else:
+                self.progress.update(20, "Running security checks")
+                security_results = self.run_security_checks()
+                self.cache.save_scan_results("latest_scan", security_results)
             
             # Try architecture review if aider is available
             try:
+                self.progress.update(40, "Running architecture review")
                 review_results = self.run_architecture_review()
             except subprocess.CalledProcessError:
-                print("Warning: Architecture review skipped - aider not available")
+                self.progress.update(40, "Architecture review skipped - aider not available")
                 review_results = {"suggestions": []}
             
-            # Check if fixes are needed
+            self.progress.update(60, "Analyzing severity")
             max_severity = max(
                 self._get_max_severity(result)
                 for check_type in security_results.values()
@@ -325,13 +340,15 @@ class SecurityPipeline:
             )
             
             if max_severity >= self.critical_threshold:
-                # Create fix branch
+                self.progress.update(70, "Creating fix branch")
                 if not self.create_fix_branch():
+                    self.progress.finish("Failed to create fix branch")
                     return False
                 
                 # Implement fixes
                 fix_attempts = 0
                 while fix_attempts < self.max_fix_attempts:
+                    self.progress.update(80, f"Implementing fixes (attempt {fix_attempts + 1})")
                     if self.implement_fixes(review_results.get('suggestions', [])):
                         if self.validate_fixes():
                             break
@@ -339,12 +356,15 @@ class SecurityPipeline:
                 
                 # Create PR if fixes were successful
                 if fix_attempts < self.max_fix_attempts:
-                    return self.create_pull_request()
+                    self.progress.update(90, "Creating pull request")
+                    success = self.create_pull_request()
+                    self.progress.finish("Pipeline completed successfully" if success else "Failed to create PR")
+                    return success
                 else:
-                    print("Max fix attempts reached without success")
+                    self.progress.finish("Max fix attempts reached without success")
                     return False
             
-            print("No critical vulnerabilities found")
+            self.progress.finish("No critical vulnerabilities found")
             return True
             
         except Exception as e:
