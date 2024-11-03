@@ -136,30 +136,41 @@ def cli():
 @cli.command()
 @click.option('--path', '-p', multiple=True, help='Paths to scan (files or directories)')
 @click.option('--auto-fix/--no-auto-fix', default=False, help='Automatically apply fixes without prompting')
-@click.option('--timeout', '-t', default=300, help='Scan timeout in seconds', type=int)
+@click.option('--timeout', '-t', default=600, help='Scan timeout in seconds', type=int)
 @click.option('--exclude', '-e', multiple=True, help='Patterns to exclude from scan')
 @click.option('--output', '-o', type=click.Path(), help='Output report path')
 @click.option('--verbose/--no-verbose', '-v/', default=False, help='Verbose output')
-def scan(path, auto_fix, timeout, exclude, output, verbose):
+@click.option('--no-progress', is_flag=True, help='Disable progress animation')
+def scan(path, auto_fix, timeout, exclude, output, verbose, no_progress):
     """Run security scans on specified paths"""
     print(CYBER_BANNER)
     if not validate_environment():
         sys.exit(1)
 
-    # Cyberpunk initialization sequence
-    init_messages = [
-        ("INITIALIZING NEURAL SCAN SEQUENCE", 0.3),
-        ("LOADING SECURITY PROTOCOLS", 0.2),
-        ("CALIBRATING QUANTUM SCANNERS", 0.2),
-        ("ENGAGING CYBER-DEFENSE MATRIX", 0.3),
-    ]
-        
-    for msg, delay in init_messages:
-        sys.stdout.write(f"\r\033[35m[SYSTEM] \033[36m{msg}...\033[0m")
-        sys.stdout.flush()
-        time.sleep(delay)
-        sys.stdout.write("\033[K")  # Clear line
-    print("\n")
+    if verbose:
+        print("\nStarting security scan...")
+        print(f"Scan time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"Timeout: {timeout} seconds")
+        print(f"Paths: {', '.join(path) or '.'}")
+        if exclude:
+            print(f"Excluding: {', '.join(exclude)}")
+        print("\nScanning files...")
+
+    # Only show initialization sequence if progress is enabled
+    if not no_progress:
+        init_messages = [
+            ("INITIALIZING NEURAL SCAN SEQUENCE", 0.3),
+            ("LOADING SECURITY PROTOCOLS", 0.2),
+            ("CALIBRATING QUANTUM SCANNERS", 0.2),
+            ("ENGAGING CYBER-DEFENSE MATRIX", 0.3),
+        ]
+            
+        for msg, delay in init_messages:
+            sys.stdout.write(f"\r\033[35m[SYSTEM] \033[36m{msg}...\033[0m")
+            sys.stdout.flush()
+            time.sleep(delay)
+            sys.stdout.write("\033[K")  # Clear line
+        print("\n")
         
     if not path:
         path = ['.']  # Default to current directory
@@ -176,13 +187,14 @@ def scan(path, auto_fix, timeout, exclude, output, verbose):
             print("\n[31m[!] Some or all fixes could not be applied[0m")
             
         try:
-            results = pipeline.scan_paths(path, exclude=exclude, timeout=300)  # 5 minute timeout
+            results = pipeline.scan_paths(path, exclude=exclude, timeout=timeout)
         except KeyboardInterrupt:
             print("\n[33m[!] Scan interrupted by user. Partial results may be available.[0m")
             return
         except TimeoutError:
             print("\n[31m[!] Scan timed out. Please try scanning specific paths or increase timeout.[0m")
             return
+            
         vulns = results.get('vulnerabilities', [])
         
         if output:
@@ -190,10 +202,26 @@ def scan(path, auto_fix, timeout, exclude, output, verbose):
             print_cyber_status(f"Report generated at {output}", "success")
 
         if vulns:
-            print_cyber_status("\nVulnerabilities found:", "error")
-            print("[1m[31mSource Code Vulnerabilities:[0m")
+            print("\nVulnerabilities Found:")
+            print("=====================")
+            
             for vuln in vulns:
-                print(f"[31m- {vuln['type']} vulnerability in `{vuln['file']}`[0m")
+                severity = vuln.get('severity', 'unknown').upper()
+                score = vuln.get('score', 0.0)
+                
+                # Color code by severity
+                color = {
+                    'CRITICAL': '\033[91m',  # Red
+                    'HIGH': '\033[93m',      # Yellow
+                    'MEDIUM': '\033[94m',    # Blue
+                    'LOW': '\033[92m'        # Green
+                }.get(severity, '')
+                
+                print(f"\n{color}[{severity}] {vuln['type']}\033[0m")
+                print(f"File: {vuln['file']}")
+                print(f"Score: {score}")
+                if vuln.get('description'):
+                    print(f"Details: {vuln['description']}")
             
             if auto_fix:
                 print_cyber_status("Automatically applying fixes...", "info")
