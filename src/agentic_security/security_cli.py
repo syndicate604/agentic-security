@@ -158,7 +158,14 @@ def scan(path, auto_fix, output, verbose, test, config):
         print_cyber_status("Scanning dependencies...", "info")
         print_cyber_status("Analyzing results...", "info")
         
-        results = pipeline.scan_paths(path)
+        try:
+            results = pipeline.scan_paths(path, timeout=300)  # 5 minute timeout
+        except KeyboardInterrupt:
+            print("\n[33m[!] Scan interrupted by user. Partial results may be available.[0m")
+            return
+        except TimeoutError:
+            print("\n[31m[!] Scan timed out. Please try scanning specific paths or increase timeout.[0m")
+            return
         vulns = results.get('vulnerabilities', [])
         
         if output:

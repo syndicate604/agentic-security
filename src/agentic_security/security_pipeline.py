@@ -557,10 +557,27 @@ class SecurityPipeline:
             if not os.path.exists(path):
                 raise FileNotFoundError(f"Path not found: {path}")
             
-            print(f"\n[36m[>] Scanning: {path}[0m")    
+            print(f"\n[36m[>] Scanning: {path}[0m")
+            scan_start = time.time()
             try:
+                # Show progress indicator
+                def progress_indicator():
+                    chars = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+                    i = 0
+                    while True:
+                        if time.time() - scan_start > timeout:
+                            raise TimeoutError("Scan timeout reached")
+                        print(f"\r[36m[{chars[i]}] Scanning in progress...[0m", end='', flush=True)
+                        i = (i + 1) % len(chars)
+                        time.sleep(0.1)
+
+                import threading
+                progress_thread = threading.Thread(target=progress_indicator, daemon=True)
+                progress_thread.start()
+
                 # Run code security checks with timeout
                 security_results = self._run_code_security_checks(path)
+                print("\r" + " " * 50 + "\r", end='', flush=True)  # Clear progress indicator
                 
                 # Format results
                 for vuln_type, findings in security_results.items():
