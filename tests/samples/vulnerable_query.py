@@ -106,15 +106,11 @@ def get_user_data(user_id: str, table_name: str, columns: Optional[List[str]] = 
             if not column_list:
                 raise DatabaseError("No valid columns specified")
                 
-            # Build safe query using sqlite parameter substitution
-            placeholders = {
-                'table': table_name,
-                'cols': ', '.join(column_list)
-            }
-            query = 'SELECT :cols FROM :table WHERE id = ?'
+            # Build safe query with validated table name
+            query = f'SELECT {", ".join("?" for _ in column_list)} FROM {table_name} WHERE id = ?'
             
             # Execute with all parameters properly bound
-            cursor.execute(query.format(**placeholders), (user_id,))
+            cursor.execute(query, (*column_list, user_id))
             results = cursor.fetchall()
             
             if not results:
@@ -159,26 +155,18 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
-            # Build safe parameterized query
-            column_list = [col for col in columns if col in ALLOWED_TABLES['users']]
-            if not column_list:
-                raise DatabaseError("No valid columns specified")
-                
-            # Use proper parameter binding for all values
-            placeholders = {
-                'cols': ', '.join(column_list)
-            }
-            query = """
-                SELECT :cols FROM users 
+            # Build safe query with validated columns
+            query = f"""
+                SELECT {", ".join("?" for _ in column_list)} FROM users 
                 WHERE name LIKE ? ESCAPE '\\' 
                 AND active = 1
                 ORDER BY id ASC 
                 LIMIT 100
             """
             
-            # Properly escape LIKE pattern and bind all parameters
+            # Properly escape LIKE pattern and bind all parameters including columns
             search_pattern = "%" + keyword.replace("%", "\\%").replace("_", "\\_") + "%"
-            cursor.execute(query.format(**placeholders), (search_pattern,))
+            cursor.execute(query, (*column_list, search_pattern))
             results = cursor.fetchall()
             
             if not results:
