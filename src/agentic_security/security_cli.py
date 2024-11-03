@@ -110,8 +110,8 @@ def load_config(config_file: str) -> dict:
 
 def validate_environment() -> bool:
     """Validate required environment variables"""
-    # Load environment variables from .env file
-    load_dotenv()
+    # Load environment variables from .env file securely
+    load_dotenv(override=True)
     
     required_vars = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY']
     missing_vars = [var for var in required_vars if not os.getenv(var)]
@@ -173,7 +173,8 @@ def scan(path, auto_fix, timeout, exclude, output, verbose, no_progress):
         print("\n")
         
     if not path:
-        path = ['.']  # Default to current directory
+        path = [os.getcwd()]  # Default to current working directory
+        print("[33m[!] No paths specified, scanning current directory[0m")
             
     try:
         pipeline = SecurityPipeline('config.yml')
