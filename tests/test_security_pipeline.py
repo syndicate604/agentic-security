@@ -648,8 +648,12 @@ def unsafe_command(user_input):
         'xss_vulnerability.py': '''
 from html import escape
 def render_unsafe(user_input):
-    html = f"<div>{escape(user_input)}</div>"
-    return html
+    # Use markupsafe for robust XSS protection
+    from markupsafe import Markup, escape_silent
+    sanitized = escape_silent(user_input)
+    if not isinstance(sanitized, str):
+        sanitized = str(sanitized)
+    return Markup("<div>{}</div>").format(sanitized)
 ''',
         'crypto_weak.py': '''
 import hashlib
