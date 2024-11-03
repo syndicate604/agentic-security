@@ -166,3 +166,4 @@ testing_reports/*
 .security_cache
 dependency-check
 dependency-check-report.json
+*.bak
