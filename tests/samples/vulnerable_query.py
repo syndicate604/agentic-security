@@ -68,14 +68,14 @@ def get_user_data(user_id: str, table_name: str, columns: Optional[List[str]] = 
         DatabaseError: If invalid input or database error occurs
     """
     # Validate inputs before processing
-    if not isinstance(table_name, str) or not isinstance(user_id, str):
+    if not all(isinstance(x, str) for x in [table_name, user_id]):
         raise DatabaseError("Invalid input types")
         
     if not validate_table_name(table_name):
-        raise DatabaseError(f"Invalid table name: {table_name}")
+        raise DatabaseError("Invalid table name")
         
     if not validate_user_id(user_id):
-        raise DatabaseError(f"Invalid user ID format: {user_id}")
+        raise DatabaseError("Invalid user ID format")
     
     # Use all columns if none specified
     if columns is None:
@@ -86,9 +86,22 @@ def get_user_data(user_id: str, table_name: str, columns: Optional[List[str]] = 
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            # Construct safe query using validated columns
-            columns_str = ', '.join(columns)
-            query = f"SELECT {columns_str} FROM {table_name} WHERE id = ?"
+            
+            # Use safe column list
+            columns_str = ', '.join(f'"{col}"' for col in columns)
+            
+            # Use table mapping instead of direct interpolation
+            table_mapping = {
+                'users': 'users',
+                'profiles': 'profiles', 
+                'settings': 'settings'
+            }
+            
+            if table_name not in table_mapping:
+                raise DatabaseError("Invalid table name")
+                
+            # Construct query with proper quoting and mapping
+            query = f'SELECT {columns_str} FROM "{table_mapping[table_name]}" WHERE id = ?'
             cursor.execute(query, (user_id,))
             results = cursor.fetchall()
             
@@ -120,7 +133,7 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
     if not isinstance(keyword, str):
         raise DatabaseError("Search keyword must be a string")
         
-    # Stricter keyword validation
+    # Stricter keyword validation with length limits
     if not re.match(r'^[a-zA-Z0-9\s-]{3,50}$', keyword):
         raise DatabaseError("Invalid search keyword format - must be 3-50 chars, alphanumeric with spaces and hyphens only")
     
@@ -133,13 +146,19 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            # Use parameterized query with specific columns
-            query = """
-                SELECT id, name, email 
-                FROM users 
-                WHERE name LIKE ? 
+            
+            # Safely construct column list
+            columns_str = ', '.join(f'"{col}"' for col in columns)
+            
+            # Use parameterized query with proper column quoting
+            query = f"""
+                SELECT {columns_str}
+                FROM "users"
+                WHERE "name" LIKE ?
                 LIMIT 100
             """
+            # Escape special characters in LIKE pattern
+            keyword = keyword.replace('%', r'\%').replace('_', r'\_')
             cursor.execute(query, (f"%{keyword}%",))
             results = cursor.fetchall()
             
