@@ -1,3 +1,4 @@
+import defusedxml.ElementTree as ET
 import pytest
 import os
 import yaml
