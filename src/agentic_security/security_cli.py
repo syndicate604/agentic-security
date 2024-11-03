@@ -136,11 +136,13 @@ def cli():
 @cli.command()
 @click.option('--path', '-p', multiple=True, help='Paths to scan (files or directories)')
 @click.option('--auto-fix/--no-auto-fix', default=False, help='Automatically apply fixes without prompting')
-def scan(path, auto_fix):
+@click.option('--timeout', '-t', default=300, help='Scan timeout in seconds', type=int)
+@click.option('--exclude', '-e', multiple=True, help='Patterns to exclude from scan')
+def scan(path, auto_fix, timeout, exclude):
     """Run security scans on specified paths"""
     print(CYBER_BANNER)
     if not validate_environment():
-        return
+        sys.exit(1)
 
     # Cyberpunk initialization sequence
     init_messages = [
