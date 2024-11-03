@@ -98,45 +98,96 @@ class SecurityPipeline:
         """Implement fixes using Claude 3 Sonnet"""
         print("Implementing fixes with Claude 3 Sonnet...")
         
+        if not suggestions:
+            print("\033[33m[!] No suggestions provided for fixes\033[0m")
+            return False
+
         success = True
+        fixes_applied = []
+        
         for suggestion in suggestions:
             try:
                 if not isinstance(suggestion, dict):
-                    print(f"Invalid suggestion format: {suggestion}")
+                    print(f"\033[33m[!] Invalid suggestion format: {suggestion}\033[0m")
                     continue
                     
                 file_path = suggestion.get('file')
                 vuln_type = suggestion.get('type')
                 if not file_path or not vuln_type:
+                    print("\033[33m[!] Missing required fields in suggestion\033[0m")
+                    continue
+
+                if not os.path.exists(file_path):
+                    print(f"\033[33m[!] File not found: {file_path}\033[0m")
                     continue
 
                 # Generate fix prompt based on vulnerability type
-                fix_prompt = self.prompt_manager.get_prompt('fix_generation', 
-                    vulnerability_type=vuln_type,
-                    file_path=file_path)
-
-                result = subprocess.run([
-                    "aider",
-                    "--model", CLAUDE_MODEL,
-                    "--edit-format", "diff",
-                    file_path,  # Pass specific file instead of "."
-                    fix_prompt
-                ], capture_output=True, text=True, check=True)
-                
-                if "No changes made" in result.stdout:
-                    print(f"\033[33m[!] No changes made for {vuln_type} in {file_path}\033[0m")
+                try:
+                    fix_prompt = self.prompt_manager.get_prompt('fix_generation', 
+                        vulnerability_type=vuln_type,
+                        file_path=file_path)
+                except ValueError as e:
+                    print(f"\033[31m[!] Error generating fix prompt: {str(e)}\033[0m")
                     success = False
-                else:
-                    print(f"\033[32m[✓] Applied fix for {vuln_type} in {file_path}\033[0m")
+                    continue
+
+                # Backup file before modification
+                backup_path = f"{file_path}.bak"
+                try:
+                    import shutil
+                    shutil.copy2(file_path, backup_path)
+                except Exception as e:
+                    print(f"\033[31m[!] Failed to create backup: {str(e)}\033[0m")
+                    success = False
+                    continue
+
+                try:
+                    result = subprocess.run([
+                        "aider",
+                        "--model", CLAUDE_MODEL,
+                        "--edit-format", "diff",
+                        file_path,
+                        fix_prompt
+                    ], capture_output=True, text=True, check=True)
                     
-            except subprocess.CalledProcessError as e:
-                print(f"\033[31m[!] Error implementing fix: {str(e)}\033[0m")
-                print(f"Command output: {e.output}")
-                success = False
+                    if "No changes made" in result.stdout:
+                        print(f"\033[33m[!] No changes made for {vuln_type} in {file_path}\033[0m")
+                        success = False
+                        # Restore backup
+                        shutil.move(backup_path, file_path)
+                    else:
+                        print(f"\033[32m[✓] Applied fix for {vuln_type} in {file_path}\033[0m")
+                        fixes_applied.append({
+                            'file': file_path,
+                            'type': vuln_type,
+                            'backup': backup_path
+                        })
+                        
+                except subprocess.CalledProcessError as e:
+                    print(f"\033[31m[!] Error implementing fix: {str(e)}\033[0m")
+                    print(f"Command output: {e.output}")
+                    success = False
+                    # Restore backup
+                    shutil.move(backup_path, file_path)
+                    
             except Exception as e:
                 print(f"\033[31m[!] Unexpected error: {str(e)}\033[0m")
                 success = False
-                
+                # Attempt to restore backup if it exists
+                if 'backup_path' in locals() and os.path.exists(backup_path):
+                    try:
+                        shutil.move(backup_path, file_path)
+                    except Exception as restore_err:
+                        print(f"\033[31m[!] Failed to restore backup: {str(restore_err)}\033[0m")
+
+        if fixes_applied:
+            print("\n\033[32m[✓] Successfully applied fixes:\033[0m")
+            for fix in fixes_applied:
+                print(f"  - {fix['type']} in {fix['file']}")
+                # Clean up successful backups
+                if os.path.exists(fix['backup']):
+                    os.remove(fix['backup'])
+                    
         return success
 
     def run_security_checks(self) -> Dict:
