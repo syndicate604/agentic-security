@@ -102,27 +102,40 @@ class SecurityPipeline:
                     "error": "Aider tool not found"
                 }
             
-            # Run the architecture review
-            result = subprocess.run([
-                "aider",
-                "--model", OPENAI_MODEL,
-                "--edit-format", "diff",
-                "/ask", 
-                "Review the architecture for security vulnerabilities and suggest improvements:",
-                "."
-            ], capture_output=True, text=True, timeout=300)  # 5 minute timeout
-            
-            if result.returncode != 0:
-                print(f"\033[33m[!] Aider command failed: {result.stderr}\033[0m")
-                # Fallback to basic analysis
+            # Run the architecture review with proper arguments
+            try:
+                result = subprocess.run([
+                    "aider",
+                    "--model", OPENAI_MODEL,
+                    "--edit-format", "diff",
+                    "--no-git",  # Don't require git
+                    "--no-auth",  # Don't require authentication
+                    "--quiet",    # Reduce noise
+                    "Review the architecture for security vulnerabilities and suggest improvements"
+                ], capture_output=True, text=True, timeout=300)  # 5 minute timeout
+                
+                if result.returncode != 0:
+                    error_msg = result.stderr.strip() if result.stderr else "Unknown error"
+                    print(f"\033[33m[!] Aider command failed: {error_msg}\033[0m")
+                    # Provide more detailed error information
+                    return {
+                        "output": f"Automated review failed: {error_msg}",
+                        "suggestions": [{
+                            "file": "security_pipeline.py",
+                            "type": "process_error",
+                            "severity": "medium",
+                            "description": f"Architecture review process failed: {error_msg}"
+                        }],
+                        "error": error_msg
+                    }
+                
+            except subprocess.TimeoutExpired:
+                error_msg = "Review process timed out after 5 minutes"
+                print(f"\033[33m[!] {error_msg}\033[0m")
                 return {
-                    "output": "Automated review failed - manual review recommended",
-                    "suggestions": [{
-                        "file": "security_pipeline.py",
-                        "type": "process_error",
-                        "severity": "medium",
-                        "description": "Architecture review process failed - manual security review recommended"
-                    }]
+                    "output": error_msg,
+                    "suggestions": [],
+                    "error": "timeout"
                 }
             
             return {"output": result.stdout, "suggestions": self._parse_ai_suggestions(result.stdout)}
