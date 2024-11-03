@@ -33,6 +33,7 @@ def verify_token(token):
         return None
 # Sample vulnerable auth code
 import hashlib
+import random
 
 def store_password(password):
     # Weak password hashing
