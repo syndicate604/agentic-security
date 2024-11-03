@@ -528,13 +528,14 @@ class SecurityPipeline:
 
     def run_pipeline(self) -> Union[Dict, bool]:
         """Execute the complete security pipeline"""
-        try:
-            # Validate configuration structure
-            if 'security' not in self.config:
-                raise ValueError("Invalid configuration structure")
+        # Validate configuration structure
+        if 'security' not in self.config:
+            raise ValueError("Invalid configuration structure")
 
-            if not isinstance(self.config['security'], dict):
-                raise ValueError("Invalid configuration structure")
+        if not isinstance(self.config['security'], dict):
+            raise ValueError("Invalid configuration structure")
+            
+        try:
 
             if self.config['security'].get('critical_threshold', 0) < 0:
                 raise ValueError("Critical threshold cannot be negative")
@@ -592,13 +593,9 @@ class SecurityPipeline:
             else:
                 security_results = self._run_new_scan(scan_id)
             
-            # Try architecture review if aider is available
-            try:
-                self.progress.update(40, "Running architecture review")
-                review_results = self.run_architecture_review()
-            except subprocess.CalledProcessError:
-                self.progress.update(40, "Architecture review skipped - aider not available")
-                review_results = {"suggestions": []}
+            # Run architecture review in CI mode
+            self.progress.update(40, "Running architecture review")
+            review_results = self.run_architecture_review()
             
             self.progress.update(60, "Analyzing severity")
             max_severity = max(
