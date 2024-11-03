@@ -182,7 +182,7 @@ class SecurityPipeline:
                     "--no-git",  # Don't require git
                     *python_files,  # Pass files as separate arguments
                     "--message", review_prompt
-                ], capture_output=True, text=True, timeout=300)  # 5 minute timeout
+                ], capture_output=True, text=True, timeout=600)  # 10 minute timeout
                 
                 if result.returncode != 0:
                     error_msg = result.stderr.strip() if result.stderr else "Unknown error"
@@ -200,12 +200,18 @@ class SecurityPipeline:
                     }
                 
             except subprocess.TimeoutExpired:
-                error_msg = "Review process timed out after 5 minutes"
+                error_msg = "Review process timed out after 10 minutes"
                 print(f"\033[33m[!] {error_msg}\033[0m")
+                print("\033[33m[!] Consider breaking your analysis into smaller chunks or reviewing specific directories\033[0m")
                 return {
                     "output": error_msg,
                     "suggestions": [],
-                    "error": "timeout"
+                    "error": "timeout",
+                    "recommendations": [
+                        "Break analysis into smaller chunks",
+                        "Review specific directories instead of entire codebase",
+                        "Use --path flag to specify smaller scope"
+                    ]
                 }
             
             return {"output": result.stdout, "suggestions": self._parse_ai_suggestions(result.stdout)}
