@@ -74,10 +74,10 @@ class SecurityPipeline:
             "aider",
             "--model", OPENAI_MODEL,
             "--edit-format", "diff",
-            "/ask",
+            "/ask", 
             "Review the architecture for security vulnerabilities and suggest improvements:",
             "."
-        ], capture_output=True, text=True, check=True)
+        ], capture_output=True, text=True, check=True, shell=False)
         
         return {"output": result.stdout, "suggestions": self._parse_ai_suggestions(result.stdout)}
 
@@ -153,7 +153,7 @@ class SecurityPipeline:
         try:
             nuclei_result = subprocess.run([
                 "nuclei", "-u", url, "-json", "-o", "nuclei-report.jsonl"
-            ], capture_output=True, text=True)
+            ], capture_output=True, text=True, shell=False)
             results['nuclei'] = self._parse_nuclei_results("nuclei-report.jsonl")
         except Exception as e:
             print(f"Error running Nuclei scan: {str(e)}")
