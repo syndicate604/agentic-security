@@ -188,7 +188,6 @@ class SecurityPipeline:
                     "--model", model,
                     "--edit-format", "diff",
                     "--no-git",  # Don't require git
-                    "--timeout", str(remaining_time),
                     *python_files,  # Pass files as separate arguments
                     "--message", review_prompt
                 ], capture_output=True, text=True, timeout=remaining_time)
