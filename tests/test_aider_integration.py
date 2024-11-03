@@ -48,35 +48,39 @@ def verify_aider_installation():
     except ImportError:
         subprocess.run([sys.executable, "-m", "pip", "install", "aider-chat"], check=True)
 
-def run_aider_command(command: str, files: list, config_file: Path, auto_approve: bool = True, timeout: int = 30) -> tuple:
+def run_aider_command(command: str, files: list, config_file: Path = None, auto_approve: bool = True, timeout: int = 120) -> tuple:
     """Run an Aider command and return the result"""
     try:
         # Find aider executable
         aider_path = shutil.which('aider')
         if not aider_path:
-            raise RuntimeError("Aider not found. Installing...")
             verify_aider_installation()
             aider_path = shutil.which('aider')
+            if not aider_path:
+                raise RuntimeError("Aider not found even after installation")
+            
+        # Check if all files exist
+        for file in files:
+            if not os.path.exists(file):
+                raise RuntimeError(f"No such file or directory: {file}")
             
         cmd = [aider_path]
         
-        # Add environment variables
-        env = os.environ.copy()
-        env['PYTHONPATH'] = os.pathsep.join([env.get('PYTHONPATH', ''), str(Path.cwd())])
+        # Add CLI mode flags
+        cmd.extend([
+            "--yes-always",
+            "--no-stream",
+            "--auto-commits",
+            "--model", "gpt-4o-mini",
+            "--commit-prefix", "[SECURITY]"
+        ])
         
-        # Add auto-approve flag
-        if auto_approve:
-            cmd.append("--yes-always")
-            
-        # Add model flag
-        cmd.extend(["--model", "gpt-4-1106-preview"])
-        
-        # Add files
-        cmd.extend(files)
-        
-        # Add command as message
+        # Add message
         if command:
             cmd.extend(["--message", command])
+            
+        # Add files
+        cmd.extend(files)
         
         # Start process with environment
         process = subprocess.Popen(
@@ -84,7 +88,6 @@ def run_aider_command(command: str, files: list, config_file: Path, auto_approve
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            env=env,
             cwd=str(Path(files[0]).parent) if files else None
         )
         
@@ -92,22 +95,16 @@ def run_aider_command(command: str, files: list, config_file: Path, auto_approve
         stdout, stderr = process.communicate(timeout=timeout)
         
         if process.returncode != 0:
-            if "No such file" in stderr:
-                raise RuntimeError("No such file or directory")
-            elif "Config file not found" in stderr:
-                raise RuntimeError("Config file not found")
-            else:
-                raise RuntimeError(f"Aider command failed: {stderr}")
+            raise RuntimeError(f"Aider command failed: {stderr}")
                 
         return process.returncode, stdout, stderr
         
     except subprocess.TimeoutExpired:
-        process.kill()
+        if 'process' in locals():
+            process.kill()
         raise TimeoutError(f"Aider command timed out after {timeout} seconds")
-    except FileNotFoundError:
-        raise RuntimeError("No such file or directory")
     except Exception as e:
-        raise RuntimeError(f"Aider command failed: {str(e)}")
+        raise RuntimeError(str(e))
 
 def animate_loading(message, duration=0.5):
     """Show cyberpunk-styled loading animation"""
@@ -156,21 +153,10 @@ def test_repo(tmp_path):
     subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo_path, capture_output=True)
     subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo_path, capture_output=True)
     
-    # Create test file with security issue
-    test_file = repo_path / "app.py"
-    test_file.write_text("""
-def process_user_input(user_input):
-    # Security Issue 1: SQL Injection
-    query = f"SELECT * FROM users WHERE id = {user_input}"
-    
-    # Security Issue 2: Command Injection
-    os.system(f"echo {user_input}")
-    
-    # Security Issue 3: XSS
-    html = f"<div>{user_input}</div>"
-    
-    return query, html
-""")
+    # Copy sample files
+    samples_dir = Path(__file__).parent / "samples"
+    for sample_file in samples_dir.glob("*.py"):
+        shutil.copy2(sample_file, repo_path)
     
     # Initial commit
     subprocess.run(["git", "add", "."], cwd=repo_path, capture_output=True)
@@ -178,27 +164,10 @@ def process_user_input(user_input):
     
     return repo_path
 
-@pytest.fixture
-def aider_config(tmp_path):
-    """Create Aider configuration file"""
-    animate_loading("Setting up Aider configuration")
-    
-    config = {
-        "model": "gpt-4-1106-preview",
-        "auto_commits": True,
-        "commit_prefix": "[SECURITY]"
-    }
-    
-    config_file = tmp_path / "aider.yml"
-    with open(config_file, "w") as f:
-        yaml.dump(config, f, default_flow_style=False)
-    
-    return config_file
-
 class TestAiderIntegration:
     """Test Aider integration with security pipeline"""
     
-    def test_auto_approve_mode(self, test_repo, aider_config):
+    def test_auto_approve_mode(self, test_repo):
         """Test Aider with auto-approve mode"""
         print_section("Auto-Approve Mode Tests")
         animate_loading("Testing auto-approve functionality")
@@ -207,7 +176,6 @@ class TestAiderIntegration:
         returncode, stdout, stderr = run_aider_command(
             command=command,
             files=[str(test_repo / "app.py")],
-            config_file=aider_config,
             auto_approve=True
         )
         
@@ -224,7 +192,7 @@ class TestAiderIntegration:
         assert "[SECURITY]" in git_log.stdout
         print(f"{GREEN}[✓]{NC} Auto-approve mode test passed")
     
-    def test_security_scan_mode(self, test_repo, aider_config):
+    def test_security_scan_mode(self, test_repo):
         """Test Aider's security scanning capabilities"""
         print_section("Security Scan Tests")
         animate_loading("Testing security scanning")
@@ -240,34 +208,41 @@ class TestAiderIntegration:
         
         returncode, stdout, stderr = run_aider_command(
             command=command,
-            files=[str(test_repo / "app.py")],
-            config_file=aider_config,
+            files=[str(test_repo / "app.py"), str(test_repo / "auth.py"), str(test_repo / "api.py")],
             auto_approve=True
         )
         
         assert returncode == 0, f"Aider command failed: {stderr}"
         
-        # Read updated file
+        # Read updated files
         with open(test_repo / "app.py", "r") as f:
-            updated_code = f.read()
+            app_code = f.read()
+        with open(test_repo / "auth.py", "r") as f:
+            auth_code = f.read()
+        with open(test_repo / "api.py", "r") as f:
+            api_code = f.read()
         
         # Check for security improvements
         security_checks = [
-            ("SQL Injection", ["parameterize", "prepared", "placeholder"]),
-            ("Command Injection", ["subprocess.run", "shlex.quote", "escape"]),
-            ("XSS", ["escape", "sanitize", "html.escape"]),
-            ("Input Validation", ["validate", "sanitize", "check"])
+            ("SQL Injection", ["parameterize", "prepared", "placeholder"], app_code),
+            ("Command Injection", ["subprocess.run", "shlex.quote", "escape"], app_code),
+            ("XSS", ["escape", "sanitize", "html.escape"], app_code),
+            ("Input Validation", ["validate", "sanitize", "check"], app_code),
+            ("Password Storage", ["bcrypt", "argon2", "pbkdf2"], auth_code),
+            ("Token Security", ["secrets", "uuid", "random"], auth_code),
+            ("API Security", ["verify=True", "ssl", "tls"], api_code),
+            ("XML Security", ["defusedxml", "disable_external_entities"], api_code)
         ]
         
-        for issue, patterns in security_checks:
-            found = any(pattern in updated_code.lower() for pattern in patterns)
+        for issue, patterns, code in security_checks:
+            found = any(pattern in code.lower() for pattern in patterns)
             if found:
                 print(f"{GREEN}[✓]{NC} {issue} fixed")
             else:
                 print(f"{RED}[!]{NC} {issue} not properly addressed")
                 assert False, f"{issue} vulnerability not properly fixed"
     
-    def test_error_handling(self, test_repo, aider_config):
+    def test_error_handling(self, test_repo):
         """Test Aider's error handling"""
         print_section("Error Handling Tests")
         animate_loading("Testing error handling")
@@ -277,27 +252,17 @@ class TestAiderIntegration:
             run_aider_command(
                 command="Fix security issues",
                 files=[str(test_repo / "nonexistent.py")],
-                config_file=aider_config
+                auto_approve=True
             )
         assert "No such file" in str(exc_info.value)
         print(f"{GREEN}[✓]{NC} Invalid file error handled")
-        
-        # Test with invalid config
-        with pytest.raises(RuntimeError) as exc_info:
-            run_aider_command(
-                command="Fix security issues",
-                files=[str(test_repo / "app.py")],
-                config_file=Path("nonexistent.yml")
-            )
-        assert "Config file not found" in str(exc_info.value)
-        print(f"{GREEN}[✓]{NC} Invalid config error handled")
         
         # Test with timeout
         with pytest.raises(TimeoutError):
             run_aider_command(
                 command="Fix all possible security issues in great detail",
                 files=[str(test_repo / "app.py")],
-                config_file=aider_config,
+                auto_approve=True,
                 timeout=1
             )
         print(f"{GREEN}[✓]{NC} Timeout error handled")
