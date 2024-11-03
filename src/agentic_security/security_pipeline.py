@@ -81,11 +81,21 @@ class SecurityPipeline:
                 "output": "CI Mode - Mock Review",
                 "suggestions": [{
                     "file": "src/test.py",
-                    "type": "sql_injection",
+                    "type": "sql_injection", 
                     "severity": "high",
                     "description": "Test vulnerability"
                 }]
             }
+
+        # Define structured review categories
+        review_categories = [
+            "Authentication & Authorization",
+            "Data Security",
+            "Input Validation",
+            "Dependency Management",
+            "Error Handling",
+            "Logging & Monitoring"
+        ]
         
         try:
             # First check if aider is available
@@ -101,15 +111,34 @@ class SecurityPipeline:
                     "suggestions": [],
                     "error": "Aider tool not found"
                 }
+
+            # Get list of all Python files in repo
+            python_files = []
+            for root, _, files in os.walk('.'):
+                for file in files:
+                    if file.endswith('.py'):
+                        python_files.append(os.path.join(root, file))
             
             # Run the architecture review with proper arguments
             try:
+                # Build review prompt with file list and categories
+                review_prompt = (
+                    "Review the following Python files for security vulnerabilities:\n"
+                    f"{', '.join(python_files)}\n\n"
+                    "For each category, provide:\n"
+                    "1. Specific vulnerabilities found\n"
+                    "2. Severity level (high/medium/low)\n"
+                    "3. Code examples of issues\n"
+                    "4. Recommended fixes\n\n"
+                    f"Categories to review: {', '.join(review_categories)}"
+                )
+                
                 result = subprocess.run([
                     "aider",
                     "--model", OPENAI_MODEL,
                     "--edit-format", "diff",
                     "--no-git",  # Don't require git
-                    "--message", "Review the architecture for security vulnerabilities and suggest improvements"
+                    "--message", review_prompt
                 ], capture_output=True, text=True, timeout=300)  # 5 minute timeout
                 
                 if result.returncode != 0:
