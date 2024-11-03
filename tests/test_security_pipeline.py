@@ -47,6 +47,7 @@ def test_code_security_checks(pipeline, tmp_path):
     test_file = tmp_path / "test_vuln.py"
     test_file.write_text("""
 import os
+from html import escape
 
 def process_input(user_input):
     # SQL Injection vulnerability
@@ -55,8 +56,8 @@ def process_input(user_input):
     # Command Injection vulnerability
     os.system(f"echo {user_input}")
     
-    # XSS vulnerability
-    html = f"<div>{user_input}</div>"
+    # XSS vulnerability mitigated
+    html = f"<div>{escape(user_input)}</div>"
     """)
 
     results = pipeline._run_code_security_checks(str(tmp_path))
@@ -64,6 +65,7 @@ def process_input(user_input):
     # Check for expected vulnerabilities
     assert 'sql_injection' in results
     assert 'command_injection' in results
+    assert 'xss' not in results  # XSS should be mitigated
     assert any('test_vuln.py' in finding['file'] for finding in results['sql_injection'])
 
 def test_validate_fixes(pipeline, tmp_path):
