@@ -78,6 +78,7 @@ class SecurityPipeline:
         
         # In CI mode, return mock suggestions for testing
         if os.environ.get('CI', '').lower() == 'true':
+            # Don't actually run aider in CI mode
             return {
                 "output": "CI Mode - Mock Review",
                 "suggestions": [{
@@ -542,21 +543,21 @@ class SecurityPipeline:
             if self.config['security'].get('critical_threshold', 0) < 0:
                 raise ValueError("Critical threshold cannot be negative")
 
+            # Always validate configuration structure first
+            if 'security' not in self.config:
+                raise ValueError("Invalid configuration structure")
+            if not isinstance(self.config['security'], dict):
+                raise ValueError("Invalid configuration structure")
+            if self.config['security'].get('critical_threshold', 0) < 0:
+                raise ValueError("Critical threshold cannot be negative")
+
+            # Then check scan targets
             if not self.config['security'].get('scan_targets'):
                 return {'status': False, 'error': 'No scan targets configured'}
 
             if not any(target.get('type') in ['web', 'code'] 
                       for target in self.config['security']['scan_targets']):
                 return {'status': False, 'error': 'Invalid scan target types'}
-
-            # In CI mode, skip validation
-            if os.environ.get('CI', '').lower() != 'true':
-                if 'security' not in self.config:
-                    raise ValueError("Invalid configuration structure")
-                if not isinstance(self.config['security'], dict):
-                    raise ValueError("Invalid configuration structure")
-                if self.config['security'].get('critical_threshold', 0) < 0:
-                    raise ValueError("Critical threshold cannot be negative")
 
             # Initialize results
             results = {'status': True, 'reviews': []}
@@ -688,7 +689,12 @@ class SecurityPipeline:
             
         except Exception as e:
             print(f"Pipeline failed: {str(e)}")
-            return False
+            # Return error dict instead of False
+            return {
+                'status': False,
+                'error': str(e),
+                'reviews': []
+            }
 
     def validate_fixes(self) -> bool:
         """Validate implemented fixes"""
@@ -875,6 +881,11 @@ class SecurityPipeline:
             elif isinstance(results, dict):
                 if not results.get('reviews'):
                     f.write("No security issues found.\n\n")
+                else:
+                    for review in results.get('reviews', []):
+                        f.write(f"### {review.get('file', 'Unknown File')}\n\n")
+                        f.write(f"- Type: {review.get('type', 'Unknown')}\n")
+                        f.write(f"- Severity: {review.get('severity', 'Unknown')}\n\n")
                 for review in results.get('reviews', []):
                     f.write(f"### {review.get('file', 'Unknown File')}\n\n")
                     f.write(f"- Type: {review.get('type', 'Unknown')}\n")
