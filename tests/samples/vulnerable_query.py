@@ -20,8 +20,7 @@ DB_CONFIG = {
 # Cache for prepared statements
 STMT_CACHE = {}
 
-def get_prepared_statement(conn: sqlite3.Connection, sql: str, params: tuple = None, 
-                         identifiers: Dict[str, str] = None) -> sqlite3.Cursor:
+def get_prepared_statement(conn: sqlite3.Connection, sql: str, params: tuple = None) -> sqlite3.Cursor:
     """
     Get or create a prepared statement with proper parameter binding and caching
     
@@ -29,7 +28,6 @@ def get_prepared_statement(conn: sqlite3.Connection, sql: str, params: tuple = N
         conn: Database connection
         sql: SQL query string
         params: Query parameters
-        identifiers: Dict of table/column identifiers to safely insert into query
         
     Returns:
         sqlite3.Cursor: Prepared statement cursor
@@ -39,25 +37,13 @@ def get_prepared_statement(conn: sqlite3.Connection, sql: str, params: tuple = N
         
     cursor = conn.cursor()
     
-    # Safely insert any table/column identifiers
-    if identifiers:
-        # Validate all identifiers
-        for key, value in identifiers.items():
-            if not re.match(r'^[a-zA-Z][a-zA-Z0-9_]*$', value):
-                raise DatabaseError(f"Invalid identifier format: {value}")
-        # Format the SQL with validated identifiers
-        try:
-            sql = sql.format(**{k: f'"{v}"' for k, v in identifiers.items()})
-        except (KeyError, ValueError) as e:
-            raise DatabaseError(f"Error formatting SQL with identifiers: {str(e)}")
-    
     # Use query template as cache key
     cache_key = hash(sql)
     
     if cache_key not in STMT_CACHE:
         try:
             # Validate the SQL before caching
-            cursor.execute("EXPLAIN QUERY PLAN " + sql, ())
+            cursor.execute("EXPLAIN QUERY PLAN " + sql, params or ())
             STMT_CACHE[cache_key] = sql
         except sqlite3.Error as e:
             raise DatabaseError(f"Invalid SQL statement: {str(e)}")
@@ -262,23 +248,23 @@ def get_user_data(user_id: str, table_name: str, columns: Optional[List[str]] = 
         with get_db_connection() as conn:
             conn.execute("BEGIN TRANSACTION")
             try:
-                query = """
-                    SELECT {columns}
-                    FROM {table}
+                # Build the column list safely
+                column_list = ', '.join(f'"{col}"' for col in cols)
+                
+                # Use parameterized query with explicit column names
+                query = f"""
+                    SELECT {column_list}
+                    FROM "{table_name}"
                     WHERE id = ?
                     AND active = 1 
                     AND deleted_at IS NULL
                 """
                 
-                # Get prepared statement with parameters and safe identifiers
+                # Get prepared statement with parameters
                 stmt = get_prepared_statement(
-                    conn, 
+                    conn,
                     query,
-                    params=(user_id,),
-                    identifiers={
-                        'columns': ', '.join(cols),
-                        'table': table_name
-                    }
+                    params=(user_id,)
                 )
                 results = stmt.fetchall()
                 
@@ -326,35 +312,31 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
         with get_db_connection() as conn:
             conn.execute("BEGIN TRANSACTION")
             try:
-                # Build parameterized query
-                query = """
-                    SELECT {columns}
-                    FROM {table}
+                # Build the column list safely
+                column_list = ', '.join(f'"{col}"' for col in cols)
+                
+                # Build parameterized query with explicit column names
+                query = f"""
+                    SELECT {column_list}
+                    FROM "users"
                     WHERE name LIKE ? ESCAPE '\'
                     AND active = 1
                     ORDER BY id ASC
                     LIMIT 100
                 """
                 
-                # Properly escape LIKE pattern
-                def escape_like_pattern(pattern: str) -> str:
-                    escape_chars = ['\\', '%', '_']
-                    for char in escape_chars:
-                        pattern = pattern.replace(char, '\\' + char)
-                    return f"%{pattern}%"
+                # Properly escape LIKE pattern with parameterization
+                search_pattern = '%' + ''.join(
+                    char if char not in ['\\', '%', '_'] 
+                    else '\\' + char 
+                    for char in keyword
+                ) + '%'
                 
-                # Prepare parameters with escaped LIKE pattern
-                search_pattern = escape_like_pattern(keyword)
-                
-                # Get prepared statement with parameters and safe identifiers
+                # Get prepared statement with parameters
                 stmt = get_prepared_statement(
                     conn,
                     query,
-                    params=(search_pattern,),
-                    identifiers={
-                        'columns': ', '.join(cols),
-                        'table': 'users'
-                    }
+                    params=(search_pattern,)
                 )
                 results = stmt.fetchall()
                 
