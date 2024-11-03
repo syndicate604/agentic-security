@@ -314,19 +314,20 @@ class SecurityPipeline:
         try:
             self.progress.start("Starting security pipeline")
             
-            # Use consistent scan ID for caching
-            scan_id = "pipeline_scan"
-        
+            # Generate unique scan ID based on current timestamp
+            scan_id = f"pipeline_scan_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            
             # Check cache for recent results
             cached_results = self.cache.get_scan_results(scan_id)
             if cached_results and not getattr(self, '_skip_cache', False):
                 self.progress.update(10, "Found cached results")
                 security_results = cached_results['results']
+                # Validate cached results
+                if not self._validate_cached_results(security_results):
+                    self.progress.update(15, "Cache validation failed, running new scan")
+                    security_results = self._run_new_scan(scan_id)
             else:
-                self.progress.update(20, "Running security checks")
-                security_results = self.run_security_checks()
-                if not getattr(self, '_skip_cache', False):
-                    self.cache.save_scan_results(scan_id, security_results)
+                security_results = self._run_new_scan(scan_id)
             
             # Try architecture review if aider is available
             try:
@@ -458,3 +459,26 @@ class SecurityPipeline:
             'insecure_deserialization': 'Insecure deserialization vulnerability detected - Risk of code execution'
         }
         return descriptions.get(vuln_type, 'Security vulnerability detected')
+    def _run_new_scan(self, scan_id: str) -> Dict:
+        """Run a new security scan and cache results"""
+        self.progress.update(20, "Running security checks")
+        security_results = self.run_security_checks()
+        if not getattr(self, '_skip_cache', False):
+            self.cache.save_scan_results(scan_id, security_results)
+        return security_results
+
+    def _validate_cached_results(self, results: Dict) -> bool:
+        """Validate cached results structure and content"""
+        try:
+            required_keys = ['web', 'code']
+            if not all(key in results for key in required_keys):
+                return False
+                
+            # Validate result structure
+            for key in required_keys:
+                if not isinstance(results[key], list):
+                    return False
+                    
+            return True
+        except Exception:
+            return False
