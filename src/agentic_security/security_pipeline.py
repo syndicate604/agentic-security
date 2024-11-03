@@ -326,7 +326,7 @@ class SecurityPipeline:
             self.setup_environment()
             
             # Set up caching behavior
-            skip_cache = getattr(self, '_skip_cache', False) or os.environ.get('CI', False)
+            skip_cache = getattr(self, '_skip_cache', False) or os.environ.get('CI', '').lower() == 'true'
             
             # Validate scan targets
             if not self.config.get('security', {}).get('scan_targets'):
@@ -426,7 +426,7 @@ class SecurityPipeline:
                         raise  # Fail in CI environment
             
             # Cache results before returning, but not in CI
-            if not getattr(self, '_skip_cache', False) and not os.environ.get('CI'):
+            if not getattr(self, '_skip_cache', False) and not os.environ.get('CI', '').lower() == 'true':
                 self.cache.save_scan_results("latest_scan", {'results': results})
             
             return results
