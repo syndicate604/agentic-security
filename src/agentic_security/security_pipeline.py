@@ -27,18 +27,18 @@ DEFAULT_CONFIG = {
 class SecurityPipeline:
     def __init__(self, config_file='config.yml'):
         self.load_config(config_file)
+        if self.config['security']['critical_threshold'] < 0:
+            raise ValueError("Critical threshold cannot be negative")
+            
         self.critical_threshold = self.config['security']['critical_threshold']
         self.max_fix_attempts = self.config['security']['max_fix_attempts']
         self.branch_name = f"security-fixes-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
         
-        # Initialize components
-        self.cache = SecurityCache()
+        # Initialize components with cache directory
+        cache_dir = os.path.join(os.path.dirname(config_file), '.security_cache')
+        self.cache = SecurityCache(cache_dir)
         self.prompt_manager = PromptManager()
         self.progress = ProgressReporter(total_steps=100)
-        
-        self.cache = SecurityCache()
-        self.prompt_manager = PromptManager()
-        self.progress = ProgressReporter()
         
         # Load custom prompts if specified
         if 'ai' in self.config and 'custom_prompts' in self.config['ai']:
@@ -314,15 +314,17 @@ class SecurityPipeline:
         try:
             self.progress.start("Starting security pipeline")
             
+            scan_id = datetime.now().strftime('%Y%m%d_%H%M%S')
+        
             # Check cache for recent results
-            cached_results = self.cache.get_scan_results("latest_scan")
+            cached_results = self.cache.get_scan_results(scan_id)
             if cached_results:
                 self.progress.update(10, "Found cached results")
                 security_results = cached_results['results']
             else:
                 self.progress.update(20, "Running security checks")
                 security_results = self.run_security_checks()
-                self.cache.save_scan_results("latest_scan", security_results)
+                self.cache.save_scan_results(scan_id, security_results)
             
             # Try architecture review if aider is available
             try:
