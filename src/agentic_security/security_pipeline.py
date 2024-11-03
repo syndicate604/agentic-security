@@ -109,9 +109,7 @@ class SecurityPipeline:
                     "--model", OPENAI_MODEL,
                     "--edit-format", "diff",
                     "--no-git",  # Don't require git
-                    "--no-auth",  # Don't require authentication
-                    "--quiet",    # Reduce noise
-                    "Review the architecture for security vulnerabilities and suggest improvements"
+                    "--message", "Review the architecture for security vulnerabilities and suggest improvements"
                 ], capture_output=True, text=True, timeout=300)  # 5 minute timeout
                 
                 if result.returncode != 0:
