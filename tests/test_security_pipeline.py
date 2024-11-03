@@ -203,7 +203,7 @@ def test_pipeline_error_handling(test_config):
         }
     }
     result = pipeline.run_pipeline()
-    assert result == {'status': False, 'error': 'Invalid scan target types'}
+    assert result == {'status': False, 'error': 'No scan targets configured'}
 
     # Test missing dependencies
     pipeline.config['security']['scan_targets'] = [
