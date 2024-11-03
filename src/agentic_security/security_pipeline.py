@@ -731,9 +731,10 @@ class SecurityPipeline:
     def create_pull_request(self) -> bool:
         """Create PR with AI-generated description"""
         try:
-            print("Creating pull request...")
+            print("\n[36m[>] Preparing pull request...[0m")
             
             # Get changed files
+            print("[36m[>] Analyzing changed files...[0m")
             result = subprocess.run(
                 ["git", "diff", "--name-only", "main", self.branch_name],
                 capture_output=True,
@@ -741,8 +742,10 @@ class SecurityPipeline:
                 check=True
             )
             changed_files = result.stdout.strip().split('\n')
+            print(f"[36m[>] Found {len(changed_files)} modified files[0m")
             
-            # Generate PR description using o1-preview
+            # Generate PR description
+            print("[36m[>] Generating PR description...[0m")
             pr_description = subprocess.run([
                 "aider",
                 "--model", self.analysis_model,
@@ -752,6 +755,7 @@ class SecurityPipeline:
             ], capture_output=True, text=True, check=True).stdout.strip()
             
             # Create PR
+            print("[36m[>] Creating pull request...[0m")
             subprocess.run([
                 "gh", "pr", "create",
                 "--title", "Security: AI-Reviewed Security Fixes",
@@ -760,9 +764,11 @@ class SecurityPipeline:
                 "--base", "main"
             ], check=True)
             
+            print("\n[32m[✓] Pull request created successfully![0m")
             return True
+            
         except subprocess.CalledProcessError as e:
-            print(f"Error creating pull request: {str(e)}")
+            print(f"\n[31m[!] Error creating pull request: {e.stderr if e.stderr else str(e)}[0m")
             return False
 
     def _apply_security_fixes(self, scan_results: Dict) -> Dict:
@@ -967,22 +973,30 @@ class SecurityPipeline:
 
     def validate_fixes(self) -> bool:
         """Validate implemented fixes"""
-        print("Validating fixes...")
+        print("\n[36m[>] Validating applied fixes...[0m")
         
         # Re-run security checks
         results = self.run_security_checks()
         
-        # Check if any critical vulnerabilities remain
-        has_critical = False
+        remaining_issues = []
         for check_type, check_results in results.items():
             for result in check_results:
-                if self._get_max_severity(result) >= self.critical_threshold:
-                    has_critical = True
-                    break
-            if has_critical:
-                break
+                severity = self._get_max_severity(result)
+                if severity >= self.critical_threshold:
+                    remaining_issues.append({
+                        'type': check_type,
+                        'severity': severity,
+                        'file': result.get('file', 'unknown')
+                    })
         
-        return not has_critical
+        if remaining_issues:
+            print("\n[31m[!] Validation found remaining issues:[0m")
+            for issue in remaining_issues:
+                print(f"[31m  - {issue['type']} in {issue['file']} (severity: {issue['severity']})[0m")
+            return False
+        
+        print("\n[32m[✓] All fixes validated successfully[0m")
+        return True
 
     def scan_paths(self, paths: List[str], exclude: tuple = (), timeout: int = 300, auto_fix: bool = False) -> Dict:
         """Scan paths for security issues and optionally fix them
@@ -1007,6 +1021,7 @@ class SecurityPipeline:
         exclude_dirs = {'venv', 'env', '.git', '__pycache__', 'node_modules', '.pytest_cache'}
         exclude_dirs.update(set(exclude))
         
+        print(f"\n[36m[>] Initiating security scan for {len(paths)} paths[0m")
         for path in paths:
             # Check timeout
             if time.time() - start_time > timeout:
@@ -1020,7 +1035,8 @@ class SecurityPipeline:
             elif not os.path.isdir(path) and not os.path.isfile(path):
                 raise ValueError(f"Invalid path: {path}")
             
-            print(f"\n[36m[>] Scanning: {path}[0m")
+            print(f"\n[36m[>] Analyzing path: {path}[0m")
+            print(f"[36m[>] Checking for known vulnerability patterns...[0m")
             scan_start = time.time()
             # Define progress indicator function
             def progress_indicator():
@@ -1052,8 +1068,31 @@ class SecurityPipeline:
                 progress_thread = threading.Thread(target=progress_indicator, daemon=True)
                 progress_thread.start()
 
+                # Count relevant files first
+                relevant_files = []
+                for root, _, files in os.walk(path):
+                    if not any(excluded in root.split(os.sep) for excluded in exclude_dirs):
+                        files_in_dir = [f for f in files if f.endswith(('.py', '.js', '.php', '.java'))]
+                        if files_in_dir:
+                            print(f"[36m[>] Found {len(files_in_dir)} relevant files in {root}[0m")
+                            relevant_files.extend(files_in_dir)
+
                 # Run code security checks with timeout
                 security_results = self._run_code_security_checks(path, exclude_dirs=exclude_dirs)
+
+                # Display vulnerability summary
+                if security_results:
+                    print(f"\n[31m[!] Found {len(security_results)} potential vulnerabilities:[0m")
+                    for vuln_type, findings in security_results.items():
+                        if isinstance(findings, list):
+                            for finding in findings:
+                                severity = finding.get('severity', 'medium')
+                                severity_color = {
+                                    'high': '\033[31m',    # Red
+                                    'medium': '\033[33m',   # Yellow
+                                    'low': '\033[36m'       # Cyan
+                                }.get(severity, '\033[37m')
+                                print(f"{severity_color}  - {vuln_type} in {finding.get('file', 'unknown')} ({severity})[0m")
                 
                 # Clean shutdown of progress animation
                 stop_progress.set()
