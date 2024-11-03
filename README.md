@@ -19,34 +19,60 @@ The pipeline combines OWASP ZAP scans with AI-driven analysis, catching architec
 ## Capabilities & Roadmap
 
 ### Current Features
+### Architecture & Code Analysis
 
-| Emoji | Feature | Description | Status | Documentation |
-|-------|---------|-------------|--------|---------------|
-| 🧠 | AI Architecture Analysis | GPT-4 powered security architecture review and recommendations | ✅ Implemented | [Implementation](docs/implementation/README.md#ai-integration) |
-| 🛠️ | AI Code Generation | Claude-3 powered secure code implementation | ✅ Implemented | [User Guide](docs/user-guide/README.md#advanced-features) |
-| 🔍 | AI Pattern Recognition | Context-aware vulnerability pattern detection | ✅ Implemented | [Implementation](docs/implementation/README.md#security-patterns) |
-| 📝 | Smart PR Generation | AI-generated security-focused pull request descriptions | ✅ Implemented | [Implementation](docs/implementation/README.md#git-integration) |
-| 🎯 | AI Fix Validation | Automated fix verification with test generation | ✅ Implemented | [User Guide](docs/user-guide/README.md#advanced-features) |
-| 🧪 | AI Test Generation | Automated security test case creation | ✅ Implemented | [Implementation](docs/implementation/README.md#security-patterns) |
-| 📊 | AI Severity Analysis | CVSS-based vulnerability assessment and prioritization | ✅ Implemented | [User Guide](docs/user-guide/README.md#pattern-based-security-analysis) |
-| 🔄 | Recursive Fix Logic | AI-driven iterative fix attempts with validation | ✅ Implemented | [Implementation](docs/implementation/README.md#ai-integration) |
-| 🎭 | Context Analysis | AI-powered code context understanding | ✅ Implemented | [Implementation](docs/implementation/README.md#security-patterns) |
-| 📈 | Risk Assessment | AI-based security risk scoring and analysis | ✅ Implemented | [User Guide](docs/user-guide/README.md#pattern-based-security-analysis) |
-| 🔍 | SQL Injection AI | Machine learning pattern matching for SQL vulnerabilities | ✅ Implemented | [Implementation](docs/implementation/README.md#security-patterns) |
-| 🛡️ | Command Injection AI | AI-powered shell injection detection | ✅ Implemented | [Implementation](docs/implementation/README.md#security-patterns) |
-| 🌐 | XSS AI Detection | Neural pattern matching for XSS vulnerabilities | ✅ Implemented | [Implementation](docs/implementation/README.md#security-patterns) |
-| 🔒 | Crypto AI Analysis | AI-driven cryptographic weakness detection | ✅ Implemented | [Implementation](docs/implementation/README.md#security-patterns) |
-| 🎯 | Smart Fix Suggestions | Context-aware security fix recommendations | ✅ Implemented | [User Guide](docs/user-guide/README.md#advanced-features) |
-| 📚 | Code Documentation | AI-generated security documentation | ✅ Implemented | [Implementation](docs/implementation/README.md#ai-integration) |
-| 🔄 | Auto Branch Creation | AI-managed fix branch workflow | ✅ Implemented | [Implementation](docs/implementation/README.md#git-integration) |
-| 🤖 | Multi-Model Pipeline | Orchestrated GPT-4 and Claude-3 workflow | ✅ Implemented | [Implementation](docs/implementation/README.md#ai-model-configuration) |
-| 🎨 | Smart CLI | AI-powered command suggestions and help | ✅ Implemented | [User Guide](docs/user-guide/README.md#cli-interface) |
-| 📋 | Progress Analysis | AI-driven progress tracking and estimation | ✅ Implemented | [User Guide](docs/user-guide/README.md#cli-interface) |
-| ⚡ | Smart Caching | AI-optimized result caching system | ✅ Implemented | [Implementation](docs/implementation/README.md#cache-configuration) |
-| 🔔 | Intelligent Alerts | Context-aware security notifications | ✅ Implemented | [Implementation](docs/implementation/README.md#notifications) |
-| 🎯 | Fix Prioritization | AI-based vulnerability prioritization | ✅ Implemented | [User Guide](docs/user-guide/README.md#advanced-features) |
-| 📊 | Report Generation | AI-enhanced security report creation | ✅ Implemented | [User Guide](docs/user-guide/README.md#review-system) |
-| 🔍 | Dependency Analysis | AI-powered dependency vulnerability assessment | ✅ Implemented | [User Guide](docs/user-guide/README.md#advanced-features) |
+| Emoji | Feature                 | Description                                         | Status | Documentation                                                                                   |
+|-------|--------------------------|-----------------------------------------------------|--------|-------------------------------------------------------------------------------------------------|
+| 🧠    | AI Architecture Analysis | GPT-4 powered security architecture review and recommendations | ✅    | [Documentation](docs/implementation/README.md#ai-integration)                                     |
+| 🛠️    | AI Code Generation       | Claude-3 powered secure code generation             | ✅    | [User Guide](docs/user-guide/README.md#advanced-features)                                        |
+| 🎭    | Context Analysis         | AI-powered code context understanding               | ✅    | [Documentation](docs/implementation/README.md#security-patterns)                                 |
+| 📚    | Code Documentation       | AI-generated security documentation                 | ✅    | [Documentation](docs/implementation/README.md#ai-integration)                                     |
+
+### Vulnerability Detection & Analysis
+
+| Emoji | Feature                 | Description                                         | Status | Documentation                                                                                   |
+|-------|--------------------------|-----------------------------------------------------|--------|-------------------------------------------------------------------------------------------------|
+| 🔍    | AI Pattern Recognition   | Context-aware vulnerability pattern detection       | ✅    | [Documentation](docs/implementation/README.md#security-patterns)                                 |
+| 📈    | Risk Assessment          | AI-based security risk scoring and analysis         | ✅    | [User Guide](docs/user-guide/README.md#pattern-based-security-analysis)                          |
+| 📊    | AI Severity Analysis     | CVSS-based vulnerability assessment and prioritization | ✅    | [User Guide](docs/user-guide/README.md#pattern-based-security-analysis)                          |
+| 🔍    | SQL Injection AI         | Machine learning pattern matching for SQL vulnerabilities | ✅    | [Documentation](docs/implementation/README.md#security-patterns)                                 |
+| 🛡️    | Command Injection AI     | AI-powered shell injection detection                | ✅    | [Documentation](docs/implementation/README.md#security-patterns)                                 |
+| 🌐    | XSS AI Detection         | Neural pattern matching for XSS vulnerabilities     | ✅    | [Documentation](docs/implementation/README.md#security-patterns)                                 |
+| 🔒    | Crypto AI Analysis       | AI-driven cryptographic weakness detection          | ✅    | [Documentation](docs/implementation/README.md#security-patterns)                                 |
+
+### Fixes & Remediation
+
+| Emoji | Feature                   | Description                                           | Status | Documentation                                                                                   |
+|-------|----------------------------|-------------------------------------------------------|--------|-------------------------------------------------------------------------------------------------|
+| 🎯    | AI Fix Validation          | Automated fix verification with test generation       | ✅    | [User Guide](docs/user-guide/README.md#advanced-features)                                        |
+| 🔄    | Recursive Fix Logic        | AI-driven iterative fix attempts with validation      | ✅    | [Documentation](docs/implementation/README.md#ai-integration)                                     |
+| 🎯    | Smart Fix Suggestions      | Context-aware security fix recommendations            | ✅    | [User Guide](docs/user-guide/README.md#advanced-features)                                        |
+| 🔄    | Auto Branch Creation       | AI-managed fix branch workflow                        | ✅    | [Documentation](docs/implementation/README.md#git-integration)                                   |
+| 🎯    | Fix Prioritization         | AI-based vulnerability prioritization                 | ✅    | [User Guide](docs/user-guide/README.md#advanced-features)                                        |
+
+### Test & Validation
+
+| Emoji | Feature                 | Description                                         | Status | Documentation                                                                                   |
+|-------|--------------------------|-----------------------------------------------------|--------|-------------------------------------------------------------------------------------------------|
+| 📝    | Smart PR Generation      | AI-generated security-focused pull request descriptions | ✅    | [Documentation](docs/implementation/README.md#git-integration)                                   |
+| 🧪    | AI Test Generation       | Automated security test case creation               | ✅    | [Documentation](docs/implementation/README.md#security-patterns)                                 |
+
+### Workflow & Pipeline Management
+
+| Emoji | Feature                   | Description                                           | Status | Documentation                                                                                   |
+|-------|----------------------------|-------------------------------------------------------|--------|-------------------------------------------------------------------------------------------------|
+| 🤖    | Multi-Model Pipeline       | Orchestrated GPT-4 and Claude-3 workflow              | ✅    | [Documentation](docs/implementation/README.md#ai-model-configuration)                            |
+| 🎨    | Smart CLI                  | AI-powered command suggestions and help               | ✅    | [User Guide](docs/user-guide/README.md#cli-interface)                                           |
+| 📋    | Progress Analysis          | AI-driven progress tracking and estimation            | ✅    | [User Guide](docs/user-guide/README.md#cli-interface)                                           |
+| ⚡    | Smart Caching              | AI-optimized result caching system                    | ✅    | [Documentation](docs/implementation/README.md#cache-configuration)                               |
+| 🔔    | Intelligent Alerts         | Context-aware security notifications                  | ✅    | [Documentation](docs/implementation/README.md#notifications)                                     |
+
+### Reporting & Documentation
+
+| Emoji | Feature                   | Description                                           | Status | Documentation                                                                                   |
+|-------|----------------------------|-------------------------------------------------------|--------|-------------------------------------------------------------------------------------------------|
+| 📊    | Report Generation          | AI-enhanced security report creation                  | ✅    | [User Guide](docs/user-guide/README.md#review-system)                                           |
+| 🔍    | Dependency Analysis        | AI-powered dependency vulnerability assessment        | ✅    | [User Guide](docs/user-guide/README.md#advanced-features)                                        |
 
 ### Coming Soon
 
