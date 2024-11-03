@@ -597,9 +597,16 @@ class SecurityPipeline:
         
         return not has_critical
 
-    def scan_paths(self, paths: List[str], exclude: tuple = (), timeout: int = 300) -> Dict:
-        """Scan paths for security issues"""
-        results = {'vulnerabilities': []}
+    def scan_paths(self, paths: List[str], exclude: tuple = (), timeout: int = 300, auto_fix: bool = False) -> Dict:
+        """Scan paths for security issues and optionally fix them
+        
+        Args:
+            paths: List of paths to scan
+            exclude: Tuple of patterns to exclude
+            timeout: Maximum scan time in seconds
+            auto_fix: Whether to automatically fix issues
+        """
+        results = {'vulnerabilities': [], 'fixes_applied': []}
         start_time = time.time()
         
         # Add user exclusions to default excludes
