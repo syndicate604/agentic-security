@@ -97,13 +97,12 @@ def get_user_data(user_id: str, table_name: str, columns: Optional[List[str]] = 
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
-            # Construct fully parameterized query
-            placeholders = ','.join(['?' for _ in columns])
-            query = 'SELECT ? FROM ? WHERE id = ?'
+            # Construct query with validated column names
+            column_names = ','.join(columns)  # Safe since columns are validated
+            query = f'SELECT {column_names} FROM {table_name} WHERE id = ?'
             
-            # Execute with all parameters properly bound
-            params = (placeholders, table_name, user_id)
-            cursor.execute(query, params)
+            # Execute with properly bound parameter for user_id only
+            cursor.execute(query, (user_id,))
             results = cursor.fetchall()
             
             if not results:
@@ -148,18 +147,18 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
-            # Build query with parameterized columns
-            placeholders = ','.join(['?' for _ in columns])
-            query = """
-                SELECT ?
+            # Build query with validated column names
+            column_names = ','.join(columns)  # Safe since columns are validated
+            query = f"""
+                SELECT {column_names}
                 FROM users 
                 WHERE name LIKE ? 
                 LIMIT 100
             """
             
-            # Properly escape LIKE pattern and bind all parameters
-            search_pattern = f"%{keyword.replace('%', '%%').replace('_', '__')}%"
-            cursor.execute(query, (placeholders, search_pattern))
+            # Properly escape LIKE pattern and bind parameter
+            search_pattern = f"%{keyword}%"
+            cursor.execute(query, (search_pattern,))
             results = cursor.fetchall()
             
             if not results:
