@@ -725,6 +725,24 @@ class SecurityPipeline:
             print(f"Error creating pull request: {str(e)}")
             return False
 
+    def _apply_security_fixes(self, scan_results: Dict) -> Dict:
+        """Apply security fixes using fix_cycle"""
+        from .fix_cycle import apply_fixes
+        
+        try:
+            fix_results = apply_fixes(scan_results, auto_commit=False)
+            
+            # Update progress
+            self.progress.update(85, "Applied security fixes")
+            
+            return fix_results
+        except Exception as e:
+            logger.error(f"Error applying fixes: {str(e)}")
+            return {
+                'error': str(e),
+                'fixes_applied': []
+            }
+
     def run_pipeline(self) -> Dict:
         """Execute the complete security pipeline"""
         # Validate configuration structure first
@@ -883,6 +901,11 @@ class SecurityPipeline:
                     print(f"Warning: Failed to send Slack notification: {str(e)}")
                     # Don't raise error since Slack is optional
             
+            # Apply security fixes if needed
+            if security_results:
+                fix_results = self._apply_security_fixes(security_results)
+                results['fixes'] = fix_results
+
             # Cache results before returning, but not in CI
             if not os.environ.get('CI', '').lower() == 'true' and not os.environ.get('SKIP_CACHE', '').lower() == 'true':
                 self.cache.save_scan_results("latest_scan", {'results': results})
