@@ -42,35 +42,110 @@ def test_pipeline_initialization(pipeline, test_config):
     assert len(pipeline.config['security']['scan_targets']) == 2
 
 def test_code_security_checks(pipeline, tmp_path):
-    """Test code security scanning"""
+    """Test code security scanning with enhanced XSS protection"""
     # Create test file with known vulnerabilities
     test_file = tmp_path / "test_vuln.py"
     test_file.write_text("""
 import os
 from html import escape
+from markupsafe import Markup, escape_silent
+from typing import Dict, Optional
+import re
 
-def process_input(user_input):
+def process_input(user_input: str, context: Optional[Dict] = None) -> str:
     # SQL Injection vulnerability
     query = f"SELECT * FROM users WHERE id = {user_input}"
     
     # Command Injection vulnerability
     os.system(f"echo {user_input}")
     
-    # XSS vulnerability mitigated
-    html = f"<div>{escape(user_input)}</div>"
+    # XSS protection with multiple security layers
+    def sanitize_input(input_str: str) -> str:
+        # 1. Input validation - whitelist allowed characters
+        if not re.match(r'^[a-zA-Z0-9 -_.,!?]*$', input_str):
+            raise ValueError("Invalid characters in input")
+            
+        # 2. Length validation
+        if len(input_str) > 1000:
+            raise ValueError("Input too long")
+            
+        # 3. Type validation
+        if not isinstance(input_str, str):
+            input_str = str(input_str)
+            
+        # 4. Context-aware escaping
+        sanitized = escape_silent(input_str)
+        
+        # 5. Additional encoding for extra safety
+        return escape(str(sanitized))
+    
+    try:
+        # Apply all security layers
+        safe_input = sanitize_input(user_input)
+        
+        # 6. Use Content Security Policy
+        headers = {
+            "Content-Security-Policy": "default-src 'self'; script-src 'none'; object-src 'none'",
+            "X-XSS-Protection": "1; mode=block",
+            "X-Content-Type-Options": "nosniff"
+        }
+        
+        # 7. Use safe HTML templating
+        if context and context.get('html'):
+            # Use Markup for safe HTML handling
+            return Markup('<div class="user-content">{}</div>').format(safe_input)
+        
+        # 8. Plain text context
+        return safe_input
+        
+    except ValueError as e:
+        # 9. Error handling
+        return f"Error processing input: {str(e)}"
+    except Exception as e:
+        # Log the error securely
+        return "An error occurred while processing the input"
     """)
 
-def test_setup_environment_missing_vars(monkeypatch):
-    """Test handling of missing environment variables"""
-    # Ensure clean environment
-    monkeypatch.delenv('OPENAI_API_KEY', raising=False)
-    monkeypatch.delenv('ANTHROPIC_API_KEY', raising=False)
-    monkeypatch.setenv('SKIP_DOTENV', 'true')  # Skip .env loading
+def test_setup_environment_model_validation(monkeypatch):
+    """Test model validation and API key requirements"""
+    # Test cases for different models and API keys
+    test_cases = [
+        {
+            'model': 'claude-3-sonnet-20240229',
+            'required_key': 'ANTHROPIC_API_KEY',
+            'provider': 'anthropic'
+        },
+        {
+            'model': 'gpt-4-turbo-preview',
+            'required_key': 'OPENAI_API_KEY',
+            'provider': 'openai'
+        }
+    ]
     
+    for case in test_cases:
+        # Reset environment
+        monkeypatch.delenv('OPENAI_API_KEY', raising=False)
+        monkeypatch.delenv('ANTHROPIC_API_KEY', raising=False)
+        monkeypatch.setenv('SKIP_DOTENV', 'true')
+        monkeypatch.setenv('ANALYSIS_MODEL', case['model'])
+        
+        pipeline = SecurityPipeline()
+        
+        # Test missing API key
+        with pytest.raises(OSError) as exc_info:
+            pipeline.setup_environment()
+        assert case['required_key'] in str(exc_info.value)
+        
+        # Test with API key present
+        monkeypatch.setenv(case['required_key'], 'test-key')
+        pipeline.setup_environment()  # Should not raise exception
+        
+    # Test invalid model
+    monkeypatch.setenv('ANALYSIS_MODEL', 'invalid-model')
     pipeline = SecurityPipeline()
-    with pytest.raises(OSError) as exc_info:
+    with pytest.raises(ValueError) as exc_info:
         pipeline.setup_environment()
-    assert "Missing required environment variables" in str(exc_info.value)
+    assert "Invalid ANALYSIS_MODEL" in str(exc_info.value)
 
 def test_validate_fixes(pipeline, tmp_path):
     """Test fix validation"""
@@ -456,10 +531,24 @@ def test_ci_pipeline_execution(mock_run, pipeline):
         # Map specific commands to their step names for verification
         if any(x in command for x in ['nuclei', 'zap', 'dependency-check']):
             command = 'security checks'
-        elif 'aider' in command and 'Review' in command:
+        elif 'aider' in command and '/ask' in command and 'Review' in command:
             command = 'architecture review'
         elif 'aider' in command and 'fix' in command.lower():
-            command = 'implement fixes'
+            suggestions = [
+                {
+                    'file': 'test.py',
+                    'type': 'xss',
+                    'severity': 'high',
+                    'description': 'XSS vulnerability found'
+                },
+                {
+                    'file': 'requirements.txt',
+                    'type': 'dependency',
+                    'severity': 'medium',
+                    'description': 'Outdated dependencies'
+                }
+            ]
+            command = f"implement fixes: {suggestions}"
         elif 'git checkout -b' in command:
             command = 'create branch'
         elif 'gh pr create' in command:
@@ -574,9 +663,12 @@ def test_cache_in_ci(mock_run, pipeline, tmp_path):
 
 @pytest.mark.parametrize('test_file,expected_findings', [
     ('sql_injection.py', ['sql_injection']),
-    ('command_injection.py', ['command_injection']),
+    ('command_injection.py', ['command_injection']), 
     ('xss_vulnerability.py', ['xss']),
     ('crypto_weak.py', ['weak_crypto']),
+    ('xss_complex.py', ['xss']),
+    ('xss_dom.py', ['xss']),
+    ('xss_stored.py', ['xss'])
 ])
 def test_specific_vulnerability_detection(pipeline, tmp_path, test_file, expected_findings):
     """Test detection of specific vulnerability types"""
@@ -595,14 +687,64 @@ def unsafe_command(user_input):
     return True
 ''',
         'xss_vulnerability.py': '''
+from html import escape
 def render_unsafe(user_input):
-    html = f"<div>{user_input}</div>"
-    return html
+    # Use markupsafe for robust XSS protection
+    from markupsafe import Markup, escape_silent
+    sanitized = escape_silent(user_input)
+    if not isinstance(sanitized, str):
+        sanitized = str(sanitized)
+    return Markup("<div>{}</div>").format(sanitized)
 ''',
         'crypto_weak.py': '''
 import hashlib
 def hash_password(password):
     return hashlib.md5(password.encode()).hexdigest()
+''',
+        'xss_complex.py': '''
+def render_complex(user_input, user_data):
+    from html import escape
+    import json
+    template = f"""
+        <div class="user-content">
+            <script>
+                var userData = {json.dumps(user_data)};
+                document.getElementById('content').textContent = {json.dumps(user_input)};
+            </script>
+        </div>
+    """
+    return template
+''',
+        'xss_dom.py': '''
+def render_dom(user_input):
+    from html import escape
+    return f"""
+        <div id="content"></div>
+        <script>
+            const sanitizedInput = (input) => {{
+                const div = document.createElement('div');
+                div.textContent = input;
+                return div.textContent;
+            }};
+            document.getElementById("content").textContent = 
+                sanitizedInput(location.hash.substring(1));
+        </script>
+    """
+''',
+        'xss_stored.py': '''
+class UserProfile:
+    def __init__(self):
+        self.comments = []
+        
+    def add_comment(self, comment):
+        self.comments.append(comment)
+        
+    def render_comments(self):
+        from html import escape
+        return "".join([
+            f"<div class='comment'>{escape(comment)}</div>"
+            for comment in self.comments
+        ])
 '''
     }
     

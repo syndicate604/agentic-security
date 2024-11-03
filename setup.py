@@ -10,8 +10,8 @@ setup(
         'requests==2.30.0',
         'python-dotenv==1.0.0',
         'pyyaml==6.0.1',
-        'openai==0.27.6',
-        'anthropic==0.5.0',
+        'openai>=0.27.6',
+        'anthropic>=0.5.0',
         'click==8.1.7',
     ],
     entry_points={

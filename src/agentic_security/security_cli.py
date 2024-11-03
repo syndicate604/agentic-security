@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from datetime import datetime
+from pathlib import Path
 import click
 import yaml
 import os
@@ -110,8 +112,8 @@ def load_config(config_file: str) -> dict:
 
 def validate_environment() -> bool:
     """Validate required environment variables"""
-    # Load environment variables from .env file
-    load_dotenv()
+    # Load environment variables from .env file securely
+    load_dotenv(override=True)
     
     required_vars = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY']
     missing_vars = [var for var in required_vars if not os.getenv(var)]
@@ -173,7 +175,8 @@ def scan(path, auto_fix, timeout, exclude, output, verbose, no_progress):
         print("\n")
         
     if not path:
-        path = ['.']  # Default to current directory
+        print("[33m[!] No paths specified, please provide at least one path to scan[0m")
+        return
             
     try:
         pipeline = SecurityPipeline('config.yml')
@@ -239,28 +242,58 @@ def scan(path, auto_fix, timeout, exclude, output, verbose, no_progress):
         sys.exit(1)
 
 @cli.command()
+@click.option('--path', '-p', multiple=True, help='Paths to analyze')
 @click.option('--config', '-c', default='config.yml', help='Path to configuration file')
 @click.option('--auto-fix/--no-auto-fix', default=False, help='Automatically implement fixes')
-def analyze(config: str, auto_fix: bool):
+@click.option('--verbose/--no-verbose', '-v/', default=False, help='Verbose output')
+def analyze(path: tuple, config: str, auto_fix: bool, verbose: bool):
     """Analyze security issues and optionally implement fixes"""
-    print(CYBER_BANNER)
-    if not validate_environment():
-        return
-    
-    print_cyber_status("Initializing security analysis...", "info")
-    pipeline = SecurityPipeline(config)
-    
-    # Run architecture review
-    review_results = pipeline.run_architecture_review()
-    print_cyber_status("\nArchitecture Review Results:", "info")
-    print(f"\033[36m{review_results['output']}\033[0m")
-    
-    if auto_fix and review_results.get('suggestions'):
-        print_cyber_status("\nImplementing suggested fixes...", "info")
-        if pipeline.implement_fixes(review_results['suggestions']):
-            print_cyber_status("Fixes implemented successfully", "success")
-        else:
-            print_cyber_status("Some fixes could not be implemented", "warning")
+    try:
+        print(CYBER_BANNER)
+        if not validate_environment():
+            sys.exit(1)
+        
+        print_cyber_status("Initializing security analysis...", "info")
+        pipeline = SecurityPipeline(config)
+        
+        if not path:
+            path = ['.']  # Default to current directory if no path specified
+            
+        # Run security analysis on specified paths
+        results = pipeline.scan_paths(path, auto_fix=auto_fix)
+        
+        # Generate unique report filename with timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        report_dir = Path('security_reports')
+        report_dir.mkdir(exist_ok=True)
+        report_file = report_dir / f'security_report_{timestamp}.md'
+        
+        # Generate the report
+        pipeline.generate_review_report(results, str(report_file))
+        print_cyber_status(f"\nSecurity report generated: {report_file}", "success")
+        
+        if verbose:
+            print("\nAnalysis Results:")
+            for vuln in results.get('vulnerabilities', []):
+                print(f"\nFile: {vuln['file']}")
+                print(f"Type: {vuln['type']}")
+                print(f"Severity: {vuln['severity']}")
+                if vuln.get('details', {}).get('description'):
+                    print(f"Details: {vuln['details']['description']}")
+        
+        # Exit after completion
+        sys.exit(0)
+                
+    except KeyboardInterrupt:
+        print("\n\033[33m[!] Analysis interrupted. Saving partial results...\033[0m")
+        # Still try to save the report if interrupted
+        if 'results' in locals() and results:
+            pipeline.generate_review_report(results, str(report_file))
+            print_cyber_status(f"\nPartial report saved: {report_file}", "warning")
+        sys.exit(1)
+    except Exception as e:
+        print_cyber_status(f"Error during analysis: {str(e)}", "error")
+        sys.exit(1)
 
 @cli.command()
 @click.option('--config', '-c', default='config.yml', help='Path to configuration file')
@@ -356,33 +389,6 @@ def review(path: tuple, output: str, verbose: bool, config: str):
         print_cyber_status(f"Error: {str(e)}", "error")
         sys.exit(1)
 
-@cli.command()
-@click.option('--path', '-p', multiple=True, help='Paths to review')
-@click.option('--output', '-o', type=click.Path(), help='Output markdown report path')
-@click.option('--verbose/--no-verbose', '-v/', default=False, help='Verbose output')
-@click.option('--config', '-c', default='config.yml', help='Path to configuration file')
-def review(path, output, verbose, config):
-    """Generate security review report"""
-    print_cyber_status("Security Review Report", "info")
-    
-    if not path:
-        path = ['.']
-        
-    try:
-        pipeline = SecurityPipeline(config)
-        
-        results = pipeline.review_paths(path, verbose)
-        
-        if output:
-            pipeline.generate_review_report(results, output)
-            print_cyber_status(f"Review report generated at {output}", "success")
-        else:
-            # Print review results to console
-            pipeline.print_review_results(results, verbose)
-            
-    except Exception as e:
-        print_cyber_status(f"Error: {str(e)}", "error")
-        sys.exit(1)
 
 def version():
     """Show version information"""

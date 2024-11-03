@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 
+import logging
 import subprocess
+import threading
 import time
+import json
 import json
 import os
 import random
@@ -21,9 +24,16 @@ from .cache import SecurityCache
 from .prompts import PromptManager
 from .progress import ProgressReporter
 
-# Configuration Variables
-OPENAI_MODEL = "gpt-4-1106-preview"  # o1-preview model
-CLAUDE_MODEL = "claude-3-sonnet-20240229"  # Latest Sonnet model
+logger = logging.getLogger(__name__)
+
+# AI Model Configuration
+VALID_MODELS = {
+    'claude-3-sonnet-20240229': {'provider': 'anthropic', 'name': 'Claude 3 Sonnet'},
+    'gpt-4-turbo-preview': {'provider': 'openai', 'name': 'GPT-4 Turbo'},
+    'gpt-4': {'provider': 'openai', 'name': 'GPT-4'},
+    'gpt-3.5-turbo': {'provider': 'openai', 'name': 'GPT-3.5 Turbo'}
+}
+DEFAULT_MODEL = 'claude-3-sonnet-20240229'
 DEFAULT_CONFIG = {
     "security": {
         "critical_threshold": 7.0,
@@ -39,6 +49,11 @@ class SecurityPipeline:
         self.max_fix_attempts = self.config['security']['max_fix_attempts']
         self.branch_name = f"security-fixes-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
         
+        # Initialize model configuration
+        self.analysis_model = os.getenv('ANALYSIS_MODEL', DEFAULT_MODEL)
+        if self.analysis_model not in VALID_MODELS:
+            self.analysis_model = DEFAULT_MODEL
+            
         # Initialize components with cache directory
         cache_dir = os.path.join(os.path.dirname(config_file), '.security_cache')
         self.cache = SecurityCache(cache_dir)
@@ -64,40 +79,171 @@ class SecurityPipeline:
         # Load environment variables from .env file unless skipped
         if not os.getenv('SKIP_DOTENV'):
             load_dotenv()
+            
+        # Get and validate model choice
+        analysis_model = os.getenv('ANALYSIS_MODEL', DEFAULT_MODEL)
+        if analysis_model not in VALID_MODELS:
+            raise ValueError(
+                f"Invalid ANALYSIS_MODEL. Must be one of: {', '.join(VALID_MODELS.keys())}"
+            )
         
-        # Check for required environment variables
-        required_vars = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY']
+        # Check for required API keys based on model provider
+        model_provider = VALID_MODELS[analysis_model]['provider']
+        required_vars = []
+        
+        if model_provider == 'anthropic' or analysis_model == DEFAULT_MODEL:
+            required_vars.append('ANTHROPIC_API_KEY')
+        if model_provider == 'openai':
+            required_vars.append('OPENAI_API_KEY')
+            
         missing_vars = [var for var in required_vars if not os.getenv(var)]
         if missing_vars:
             raise OSError(f"Missing required environment variables: {', '.join(missing_vars)}")
 
-    def run_architecture_review(self) -> Dict:
-        """Run architecture review using OpenAI o1-preview"""
-        print("Running architecture review with OpenAI o1-preview...")
+    def run_architecture_review(self, timeout: int = 300) -> Dict:
+        """Run architecture review using configured AI model
         
-        # In CI mode, return mock suggestions for testing
+        Args:
+            timeout: Maximum time in seconds for review
+        """
+        model_info = VALID_MODELS[self.analysis_model]
+        print(f"Running architecture review with {model_info['name']}...")
+        start_time = time.time()
+        
+        # In CI mode, return an empty result to avoid potential security risks
         if os.environ.get('CI', '').lower() == 'true':
-            # Don't actually run aider in CI mode
             return {
-                "output": "CI Mode - Mock Review",
-                "suggestions": [{
-                    "file": "src/test.py",
-                    "type": "sql_injection",
-                    "severity": "high",
-                    "description": "Test vulnerability"
-                }]
+                "output": "CI Mode - No review performed",
+                "suggestions": []
             }
+
+        # Get list of all Python files in repo
+        python_files = []
+        excluded_dirs = {'.git', 'venv', 'env', '__pycache__', 'node_modules', '.pytest_cache'}
         
-        result = subprocess.run([
-            "aider",
-            "--model", OPENAI_MODEL,
-            "--edit-format", "diff",
-            "/ask", 
-            "Review the architecture for security vulnerabilities and suggest improvements:",
-            "."
-        ], capture_output=True, text=True, check=True, shell=False)
-        
-        return {"output": result.stdout, "suggestions": self._parse_ai_suggestions(result.stdout)}
+        for root, dirs, files in os.walk('.'):
+            # Skip excluded directories
+            dirs[:] = [d for d in dirs if d not in excluded_dirs]
+            
+            for file in files:
+                if file.endswith('.py'):
+                    full_path = os.path.join(root, file)
+                    # Skip test files
+                    if not any(x in full_path for x in ['test_', 'tests/']):
+                        python_files.append(full_path)
+
+        if not python_files:
+            logger.warning("No Python files found to review")
+            return {
+                "output": "No Python files found to review",
+                "suggestions": []
+            }
+
+        # Define structured review categories
+        review_categories = [
+            "Authentication & Authorization",
+            "Data Security", 
+            "Input Validation",
+            "Dependency Management",
+            "Error Handling",
+            "Logging & Monitoring"
+        ]
+
+        try:
+            # First check if aider is available
+            try:
+                subprocess.run(["aider", "--version"],
+                             capture_output=True,
+                             check=True, 
+                             timeout=5)
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                print("\033[33m[!] Aider not found. Please install it with: pip install aider-chat\033[0m")
+                return {
+                    "output": "Error: Aider not installed",
+                    "suggestions": [],
+                    "error": "Aider tool not found"
+                }
+
+            # Build review prompt with file list and categories
+            review_prompt = (
+                "Review the following Python files for security vulnerabilities:\n"
+                f"{', '.join(python_files)}\n\n"
+                "For each category, provide:\n"
+                "1. Specific vulnerabilities found\n"
+                "2. Severity level (high/medium/low)\n"
+                "3. Code examples of issues\n"
+                "4. Recommended fixes\n\n"
+                f"Categories to review: {', '.join(review_categories)}"
+            )
+
+            # Run the architecture review with proper arguments
+            try:
+                # Pass files directly to Aider
+                # Use configured analysis model
+                model = self.analysis_model
+                remaining_time = max(30, int(timeout - (time.time() - start_time)))
+                review_prompt = self.prompt_manager.sanitize_input(review_prompt)
+                result = subprocess.run([
+                    "aider",
+                    "--model", model,
+                    "--edit-format", "diff",
+                    "--no-git",  # Don't require git
+                    "--yes",  # Run in non-interactive mode
+                    "--no-auto-commits",  # Don't try to commit changes
+                    *python_files,  # Pass files as separate arguments
+                    "--message", review_prompt
+                ], capture_output=True, text=True, timeout=remaining_time)
+                
+                if result.returncode != 0:
+                    error_msg = result.stderr.strip() if result.stderr else "Unknown error"
+                    print(f"\033[33m[!] Aider command failed: {error_msg}\033[0m")
+                    # Provide more detailed error information
+                    return {
+                        "output": f"Automated review failed: {error_msg}",
+                        "suggestions": [{
+                            "file": "security_pipeline.py",
+                            "type": "process_error",
+                            "severity": "medium",
+                            "description": f"Architecture review process failed: {error_msg}"
+                        }],
+                        "error": error_msg
+                    }
+                
+            except subprocess.TimeoutExpired:
+                error_msg = "Review process timed out after 10 minutes"
+                print(f"\033[33m[!] {error_msg}\033[0m")
+                print("\033[33m[!] Consider breaking your analysis into smaller chunks or reviewing specific directories\033[0m")
+                return {
+                    "output": error_msg,
+                    "suggestions": [],
+                    "error": "timeout",
+                    "recommendations": [
+                        "Break analysis into smaller chunks",
+                        "Review specific directories instead of entire codebase",
+                        "Use --path flag to specify smaller scope"
+                    ]
+                }
+            
+            return {"output": result.stdout, "suggestions": self._parse_ai_suggestions(result.stdout)}
+            
+        except subprocess.TimeoutExpired:
+            print("\033[31m[!] Architecture review timed out\033[0m")
+            return {
+                "output": "Review timed out",
+                "suggestions": [],
+                "error": "Process timed out"
+            }
+        except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
+            print(f"\033[31m[!] Error during architecture review: {str(e)}\033[0m")
+            print(f"Error details:\n{error_details}")
+            return {
+                "output": f"Error: {str(e)}",
+                "suggestions": [],
+                "error": str(e),
+                "error_details": error_details
+            }
 
     def _parse_ai_suggestions(self, output: str) -> List[str]:
         """Parse AI suggestions from output"""
@@ -158,7 +304,7 @@ class SecurityPipeline:
                 try:
                     result = subprocess.run([
                         "aider",
-                        "--model", CLAUDE_MODEL,
+                        "--model", self.analysis_model,
                         "--edit-format", "diff",
                         file_path,
                         fix_prompt
@@ -178,8 +324,8 @@ class SecurityPipeline:
                         })
                         
                 except subprocess.CalledProcessError as e:
-                    print(f"\033[31m[!] Error implementing fix: {str(e)}\033[0m")
-                    print(f"Command output: {e.output}")
+                    print(f"\033[31m[!] Error implementing fix: {e}\033[0m")
+                    print(f"Command output: {result.stdout}")
                     success = False
                     # Restore backup
                     shutil.move(backup_path, file_path)
@@ -312,7 +458,7 @@ class SecurityPipeline:
                         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                             content = f.read()
                     except (PermissionError, FileNotFoundError) as e:
-                        print(f"\n[33m[!] Could not access {file_path}: {str(e)}[0m")
+                        print(f"\n[33m[!] Could not access {file_path}: {e}[0m")
                         continue
                     except UnicodeDecodeError:
                         print(f"\n[33m[!] Could not decode {file_path} - skipping[0m")
@@ -329,14 +475,7 @@ class SecurityPipeline:
                         if vuln_type == 'sql_injection':
                             sql_keywords = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'DROP']
                             has_sql_pattern = any(keyword in content.upper() for keyword in sql_keywords)
-                            has_unsafe_format = (
-                                any(f"{keyword} " in content.upper() and (
-                                    '%s' in content or
-                                    '{' in content or
-                                    '+' in content or
-                                    '\\' in content
-                                ) for keyword in sql_keywords)
-                            )
+                            has_unsafe_format = self._detect_sql_injection(content)
                             if has_sql_pattern and has_unsafe_format:
                                 if vuln_type not in results:
                                     results[vuln_type] = []
@@ -344,7 +483,8 @@ class SecurityPipeline:
                                     'file': file_path,
                                     'type': vuln_type,
                                     'severity': 'high',
-                                    'line': content.count('\n', 0, content.find(next(k for k in sql_keywords if k in content.upper())))
+                                    'line': content.count('\n', 0, content.find(next(k for k in sql_keywords if k in content.upper()))) + 1,
+                                    'description': 'Potential SQL injection vulnerability detected. User input is being used in SQL queries without proper sanitization.'
                                 })
                         # For other vulnerability types
                         elif any(pattern in content.lower() for pattern in patterns) and \
@@ -354,7 +494,8 @@ class SecurityPipeline:
                             results[vuln_type].append({
                                 'file': file_path,
                                 'type': vuln_type,
-                                'severity': 'high' if vuln_type in ['command_injection', 'insecure_deserialization'] else 'medium'
+                                'severity': 'high' if vuln_type in ['command_injection', 'insecure_deserialization'] else 'medium',
+                                'description': 'Potential insecure deserialization vulnerability detected. User input is being deserialized without proper validation, which could lead to arbitrary code execution.'
                             })
             
             # Check for OWASP Dependency Check installation
@@ -422,10 +563,10 @@ class SecurityPipeline:
                         "--scan", path,
                         "--format", "JSON",
                         "--out", "dependency-check-report.json"
-                    ], capture_output=True, text=True)
+                    ], capture_output=True, text=True, check=True)
                     results['dependency'] = self._parse_dependency_results("dependency-check-report.json")
-                except Exception as e:
-                    print(f"[31m[!] Warning: Dependency check failed to run: {str(e)}[0m")
+                except subprocess.CalledProcessError as e:
+                    print(f"[31m[!] Warning: Dependency check failed to run: {e.stderr}[0m")
                 
         except Exception as e:
             print(f"Error running code security checks: {str(e)}")
@@ -463,21 +604,79 @@ class SecurityPipeline:
             return {"error": f"Failed to parse dependency check results: {str(e)}"}
 
     def _get_max_severity(self, result: Dict) -> float:
-        """Get maximum severity from a result set"""
+        """Calculate weighted severity score based on severity level and vulnerability type
+        
+        Args:
+            result: Dictionary containing scan results
+            
+        Returns:
+            float: Weighted severity score from 0.0-9.0
+            
+        Severity levels:
+        - Critical: 9.0
+        - High: 7.0
+        - Medium: 5.0 
+        - Low: 3.0
+        - Info: 1.0
+        
+        Risk multipliers:
+        - High risk (1.2x): SQL injection, Command injection, Insecure deserialization
+        - Medium-high risk (1.1x): XSS, Weak crypto, XXE, Insecure auth
+        - Medium risk (1.0x): Path traversal and others
+        """
         try:
+            # Base severity mapping
+            severity_map = {
+                'critical': 9.0,
+                'high': 7.0,
+                'medium': 5.0,
+                'low': 3.0,
+                'info': 1.0
+            }
+            
+            # Vulnerability type risk multipliers
+            risk_multipliers = {
+                'sql_injection': 1.2,
+                'command_injection': 1.2,
+                'insecure_deserialization': 1.2,
+                'xss': 1.1,
+                'weak_crypto': 1.1,
+                'xxe': 1.1,
+                'insecure_auth': 1.1,
+                'path_traversal': 1.0
+            }
+            
+            max_score = 0.0
+            
             if 'zap' in result:
-                return max(float(alert.get('riskcode', 0)) for alert in result['zap'].get('alerts', []))
+                for alert in result['zap'].get('alerts', []):
+                    base_score = float(alert.get('riskcode', 0))
+                    vuln_type = alert.get('pluginid', '').lower()
+                    multiplier = risk_multipliers.get(vuln_type, 1.0)
+                    score = round(base_score * multiplier, 1)
+                    max_score = max(max_score, score)
+                    
             elif 'nuclei' in result:
-                severity_map = {'critical': 9.0, 'high': 7.0, 'medium': 5.0, 'low': 3.0, 'info': 0.0}
-                return max(severity_map.get(str(finding.get('severity', '')).lower(), 0.0) 
-                         for finding in result['nuclei'])
+                for finding in result['nuclei']:
+                    base_score = severity_map.get(str(finding.get('severity', '')).lower(), 0.0)
+                    vuln_type = finding.get('type', '').lower()
+                    multiplier = risk_multipliers.get(vuln_type, 1.0)
+                    score = round(base_score * multiplier, 1)
+                    max_score = max(max_score, score)
+                    
             elif 'dependency' in result:
-                return max(float(vuln.get('cvssScore', 0)) 
-                         for vuln in result['dependency'].get('vulnerabilities', []))
+                for vuln in result['dependency'].get('vulnerabilities', []):
+                    base_score = float(vuln.get('cvssScore', 0))
+                    vuln_type = vuln.get('category', '').lower()
+                    multiplier = risk_multipliers.get(vuln_type, 1.0)
+                    score = round(base_score * multiplier, 1)
+                    max_score = max(max_score, score)
+                    
+            return max_score
+            
         except Exception as e:
             print(f"Error calculating severity: {str(e)}")
             return 0.0
-        return 0.0
 
     def create_fix_branch(self) -> bool:
         """Create a new branch for security fixes"""
@@ -506,7 +705,7 @@ class SecurityPipeline:
             # Generate PR description using o1-preview
             pr_description = subprocess.run([
                 "aider",
-                "--model", OPENAI_MODEL,
+                "--model", self.analysis_model,
                 "/ask",
                 "Generate a detailed PR description for these security changes:",
                 *changed_files
@@ -595,6 +794,8 @@ class SecurityPipeline:
                 if not self._validate_cached_results(security_results):
                     self.progress.update(15, "Cache validation failed, running new scan")
                     security_results = self._run_new_scan(scan_id)
+                    # Log the reason for running a new scan
+                    self.progress.update(15, "Cache validation failed, running new scan")
             else:
                 security_results = self._run_new_scan(scan_id)
             
@@ -725,12 +926,19 @@ class SecurityPipeline:
         
         Args:
             paths: List of paths to scan
-            exclude: Tuple of patterns to exclude
+            exclude: Tuple of patterns to exclude 
             timeout: Maximum scan time in seconds
             auto_fix: Whether to automatically fix issues
         """
         results = {'vulnerabilities': [], 'fixes_applied': []}
         start_time = time.time()
+        stop_progress = None
+        progress_thread = None
+        try:
+            import threading
+            stop_progress = threading.Event()
+        except ImportError:
+            print("[33m[!] Threading not available - progress animation disabled[0m")
         
         # Add user exclusions to default excludes
         exclude_dirs = {'venv', 'env', '.git', '__pycache__', 'node_modules', '.pytest_cache'}
@@ -742,44 +950,52 @@ class SecurityPipeline:
                 print("\n[33m[!] Scan timeout reached. Partial results will be returned.[0m")
                 break
                 
+            # Validate and sanitize input path
+            path = os.path.normpath(path)
             if not os.path.exists(path):
                 raise FileNotFoundError(f"Path not found: {path}")
+            elif not os.path.isdir(path) and not os.path.isfile(path):
+                raise ValueError(f"Invalid path: {path}")
             
             print(f"\n[36m[>] Scanning: {path}[0m")
             scan_start = time.time()
-            try:
-                # Show progress indicator
-                def progress_indicator():
-                    # Cyberpunk-style matrix characters
-                    matrix_chars = "守破離の術ｦｧｨｩｪｫｬｭｮｯｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ"
-                    states = ["ANALYZING", "SCANNING", "PROBING", "DETECTING"]
-                    colors = ["\033[32m", "\033[36m", "\033[35m", "\033[33m"]  # Green, Cyan, Magenta, Yellow
-                    i = 0
-                    state_idx = 0
-                    while True:
-                        if time.time() - scan_start > timeout:
-                            raise TimeoutError("\033[31m[CRITICAL] Neural Net Timeout - Connection Lost\033[0m")
-                        
-                        state = states[state_idx]
-                        color = colors[state_idx]
-                        matrix = "".join(random.choice(matrix_chars) for _ in range(3))
-                        runtime = time.time() - scan_start
-                        
-                        status = f"\r{color}[{matrix}] {state} :: Neural Net Active :: Runtime: {runtime:.1f}s\033[0m"
-                        print(f"{status}\033[K", end='', flush=True)
-                        
-                        i = (i + 1) % 4
-                        if i == 0:
-                            state_idx = (state_idx + 1) % len(states)
-                        time.sleep(0.1)
+            # Define progress indicator function
+            def progress_indicator():
+                # Cyberpunk-style matrix characters
+                matrix_chars = "守破離の術ｦｧｨｩｪｫｬｭｮｯｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ"
+                states = ["ANALYZING", "SCANNING", "PROBING", "DETECTING"]
+                colors = ["\033[32m", "\033[36m", "\033[35m", "\033[33m"]  # Green, Cyan, Magenta, Yellow
+                i = 0
+                state_idx = 0
+                while not stop_progress.is_set():
+                    if time.time() - scan_start > timeout:
+                        raise TimeoutError("\033[31m[CRITICAL] Neural Net Timeout - Connection Lost\033[0m")
+                    
+                    state = states[state_idx]
+                    color = colors[state_idx]
+                    matrix = "".join(random.choice(matrix_chars) for _ in range(3))
+                    runtime = time.time() - scan_start
+                    
+                    status = f"\r{color}[{matrix}] {state} :: Neural Net Active :: Runtime: {runtime:.1f}s\033[0m"
+                    print(f"{status}\033[K", end='', flush=True)
+                    
+                    i = (i + 1) % 4
+                    if i == 0:
+                        state_idx = (state_idx + 1) % len(states)
+                    time.sleep(0.1)
 
+            try:
                 import threading
                 progress_thread = threading.Thread(target=progress_indicator, daemon=True)
                 progress_thread.start()
 
                 # Run code security checks with timeout
                 security_results = self._run_code_security_checks(path, exclude_dirs=exclude_dirs)
-                print("\r" + " " * 50 + "\r", end='', flush=True)  # Clear progress indicator
+                
+                # Clean shutdown of progress animation
+                stop_progress.set()
+                progress_thread.join(timeout=1.0)
+                print("\r" + " " * 80 + "\r", end='', flush=True)  # Clear progress indicator
                 
                 # Format results
                 for vuln_type, findings in security_results.items():
@@ -881,34 +1097,73 @@ class SecurityPipeline:
             f.write("# Security Review Report\n\n")
             f.write("## Findings\n\n")
             
-            if isinstance(results, bool):
-                f.write("No security issues found.\n\n")
-            elif isinstance(results, dict):
-                if not results.get('reviews'):
+            if isinstance(results, dict):
+                vulnerabilities = results.get('vulnerabilities', [])
+                if not vulnerabilities:
                     f.write("No security issues found.\n\n")
                 else:
-                    for review in results.get('reviews', []):
-                        f.write(f"### {review.get('file', 'Unknown File')}\n\n")
-                        f.write(f"- Type: {review.get('type', 'Unknown')}\n")
-                        f.write(f"- Severity: {review.get('severity', 'Unknown')}\n\n")
-                for review in results.get('reviews', []):
-                    f.write(f"### {review.get('file', 'Unknown File')}\n\n")
-                    f.write(f"- Type: {review.get('type', 'Unknown')}\n")
-                    f.write(f"- Severity: {review.get('severity', 'Unknown')}\n\n")
+                    # Group vulnerabilities by file
+                    vuln_by_file = {}
+                    for vuln in vulnerabilities:
+                        file_path = vuln['file']
+                        if file_path not in vuln_by_file:
+                            vuln_by_file[file_path] = []
+                        vuln_by_file[file_path].append(vuln)
+                    
+                    # Write findings by file
+                    for file_path, file_vulns in vuln_by_file.items():
+                        f.write(f"### {file_path}\n\n")
+                        for vuln in file_vulns:
+                            f.write(f"#### {vuln['type'].upper()} ({vuln['severity'].upper()})\n\n")
+                            if vuln.get('details', {}).get('description'):
+                                f.write(f"- {vuln['details']['description']}\n")
+                            f.write("\n")
+                            
+                            # Add specific recommendations based on vulnerability type
+                            if vuln['type'] == 'command_injection':
+                                f.write("**Recommendations:**\n")
+                                f.write("- Use subprocess.run with shell=False\n")
+                                f.write("- Validate and sanitize all user inputs\n")
+                                f.write("- Implement strict input validation\n\n")
+                            elif vuln['type'] == 'xss':
+                                f.write("**Recommendations:**\n")
+                                f.write("- Use proper HTML escaping\n")
+                                f.write("- Implement Content Security Policy (CSP)\n")
+                                f.write("- Use secure frameworks that auto-escape content\n\n")
+                            elif vuln['type'] == 'weak_crypto':
+                                f.write("**Recommendations:**\n")
+                                f.write("- Use strong hashing algorithms (SHA-256, SHA-512)\n")
+                                f.write("- Implement proper salting\n")
+                                f.write("- Use established crypto libraries\n\n")
+                            elif vuln['type'] == 'insecure_deserialization':
+                                f.write("**Recommendations:**\n")
+                                f.write("- Use safe serialization formats (JSON)\n")
+                                f.write("- Validate all deserialized data\n")
+                                f.write("- Avoid pickle for untrusted data\n\n")
+                            elif vuln['type'] == 'xxe':
+                                f.write("**Recommendations:**\n")
+                                f.write("- Use defusedxml library\n")
+                                f.write("- Disable external entity processing\n")
+                                f.write("- Implement proper XML parsing controls\n\n")
 
-                    if review.get('findings'):
-                        f.write("#### Details\n\n")
-                        for finding in review['findings']:
-                            description = self._get_vulnerability_description(review['type'])
-                            f.write(f"- {description}\n")
-                            if finding.get('description'):
-                                f.write(f"  Details: {finding['description']}\n")
-                    f.write("\n")
-
-            f.write("## Recommendations\n\n")
-            f.write("1. Review and address all identified vulnerabilities\n")
-            f.write("2. Implement security best practices\n")
-            f.write("3. Regular security scanning and monitoring\n")
+            f.write("## Overall Recommendations\n\n")
+            if isinstance(results, dict) and results.get('vulnerabilities'):
+                f.write("1. **High Priority Fixes:**\n")
+                f.write("   - Address command injection and insecure deserialization issues first\n")
+                f.write("   - Implement input validation and sanitization across all user inputs\n")
+                f.write("   - Update weak cryptographic implementations\n\n")
+                f.write("2. **Security Best Practices:**\n")
+                f.write("   - Use security-focused libraries and frameworks\n")
+                f.write("   - Implement proper error handling and logging\n")
+                f.write("   - Regular security testing and monitoring\n\n")
+                f.write("3. **Maintenance:**\n")
+                f.write("   - Keep dependencies up to date\n")
+                f.write("   - Regular security audits\n")
+                f.write("   - Document security requirements and procedures\n")
+            else:
+                f.write("1. Continue monitoring for security issues\n")
+                f.write("2. Maintain security best practices\n")
+                f.write("3. Regular security scanning\n")
                 
             for review in results.get('reviews', []):
                 f.write(f"### {review.get('file', 'Unknown File')}\n\n")
@@ -919,9 +1174,11 @@ class SecurityPipeline:
                     f.write("#### Details\n\n")
                     for finding in review['findings']:
                         description = self._get_vulnerability_description(review['type'])
-                        f.write(f"- {description}\n")
+                        sanitized_description = self._sanitize_input(description)
+                        f.write(f"- {sanitized_description}\n")
                         if finding.get('description'):
-                            f.write(f"  Details: {finding['description']}\n")
+                            sanitized_description = self._sanitize_input(finding['description'])
+                            f.write(f"  Details: {sanitized_description}\n")
                 f.write("\n")
             
             f.write("## Recommendations\n\n")
@@ -944,6 +1201,39 @@ class SecurityPipeline:
                         print(f"- {description}")
             else:
                 print(f"- {review['file']}: {review['type']} ({review['severity']})")
+
+    def _detect_sql_injection(self, content: str) -> bool:
+        """Detect potential SQL injection vulnerabilities in code
+
+        Args:
+            content: Source code content to analyze
+
+        Returns:
+            bool: True if SQL injection vulnerability detected
+        """
+        # Use parameterized queries instead of string formatting
+        sql_formatting_patterns = [
+            r"SELECT.*\%.*FROM",
+            r"INSERT.*\%.*INTO",
+            r"UPDATE.*\%.*SET",
+            r"DELETE.*\%.*FROM",
+            r".*execute\(.*%.*\)",
+            r".*executemany\(.*%.*\)",
+            r".*cursor\.execute\(.*%.*\)",
+            r".*cursor\.executemany\(.*%.*\)",
+            r".*\.format\(.*\)",
+            r"f\".*SELECT.*{.*}.*\"",
+            r"f\".*INSERT.*{.*}.*\"",
+            r"f\".*UPDATE.*{.*}.*\"",
+            r"f\".*DELETE.*{.*}.*\""
+        ]
+
+        import re
+        for pattern in sql_formatting_patterns:
+            if re.search(pattern, content, re.IGNORECASE | re.MULTILINE):
+                return True
+
+        return False
 
     def _get_vulnerability_description(self, vuln_type: str) -> str:
         """Get detailed description for vulnerability type"""
