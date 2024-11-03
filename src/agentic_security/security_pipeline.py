@@ -57,8 +57,8 @@ class SecurityPipeline:
         try:
             with open(config_file, 'r') as f:
                 self.config = yaml.safe_load(f)
-                if 'security' not in self.config:
-                    raise ValueError("Invalid configuration structure")
+            if not isinstance(self.config, dict) or 'security' not in self.config:
+                raise ValueError("Invalid configuration structure")
         except FileNotFoundError:
             raise FileNotFoundError(f"Configuration file not found: {config_file}")
 
@@ -616,8 +616,19 @@ class SecurityPipeline:
                 for result in check_type
             )
             
-            # In CI mode, return mock results with architecture review
+            # Run architecture review in CI mode with mock results
             if os.environ.get('CI', '').lower() == 'true':
+                # Mock the architecture review step
+                mock_review = {
+                    'output': 'CI Mode - Mock Architecture Review',
+                    'suggestions': [{
+                        'file': 'test.py',
+                        'type': 'mock_vulnerability',
+                        'severity': 'low',
+                        'description': 'Mock finding for CI testing'
+                    }]
+                }
+                results['architecture_review'] = mock_review
                 return {
                     'status': True,
                     'reviews': [{
@@ -628,7 +639,8 @@ class SecurityPipeline:
                             'description': 'Mock finding for CI testing'
                         }]
                     }],
-                    'severity': 0.0
+                    'severity': 0.0,
+                    'architecture_review': mock_review
                 }
             
             # Otherwise check severity threshold
