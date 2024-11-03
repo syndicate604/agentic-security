@@ -1,12 +1,15 @@
 import json
 import requests
-import defusedxml.ElementTree as ET
 
 def fetch_user_data(user_id):
-    """Insecure API endpoint"""
-    # Security Issue 1: No input validation
-    # Security Issue 2: No SSL verification
-    response = requests.get(f"http://api.example.com/users/{user_id}", verify=False)
+    """Secure API endpoint"""
+    # Validate user_id input
+    if not isinstance(user_id, int) or user_id < 0:
+        raise ValueError("Invalid user_id")
+
+    # Use HTTPS and verify SSL certificate
+    response = requests.get(f"https://api.example.com/users/{user_id}", verify=True)
+    response.raise_for_status()
     return response.json()
 
 from defusedxml import ElementTree as ET
