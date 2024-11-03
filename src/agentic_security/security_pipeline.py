@@ -463,21 +463,79 @@ class SecurityPipeline:
             return {"error": f"Failed to parse dependency check results: {str(e)}"}
 
     def _get_max_severity(self, result: Dict) -> float:
-        """Get maximum severity from a result set"""
+        """Calculate weighted severity score based on severity level and vulnerability type
+        
+        Args:
+            result: Dictionary containing scan results
+            
+        Returns:
+            float: Weighted severity score from 0.0-9.0
+            
+        Severity levels:
+        - Critical: 9.0
+        - High: 7.0
+        - Medium: 5.0 
+        - Low: 3.0
+        - Info: 1.0
+        
+        Risk multipliers:
+        - High risk (1.2x): SQL injection, Command injection, Insecure deserialization
+        - Medium-high risk (1.1x): XSS, Weak crypto, XXE, Insecure auth
+        - Medium risk (1.0x): Path traversal and others
+        """
         try:
+            # Base severity mapping
+            severity_map = {
+                'critical': 9.0,
+                'high': 7.0,
+                'medium': 5.0,
+                'low': 3.0,
+                'info': 1.0
+            }
+            
+            # Vulnerability type risk multipliers
+            risk_multipliers = {
+                'sql_injection': 1.2,
+                'command_injection': 1.2,
+                'insecure_deserialization': 1.2,
+                'xss': 1.1,
+                'weak_crypto': 1.1,
+                'xxe': 1.1,
+                'insecure_auth': 1.1,
+                'path_traversal': 1.0
+            }
+            
+            max_score = 0.0
+            
             if 'zap' in result:
-                return max(float(alert.get('riskcode', 0)) for alert in result['zap'].get('alerts', []))
+                for alert in result['zap'].get('alerts', []):
+                    base_score = float(alert.get('riskcode', 0))
+                    vuln_type = alert.get('pluginid', '').lower()
+                    multiplier = risk_multipliers.get(vuln_type, 1.0)
+                    score = round(base_score * multiplier, 1)
+                    max_score = max(max_score, score)
+                    
             elif 'nuclei' in result:
-                severity_map = {'critical': 9.0, 'high': 7.0, 'medium': 5.0, 'low': 3.0, 'info': 0.0}
-                return max(severity_map.get(str(finding.get('severity', '')).lower(), 0.0) 
-                         for finding in result['nuclei'])
+                for finding in result['nuclei']:
+                    base_score = severity_map.get(str(finding.get('severity', '')).lower(), 0.0)
+                    vuln_type = finding.get('type', '').lower()
+                    multiplier = risk_multipliers.get(vuln_type, 1.0)
+                    score = round(base_score * multiplier, 1)
+                    max_score = max(max_score, score)
+                    
             elif 'dependency' in result:
-                return max(float(vuln.get('cvssScore', 0)) 
-                         for vuln in result['dependency'].get('vulnerabilities', []))
+                for vuln in result['dependency'].get('vulnerabilities', []):
+                    base_score = float(vuln.get('cvssScore', 0))
+                    vuln_type = vuln.get('category', '').lower()
+                    multiplier = risk_multipliers.get(vuln_type, 1.0)
+                    score = round(base_score * multiplier, 1)
+                    max_score = max(max_score, score)
+                    
+            return max_score
+            
         except Exception as e:
             print(f"Error calculating severity: {str(e)}")
             return 0.0
-        return 0.0
 
     def create_fix_branch(self) -> bool:
         """Create a new branch for security fixes"""
