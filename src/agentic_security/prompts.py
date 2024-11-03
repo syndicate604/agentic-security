@@ -16,12 +16,30 @@ Consider:
 3. Maintainability
 Proposed fix:""",
         
-        'pr_description': """Create a pull request description for the following security changes:
+        'pr_description': """Create a detailed pull request description for these security changes:
 {changes}
-Include:
-1. Summary of changes
-2. Security impact
-3. Testing notes
+
+Please include:
+1. Summary of Security Changes
+   - List each vulnerability fixed
+   - Impact of each fix
+   - Files modified
+
+2. Security Impact Analysis
+   - Risk level before/after changes
+   - Attack vectors addressed
+   - Potential side effects
+
+3. Testing & Validation
+   - Security tests performed
+   - Manual validation steps
+   - Regression testing results
+
+4. Implementation Notes
+   - Security best practices applied
+   - Dependencies updated
+   - Configuration changes
+
 Description:"""
     }
 
