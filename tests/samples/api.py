@@ -13,7 +13,8 @@ from defusedxml import ElementTree as ET
 
 def parse_xml_data(xml_string):
     """Secure XML parsing with XXE protection"""
-    tree = ET.parse(xml_string)
+    parser = ET.XMLParser(resolve_entities=False)
+    tree = ET.fromstring(xml_string, parser=parser)
     return tree
 
 def send_request(url, data):
