@@ -306,47 +306,74 @@ class SecurityPipeline:
                 
                 # Log prompt for record keeping
                 prompts_logger.info(f"Fix Prompt ({file_path}): {fix_prompt}")
+
+                # Prepare aider command
+                cmd = [
+                    "aider",
+                    "--model", self.analysis_model,
+                    "--yes",
+                    "--no-auto-commits",
+                    "--edit-format", "diff",
+                    "--verbose",  # Add verbose flag
+                    file_path,
+                    "--message", fix_prompt
+                ]
                 
-                try:
-                    # Run aider with the fix prompt
-                    result = subprocess.run([
-                        "aider",
-                        "--model", self.analysis_model,
-                        "--yes",
-                        "--no-auto-commits",
-                        "--edit-format", "diff",
-                        file_path,
-                        fix_prompt
-                    ], capture_output=True, text=True, timeout=timeout)
-                    
-                    print("\n\033[36m[>] Aider Response:\033[0m")
-                    print("\033[36m---------------\033[0m")
-                    print(result.stdout)
-                    
-                    # Log aider's response
-                    prompts_logger.info(f"Aider Response: {result.stdout}")
-                    
-                    if result.stderr:
-                        print("\n\033[33m[!] Errors/Warnings:\033[0m")
-                        print(result.stderr)
-                        prompts_logger.warning(f"Aider Errors: {result.stderr}")
-                    
-                    if result.returncode == 0:
-                        if "No changes made" not in result.stdout:
-                            subprocess.run(['git', 'add', file_path], check=True)
-                            commit_msg = f"Fix {suggestion.get('type')} in {file_path}"
-                            subprocess.run(['git', 'commit', '-m', commit_msg], check=True)
-                            print(f"\n\033[32m[✓] Successfully applied fix to {file_path}\033[0m")
-                        else:
-                            print(f"\n\033[33m[!] No changes were necessary for {file_path}\033[0m")
-                    else:
-                        print(f"\n\033[31m[!] Fix failed for {file_path}\033[0m")
-                        success = False
+                print("\n\033[36m[>] Running command:\033[0m")
+                print(" ".join(cmd))
+                
+                # Use Popen to capture output in real-time
+                process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    bufsize=1,
+                    universal_newlines=True
+                )
+                
+                # Print output in real-time
+                print("\n\033[36m[>] Aider Output:\033[0m")
+                while True:
+                    output = process.stdout.readline()
+                    if output == '' and process.poll() is not None:
+                        break
+                    if output:
+                        print(output.strip())
                         
-                except subprocess.TimeoutExpired:
-                    print(f"\n\033[31m[!] Timeout occurred after {timeout} seconds\033[0m")
+                # Get the return code
+                return_code = process.poll()
+                
+                # Print any errors
+                if process.stderr:
+                    errors = process.stderr.read()
+                    if errors:
+                        print("\n\033[31m[!] Errors:\033[0m")
+                        print(errors)
+                        prompts_logger.warning(f"Aider Errors: {errors}")
+                
+                if return_code == 0:
+                    # Check if changes were made by looking at git status
+                    git_status = subprocess.run(
+                        ['git', 'status', '--porcelain', file_path],
+                        capture_output=True,
+                        text=True
+                    )
+                    if git_status.stdout.strip():
+                        subprocess.run(['git', 'add', file_path], check=True)
+                        commit_msg = f"Fix {suggestion.get('type')} in {file_path}"
+                        subprocess.run(['git', 'commit', '-m', commit_msg], check=True)
+                        print(f"\n\033[32m[✓] Successfully applied fix to {file_path}\033[0m")
+                    else:
+                        print(f"\n\033[33m[!] No changes were necessary for {file_path}\033[0m")
+                else:
+                    print(f"\n\033[31m[!] Fix failed for {file_path}\033[0m")
                     success = False
                     
+            except subprocess.TimeoutExpired:
+                print(f"\n\033[31m[!] Timeout occurred after {timeout} seconds\033[0m")
+                success = False
+                
             except Exception as e:
                 print(f"\n\033[31m[!] Error during fix implementation: {str(e)}\033[0m")
                 if hasattr(e, '__traceback__'):
