@@ -923,32 +923,6 @@ If you have any questions or need further assistance, feel free to reach out!
 
 ---
 
-# Additional Notes and Corrections
-
-To ensure that the implementation is error-free and ready for use, here are some key points and corrections made:
-
-1. **Project Name Update**: All instances of "SecurityPipeline" have been updated to "Agentic Security" to reflect the new project name.
-
-2. **OWASP ZAP Command**: Updated the OWASP ZAP command in `security_pipeline.py` to use `zap-api-scan.py` for API scanning with a Swagger/OpenAPI definition. Adjust the target URL accordingly if not using Swagger.
-
-3. **Dependency-Check URL**: Corrected the Dependency-Check download URL to a valid source. Please ensure that the URL is accessible or update it to the latest version as needed.
-
-4. **GitHub Actions Workflow**: Adjusted the pull request step to use the `security-fixes` branch created by the pipeline. Ensured that secrets are correctly referenced.
-
-5. **Dockerfile Adjustments**: Ensured all dependencies are correctly installed, including the latest versions and valid URLs.
-
-6. **Testing Enhancements**: Enhanced test cases to cover more scenarios, ensuring that notifications via both GitHub and Slack are tested.
-
-7. **README.md Updates**: Ensured that all references point to "Agentic Security" and provided clear instructions tailored to the new project name and repository URL.
-
-8. **Environment Variables**: Ensured that the `.env.example` file includes placeholders for all necessary environment variables, aiding users in setting up their environment correctly.
-
-9. **Script Permissions**: Reminded users to make bash scripts executable by running `chmod +x install.sh run_pipeline.sh` if necessary.
-
-10. **Error Handling**: Included print statements and checks to provide clear feedback during pipeline execution, aiding in troubleshooting.
-
----
-
 ## Final Steps
 
 1. **Clone the Repository**:
