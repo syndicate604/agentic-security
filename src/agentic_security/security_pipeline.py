@@ -44,6 +44,11 @@ class SecurityPipeline:
         self.max_fix_attempts = self.config['security']['max_fix_attempts']
         self.branch_name = f"security-fixes-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
         
+        # Initialize model configuration
+        self.analysis_model = os.getenv('ANALYSIS_MODEL', DEFAULT_MODEL)
+        if self.analysis_model not in VALID_MODELS:
+            self.analysis_model = DEFAULT_MODEL
+            
         # Initialize components with cache directory
         cache_dir = os.path.join(os.path.dirname(config_file), '.security_cache')
         self.cache = SecurityCache(cache_dir)
@@ -168,7 +173,7 @@ class SecurityPipeline:
             try:
                 # Pass files directly to Aider
                 # Use configured analysis model
-                model = ANALYSIS_MODEL if ANALYSIS_MODEL else CLAUDE_MODEL
+                model = self.analysis_model
                 result = subprocess.run([
                     "aider",
                     "--model", model,
@@ -278,7 +283,7 @@ class SecurityPipeline:
                 try:
                     result = subprocess.run([
                         "aider",
-                        "--model", CLAUDE_MODEL,
+                        "--model", self.analysis_model,
                         "--edit-format", "diff",
                         file_path,
                         fix_prompt
@@ -684,7 +689,7 @@ class SecurityPipeline:
             # Generate PR description using o1-preview
             pr_description = subprocess.run([
                 "aider",
-                "--model", OPENAI_MODEL,
+                "--model", self.analysis_model,
                 "/ask",
                 "Generate a detailed PR description for these security changes:",
                 *changed_files
