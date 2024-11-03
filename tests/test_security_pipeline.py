@@ -48,6 +48,7 @@ def test_code_security_checks(pipeline, tmp_path):
     test_file.write_text("""
 import os
 from html import escape
+from markupsafe import Markup, escape_silent
 
 def process_input(user_input):
     # SQL Injection vulnerability
@@ -56,8 +57,9 @@ def process_input(user_input):
     # Command Injection vulnerability
     os.system(f"echo {user_input}")
     
-    # XSS vulnerability mitigated
-    html = f"<div>{escape(user_input)}</div>"
+    # XSS vulnerability properly mitigated
+    # Use markupsafe for robust XSS protection
+    html = Markup("<div>{}</div>").format(escape_silent(user_input))
     """)
 
 def test_setup_environment_model_validation(monkeypatch):
