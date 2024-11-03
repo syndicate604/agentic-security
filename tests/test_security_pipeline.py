@@ -209,7 +209,8 @@ def test_pipeline_error_handling(test_config):
     pipeline.config['security']['scan_targets'] = [
         {'type': 'invalid', 'url': 'http://example.com'}
     ]
-    assert not pipeline.run_pipeline()
+    result = pipeline.run_pipeline()
+    assert result == {'status': False, 'error': 'Invalid scan target types'}
 
 def test_pipeline_performance(pipeline, tmp_path):
     """Test pipeline performance and caching"""
