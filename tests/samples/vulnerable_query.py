@@ -64,7 +64,7 @@ def validate_user_id(user_id: str) -> bool:
 
 def get_user_data(user_id: str, table_name: str, columns: Optional[List[str]] = None) -> Optional[List[tuple]]:
     """
-    Safely get user data using parameterized queries and prepared statements
+    Safely get user data using fully parameterized queries and prepared statements
     
     Args:
         user_id: The user ID to query
@@ -97,11 +97,24 @@ def get_user_data(user_id: str, table_name: str, columns: Optional[List[str]] = 
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
-            # Construct query with validated column names
-            column_names = ','.join(columns)  # Safe since columns are validated
-            query = f'SELECT {column_names} FROM {table_name} WHERE id = ?'
+            # Use a prepared statement with table mapping
+            table_queries = {
+                'users': 'SELECT {} FROM users WHERE id = ?',
+                'profiles': 'SELECT {} FROM profiles WHERE id = ?',
+                'settings': 'SELECT {} FROM settings WHERE id = ?'
+            }
             
-            # Execute with properly bound parameter for user_id only
+            if table_name not in table_queries:
+                raise DatabaseError("Invalid table selection")
+                
+            # Get the appropriate pre-validated query template
+            query_template = table_queries[table_name]
+            
+            # Format column names (safe since already validated)
+            column_names = ','.join(columns)
+            query = query_template.format(column_names)
+            
+            # Execute with properly bound parameter
             cursor.execute(query, (user_id,))
             results = cursor.fetchall()
             
@@ -133,9 +146,14 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
     if not isinstance(keyword, str):
         raise DatabaseError("Search keyword must be a string")
         
-    # Very strict keyword validation
+    # Enhanced keyword validation with additional security checks
     if not re.match(r'^[a-zA-Z0-9\s-]{3,50}$', keyword):
         raise DatabaseError("Invalid search keyword format - must be 3-50 chars, alphanumeric with spaces and hyphens only")
+    
+    # Check for common SQL injection patterns
+    dangerous_patterns = ["--", ";", "/*", "*/", "UNION", "SELECT", "DROP", "DELETE", "UPDATE"]
+    if any(pattern.lower() in keyword.lower() for pattern in dangerous_patterns):
+        raise DatabaseError("Invalid characters in search keyword")
     
     # Use all columns if none specified
     if columns is None:
@@ -147,17 +165,18 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
-            # Build query with validated column names
+            # Use parameterized query template
             column_names = ','.join(columns)  # Safe since columns are validated
-            query = f"""
-                SELECT {column_names}
-                FROM users 
-                WHERE name LIKE ? 
+            query = """
+                SELECT {} FROM users 
+                WHERE LOWER(name) LIKE LOWER(?) 
+                AND active = 1
+                ORDER BY id ASC
                 LIMIT 100
-            """
+            """.format(column_names)
             
-            # Properly escape LIKE pattern and bind parameter
-            search_pattern = f"%{keyword}%"
+            # Properly escape and sanitize LIKE pattern
+            search_pattern = "%" + keyword.replace("%", "\\%").replace("_", "\\_") + "%"
             cursor.execute(query, (search_pattern,))
             results = cursor.fetchall()
             
