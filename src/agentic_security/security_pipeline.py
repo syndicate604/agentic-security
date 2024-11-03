@@ -52,6 +52,13 @@ class SecurityPipeline:
         self.branch_name = f"security-fixes-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
         self.timeout = timeout  # Add timeout parameter
         
+        # Initialize logging
+        self.prompts_logger = logging.getLogger('prompts')
+        prompts_handler = logging.FileHandler(f"logs/prompts_{datetime.now():%Y%m%d}.log")
+        prompts_handler.setFormatter(logging.Formatter('%(asctime)s\n%(message)s\n---\n'))
+        self.prompts_logger.addHandler(prompts_handler)
+        self.prompts_logger.setLevel(logging.INFO)
+        
         # Initialize model configuration
         self.analysis_model = os.getenv('ANALYSIS_MODEL', DEFAULT_MODEL)
         if self.analysis_model not in VALID_MODELS:
@@ -426,7 +433,7 @@ tree = parse(xml_file, forbid_dtd=True, forbid_entities=True)
                 print("\033[36m----------------------------\033[0m")
                 
                 # Log prompt for record keeping
-                prompts_logger.info(f"Fix Prompt ({file_path}): {fix_prompt}")
+                self.prompts_logger.info(f"Fix Prompt ({file_path}): {fix_prompt}")
 
                 # Prepare aider command
                 cmd = [
@@ -471,7 +478,7 @@ tree = parse(xml_file, forbid_dtd=True, forbid_entities=True)
                     if errors:
                         print("\n\033[31m[!] Errors:\033[0m")
                         print(errors)
-                        prompts_logger.warning(f"Aider Errors: {errors}")
+                        self.prompts_logger.warning(f"Aider Errors: {errors}")
                 
                 if return_code == 0:
                     # Check if changes were made by looking at git status
