@@ -944,39 +944,39 @@ class SecurityPipeline:
             
             print(f"\n[36m[>] Scanning: {path}[0m")
             scan_start = time.time()
-            try:
-                # Show progress indicator
-                def progress_indicator():
-                    # Cyberpunk-style matrix characters
-                    matrix_chars = "守破離の術ｦｧｨｩｪｫｬｭｮｯｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ"
-                    states = ["ANALYZING", "SCANNING", "PROBING", "DETECTING"]
-                    colors = ["\033[32m", "\033[36m", "\033[35m", "\033[33m"]  # Green, Cyan, Magenta, Yellow
-                    i = 0
-                    state_idx = 0
-                    while not stop_progress.is_set():
-                        if time.time() - scan_start > timeout:
-                            raise TimeoutError("\033[31m[CRITICAL] Neural Net Timeout - Connection Lost\033[0m")
-                        
-                        state = states[state_idx]
-                        color = colors[state_idx]
-                        matrix = "".join(random.choice(matrix_chars) for _ in range(3))
-                        runtime = time.time() - scan_start
-                        
-                        status = f"\r{color}[{matrix}] {state} :: Neural Net Active :: Runtime: {runtime:.1f}s\033[0m"
-                        print(f"{status}\033[K", end='', flush=True)
-                        
-                        i = (i + 1) % 4
-                        if i == 0:
-                            state_idx = (state_idx + 1) % len(states)
-                        time.sleep(0.1)
+            # Define progress indicator function
+            def progress_indicator():
+                # Cyberpunk-style matrix characters
+                matrix_chars = "守破離の術ｦｧｨｩｪｫｬｭｮｯｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ"
+                states = ["ANALYZING", "SCANNING", "PROBING", "DETECTING"]
+                colors = ["\033[32m", "\033[36m", "\033[35m", "\033[33m"]  # Green, Cyan, Magenta, Yellow
+                i = 0
+                state_idx = 0
+                while not stop_progress.is_set():
+                    if time.time() - scan_start > timeout:
+                        raise TimeoutError("\033[31m[CRITICAL] Neural Net Timeout - Connection Lost\033[0m")
+                    
+                    state = states[state_idx]
+                    color = colors[state_idx]
+                    matrix = "".join(random.choice(matrix_chars) for _ in range(3))
+                    runtime = time.time() - scan_start
+                    
+                    status = f"\r{color}[{matrix}] {state} :: Neural Net Active :: Runtime: {runtime:.1f}s\033[0m"
+                    print(f"{status}\033[K", end='', flush=True)
+                    
+                    i = (i + 1) % 4
+                    if i == 0:
+                        state_idx = (state_idx + 1) % len(states)
+                    time.sleep(0.1)
 
+            try:
                 import threading
-                try:
-                    progress_thread = threading.Thread(target=progress_indicator, daemon=True)
-                    progress_thread.start()
+                progress_thread = threading.Thread(target=progress_indicator, daemon=True)
+                progress_thread.start()
 
                 # Run code security checks with timeout
                 security_results = self._run_code_security_checks(path, exclude_dirs=exclude_dirs)
+                
                 # Clean shutdown of progress animation
                 stop_progress.set()
                 progress_thread.join(timeout=1.0)
