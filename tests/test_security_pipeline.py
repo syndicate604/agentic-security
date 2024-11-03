@@ -1,8 +1,12 @@
 import pytest
 import os
 import yaml
+import time
 from pathlib import Path
 from src.agentic_security.security_pipeline import SecurityPipeline
+from src.agentic_security.cache import SecurityCache
+from src.agentic_security.progress import ProgressReporter
+from src.agentic_security.prompts import PromptManager
 
 @pytest.fixture
 def test_config(tmp_path):
@@ -95,3 +99,71 @@ def test_create_fix_branch(pipeline):
 def test_run_pipeline(pipeline):
     """Test complete pipeline execution"""
     assert pipeline.run_pipeline()
+
+def test_cache_integration(pipeline, tmp_path):
+    """Test cache integration in pipeline"""
+    # Run pipeline to generate cache
+    pipeline.run_pipeline()
+    
+    # Verify cache exists
+    cache = SecurityCache(str(tmp_path))
+    cached_results = cache.get_scan_results("latest_scan")
+    assert cached_results is not None
+    
+    # Verify cache cleanup
+    cache.clear_old_results(days=0)
+    assert cache.get_scan_results("latest_scan") is None
+
+def test_progress_reporting(pipeline, capsys):
+    """Test progress reporting integration"""
+    pipeline.progress.start("Test progress")
+    pipeline.progress.update(50, "Halfway")
+    pipeline.progress.finish("Complete")
+    
+    captured = capsys.readouterr()
+    assert "Test progress" in captured.out
+    assert "Halfway" in captured.out
+    assert "Complete" in captured.out
+
+def test_custom_prompts(pipeline):
+    """Test custom prompt integration"""
+    custom_prompts = {
+        'test_prompt': "Custom test prompt: {test_var}"
+    }
+    pipeline.prompt_manager = PromptManager(custom_prompts)
+    
+    # Test default prompt
+    arch_prompt = pipeline.prompt_manager.get_prompt('architecture_review')
+    assert "Review the architecture" in arch_prompt
+    
+    # Test custom prompt
+    test_prompt = pipeline.prompt_manager.get_prompt('test_prompt', test_var="value")
+    assert "Custom test prompt: value" in test_prompt
+
+def test_pipeline_error_handling(pipeline):
+    """Test pipeline error handling"""
+    # Test invalid config
+    pipeline.config['security']['critical_threshold'] = -1
+    with pytest.raises(ValueError):
+        pipeline.run_pipeline()
+    
+    # Test missing dependencies
+    pipeline.config['security']['scan_targets'] = [
+        {'type': 'invalid', 'url': 'http://example.com'}
+    ]
+    assert not pipeline.run_pipeline()
+
+def test_pipeline_performance(pipeline):
+    """Test pipeline performance and caching"""
+    # First run - should take normal time
+    start_time = time.time()
+    pipeline.run_pipeline()
+    first_run_time = time.time() - start_time
+    
+    # Second run - should be faster due to caching
+    start_time = time.time()
+    pipeline.run_pipeline()
+    second_run_time = time.time() - start_time
+    
+    # Second run should be faster due to caching
+    assert second_run_time < first_run_time
