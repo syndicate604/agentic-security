@@ -1,5 +1,5 @@
 import requests
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 
 def fetch_user_data(user_id):
     """Insecure API endpoint"""
@@ -8,11 +8,11 @@ def fetch_user_data(user_id):
     response = requests.get(f"http://api.example.com/users/{user_id}", verify=False)
     return response.json()
 
+import defusedxml.ElementTree as ET
+
 def parse_xml_data(xml_string):
     """Secure XML parsing with XXE protection"""
-    from defusedxml.ElementTree import parse, XMLParser
-    parser = XMLParser(forbid_dtd=True)  # Prevent XXE
-    tree = parse(xml_string, parser=parser)
+    tree = ET.parse(xml_string)
     return tree
 
 def send_request(url, data):
@@ -35,9 +35,11 @@ def make_request(url):
     # SSL verification disabled
     return requests.get(url, verify=False)
 
+import defusedxml.ElementTree as ET
+
 def parse_xml(xml_string):
-    # XML parsing vulnerability
-    return ET.fromstring(xml_string)
+    # Secure XML parsing
+    return ET.fromstring(xml_string, defusedxml.ElementTree.XMLParser(resolve_entities=False))
 import requests
 import xml.etree.ElementTree as ET
 import subprocess
