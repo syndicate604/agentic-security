@@ -153,17 +153,20 @@ flowchart TB
 sequenceDiagram
     participant User
     participant CLI
-    participant AI
+    participant GPT4
+    participant Claude3
     participant Security
     
     User->>CLI: Run Analysis
     CLI->>Security: Scan System
     Security-->>CLI: Vulnerabilities
-    CLI->>AI: Analyze Issues
-    AI-->>CLI: Suggestions
-    CLI->>AI: Generate Fixes
-    AI-->>CLI: Fix Implementation
-    CLI-->>User: Results
+    CLI->>GPT4: Architecture Review
+    GPT4-->>CLI: Design Analysis
+    CLI->>Claude3: Generate Fixes
+    Claude3-->>CLI: Fix Implementation
+    CLI->>Security: Validate Fixes
+    Security-->>CLI: Validation Results
+    CLI-->>User: Results & PR
 ```
 
 ## Ethical Guidelines
