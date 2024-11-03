@@ -1102,20 +1102,64 @@ class SecurityPipeline:
                 if not vulnerabilities:
                     f.write("No security issues found.\n\n")
                 else:
+                    # Group vulnerabilities by file
+                    vuln_by_file = {}
                     for vuln in vulnerabilities:
-                        f.write(f"### {vuln['file']}\n\n")
-                        f.write(f"- Type: {vuln['type']}\n")
-                        f.write(f"- Severity: {vuln['severity']}\n")
-                        if vuln.get('details', {}).get('description'):
-                            f.write(f"- Details: {vuln['details']['description']}\n")
-                        f.write("\n")
+                        file_path = vuln['file']
+                        if file_path not in vuln_by_file:
+                            vuln_by_file[file_path] = []
+                        vuln_by_file[file_path].append(vuln)
+                    
+                    # Write findings by file
+                    for file_path, file_vulns in vuln_by_file.items():
+                        f.write(f"### {file_path}\n\n")
+                        for vuln in file_vulns:
+                            f.write(f"#### {vuln['type'].upper()} ({vuln['severity'].upper()})\n\n")
+                            if vuln.get('details', {}).get('description'):
+                                f.write(f"- {vuln['details']['description']}\n")
+                            f.write("\n")
+                            
+                            # Add specific recommendations based on vulnerability type
+                            if vuln['type'] == 'command_injection':
+                                f.write("**Recommendations:**\n")
+                                f.write("- Use subprocess.run with shell=False\n")
+                                f.write("- Validate and sanitize all user inputs\n")
+                                f.write("- Implement strict input validation\n\n")
+                            elif vuln['type'] == 'xss':
+                                f.write("**Recommendations:**\n")
+                                f.write("- Use proper HTML escaping\n")
+                                f.write("- Implement Content Security Policy (CSP)\n")
+                                f.write("- Use secure frameworks that auto-escape content\n\n")
+                            elif vuln['type'] == 'weak_crypto':
+                                f.write("**Recommendations:**\n")
+                                f.write("- Use strong hashing algorithms (SHA-256, SHA-512)\n")
+                                f.write("- Implement proper salting\n")
+                                f.write("- Use established crypto libraries\n\n")
+                            elif vuln['type'] == 'insecure_deserialization':
+                                f.write("**Recommendations:**\n")
+                                f.write("- Use safe serialization formats (JSON)\n")
+                                f.write("- Validate all deserialized data\n")
+                                f.write("- Avoid pickle for untrusted data\n\n")
+                            elif vuln['type'] == 'xxe':
+                                f.write("**Recommendations:**\n")
+                                f.write("- Use defusedxml library\n")
+                                f.write("- Disable external entity processing\n")
+                                f.write("- Implement proper XML parsing controls\n\n")
 
-            f.write("## Recommendations\n\n")
+            f.write("## Overall Recommendations\n\n")
             if isinstance(results, dict) and results.get('vulnerabilities'):
-                f.write("1. Address identified vulnerabilities with priority on high severity issues\n")
-                f.write("2. Implement input validation and sanitization\n")
-                f.write("3. Use secure coding practices and frameworks\n")
-                f.write("4. Regular security testing and monitoring\n")
+                f.write("1. **High Priority Fixes:**\n")
+                f.write("   - Address command injection and insecure deserialization issues first\n")
+                f.write("   - Implement input validation and sanitization across all user inputs\n")
+                f.write("   - Update weak cryptographic implementations\n\n")
+                f.write("2. **Security Best Practices:**\n")
+                f.write("   - Use security-focused libraries and frameworks\n")
+                f.write("   - Implement proper error handling and logging\n")
+                f.write("   - Regular security testing and monitoring\n\n")
+                f.write("3. **Maintenance:**\n")
+                f.write("   - Keep dependencies up to date\n")
+                f.write("   - Regular security audits\n")
+                f.write("   - Document security requirements and procedures\n")
             else:
                 f.write("1. Continue monitoring for security issues\n")
                 f.write("2. Maintain security best practices\n")
