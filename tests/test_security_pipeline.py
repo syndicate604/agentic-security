@@ -60,17 +60,46 @@ def process_input(user_input):
     html = f"<div>{escape(user_input)}</div>"
     """)
 
-def test_setup_environment_missing_vars(monkeypatch):
-    """Test handling of missing environment variables"""
-    # Ensure clean environment
-    monkeypatch.delenv('OPENAI_API_KEY', raising=False)
-    monkeypatch.delenv('ANTHROPIC_API_KEY', raising=False)
-    monkeypatch.setenv('SKIP_DOTENV', 'true')  # Skip .env loading
+def test_setup_environment_model_validation(monkeypatch):
+    """Test model validation and API key requirements"""
+    # Test cases for different models and API keys
+    test_cases = [
+        {
+            'model': 'claude-3-sonnet-20240229',
+            'required_key': 'ANTHROPIC_API_KEY',
+            'provider': 'anthropic'
+        },
+        {
+            'model': 'gpt-4-turbo-preview',
+            'required_key': 'OPENAI_API_KEY',
+            'provider': 'openai'
+        }
+    ]
     
+    for case in test_cases:
+        # Reset environment
+        monkeypatch.delenv('OPENAI_API_KEY', raising=False)
+        monkeypatch.delenv('ANTHROPIC_API_KEY', raising=False)
+        monkeypatch.setenv('SKIP_DOTENV', 'true')
+        monkeypatch.setenv('ANALYSIS_MODEL', case['model'])
+        
+        pipeline = SecurityPipeline()
+        
+        # Test missing API key
+        with pytest.raises(OSError) as exc_info:
+            pipeline.setup_environment()
+        assert case['required_key'] in str(exc_info.value)
+        
+        # Test with API key present
+        monkeypatch.setenv(case['required_key'], 'test-key')
+        pipeline.setup_environment()  # Should not raise exception
+        
+    # Test invalid model
+    monkeypatch.setenv('ANALYSIS_MODEL', 'invalid-model')
     pipeline = SecurityPipeline()
-    with pytest.raises(OSError) as exc_info:
+    with pytest.raises(ValueError) as exc_info:
         pipeline.setup_environment()
-    assert "Missing required environment variables" in str(exc_info.value)
+    assert "Invalid ANALYSIS_MODEL" in str(exc_info.value)
 
 def test_validate_fixes(pipeline, tmp_path):
     """Test fix validation"""
