@@ -407,11 +407,14 @@ def test_installation_script():
 def test_ci_pipeline_execution(mock_run, pipeline):
     """Test CI pipeline execution"""
     # Mock successful command executions
-    mock_run.return_value = MagicMock(
-        returncode=0,
-        stdout="Test output",
-        stderr=""
-    )
+    # Mock all subprocess calls to succeed
+    def mock_subprocess(*args, **kwargs):
+        return MagicMock(
+            returncode=0,
+            stdout="Test output",
+            stderr=""
+        )
+    mock_run.side_effect = mock_subprocess
 
     # Set up environment variables
     with patch.dict(os.environ, {
