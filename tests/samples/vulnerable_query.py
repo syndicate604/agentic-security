@@ -46,8 +46,9 @@ def validate_table_name(table_name: str) -> bool:
     """
     if not isinstance(table_name, str):
         return False
-    # Strict validation against whitelist only
-    return table_name in ALLOWED_TABLES.keys()
+    # Strict validation against whitelist and character set
+    return (table_name in ALLOWED_TABLES.keys() and 
+            bool(re.match(r'^[a-zA-Z][a-zA-Z0-9_]{0,63}$', table_name)))
 
 def validate_columns(table_name: str, columns: List[str]) -> bool:
     """
@@ -122,11 +123,14 @@ def get_user_data(user_id: str, table_name: str, columns: Optional[List[str]] = 
                 raise DatabaseError("No valid columns specified")
                 
             # Build safe query using proper parameter binding
-            placeholders = ','.join('?' * len(column_list))
-            columns_str = ','.join(column_list)
+            columns_str = ','.join(f'"{col}"' for col in column_list)
             
-            # Use parameters for both columns and table name
-            query = 'SELECT {} FROM {} WHERE id = ?'.format(columns_str, table_name)
+            # Use a prepared statement with proper escaping
+            query = f"""
+                SELECT {columns_str} 
+                FROM "{table_name}" 
+                WHERE id = ? AND active = 1
+            """
             
             # Execute with properly bound parameters
             cursor.execute(query, (user_id,))
@@ -180,17 +184,18 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
                 raise DatabaseError("No valid columns specified")
             
             # Build safe query with validated columns and proper parameterization
-            columns_str = ','.join(column_list)
-            query = """
-                SELECT {} FROM users 
+            columns_str = ','.join(f'"{col}"' for col in column_list)
+            query = f"""
+                SELECT {columns_str} 
+                FROM "users"
                 WHERE name LIKE ? ESCAPE '\\' 
                 AND active = 1
                 ORDER BY id ASC 
                 LIMIT 100
-            """.format(columns_str)
+            """
             
             # Properly escape LIKE pattern and use parameterized query
-            search_pattern = "%" + re.escape(keyword) + "%"
+            search_pattern = f"%{re.escape(keyword)}%"
             cursor.execute(query, (search_pattern,))
             results = cursor.fetchall()
             
