@@ -224,37 +224,37 @@ class SecurityPipeline:
                         print(f"\n[33m[!] Could not decode {file_path} - skipping[0m")
                         continue
                             
-                            # Check for each vulnerability pattern
-                            for vuln_type, patterns in security_patterns.items():
-                                # Skip if only safe patterns are found
-                                safe_matches = safe_patterns.get(vuln_type, set())
-                                if any(safe_pattern in content for safe_pattern in safe_matches):
-                                    continue
+                    # Check for each vulnerability pattern
+                    for vuln_type, patterns in security_patterns.items():
+                        # Skip if only safe patterns are found
+                        safe_matches = safe_patterns.get(vuln_type, set())
+                        if any(safe_pattern in content for safe_pattern in safe_matches):
+                            continue
                                     
-                                # For SQL injection, check for unsafe string formatting
-                                if vuln_type == 'sql_injection':
-                                    has_sql_pattern = any(pattern in content.lower() for pattern in patterns)
-                                    has_unsafe_format = ('SELECT' in content and '%s' in content) or \
-                                                      ('SELECT' in content and '{' in content and '}' in content)
-                                    if has_sql_pattern and has_unsafe_format:
-                                        if vuln_type not in results:
-                                            results[vuln_type] = []
-                                        results[vuln_type].append({
-                                            'file': file_path,
-                                            'type': vuln_type,
-                                            'severity': 'high',
-                                            'line': content.count('\n', 0, content.find('SELECT'))
-                                        })
-                                # For other vulnerability types
-                                elif any(pattern in content.lower() for pattern in patterns) and \
-                                     not any(safe_pattern in content for safe_pattern in safe_matches):
-                                    if vuln_type not in results:
-                                        results[vuln_type] = []
-                                    results[vuln_type].append({
-                                        'file': file_path,
-                                        'type': vuln_type,
-                                        'severity': 'high' if vuln_type in ['command_injection', 'insecure_deserialization'] else 'medium'
-                                    })
+                        # For SQL injection, check for unsafe string formatting
+                        if vuln_type == 'sql_injection':
+                            has_sql_pattern = any(pattern in content.lower() for pattern in patterns)
+                            has_unsafe_format = ('SELECT' in content and '%s' in content) or \
+                                              ('SELECT' in content and '{' in content and '}' in content)
+                            if has_sql_pattern and has_unsafe_format:
+                                if vuln_type not in results:
+                                    results[vuln_type] = []
+                                results[vuln_type].append({
+                                    'file': file_path,
+                                    'type': vuln_type,
+                                    'severity': 'high',
+                                    'line': content.count('\n', 0, content.find('SELECT'))
+                                })
+                        # For other vulnerability types
+                        elif any(pattern in content.lower() for pattern in patterns) and \
+                             not any(safe_pattern in content for safe_pattern in safe_matches):
+                            if vuln_type not in results:
+                                results[vuln_type] = []
+                            results[vuln_type].append({
+                                'file': file_path,
+                                'type': vuln_type,
+                                'severity': 'high' if vuln_type in ['command_injection', 'insecure_deserialization'] else 'medium'
+                            })
             
             # Check for OWASP Dependency Check installation
             dependency_check_paths = [
