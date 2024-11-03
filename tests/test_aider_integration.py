@@ -61,6 +61,8 @@ def generate_security_report(test_name: str, findings: Dict, fixes: Dict, repo_p
         f.write("```diff\n")
         f.write(git_log.stdout)
         f.write("```\n")
+        
+    return report_path
 
 # Cyberpunk styling
 CYAN = '\033[0;36m'
@@ -284,12 +286,13 @@ class TestAiderIntegration:
         }
         
         # Generate report
-        generate_security_report(
+        report_path = generate_security_report(
             "auto_approve_mode",
             findings,
             fixes,
             test_repo
         )
+        print(f"\n{CYAN}[INFO]{NC} Security report generated: {report_path}")
         
         assert returncode == 0, f"Aider command failed: {stderr}"
         sql_injection_fixed = any(pattern in final_code.lower() for pattern in [
