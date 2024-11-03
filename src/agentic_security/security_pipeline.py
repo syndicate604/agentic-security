@@ -136,18 +136,53 @@ class SecurityPipeline:
         print(f"Running code security checks for {path}")
         results = {}
         
-        # Dependency check
+        # Define security patterns to check
+        security_patterns = {
+            'sql_injection': ['execute(', 'cursor.execute(', 'raw_query'],
+            'command_injection': ['os.system', 'subprocess.call', 'eval(', 'exec('],
+            'xss': ['<script>', 'innerHTML', 'document.write'],
+            'weak_crypto': ['md5', 'sha1', 'DES', 'RC4'],
+            'insecure_auth': ['basic_auth', 'plaintext_password', 'verify=False'],
+            'xxe': ['xml.etree.ElementTree', 'xmlparse', 'parsexml'],
+            'path_traversal': ['../', 'file://', 'read_file'],
+            'insecure_deserialization': ['pickle.loads', 'yaml.load', 'eval(']
+        }
+        
         try:
-            dep_check_result = subprocess.run([
-                "./dependency-check/bin/dependency-check.sh",
-                "--scan", path,
-                "--format", "JSON",
-                "--out", "dependency-check-report.json"
-            ], capture_output=True, text=True)
-            results['dependency'] = self._parse_dependency_results("dependency-check-report.json")
+            # Scan files in the path
+            for root, _, files in os.walk(path):
+                for file in files:
+                    if file.endswith(('.py', '.js', '.php', '.java')):
+                        file_path = os.path.join(root, file)
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                            
+                            # Check for each vulnerability pattern
+                            for vuln_type, patterns in security_patterns.items():
+                                if any(pattern in content.lower() for pattern in patterns):
+                                    if vuln_type not in results:
+                                        results[vuln_type] = []
+                                    results[vuln_type].append({
+                                        'file': file_path,
+                                        'type': vuln_type,
+                                        'severity': 'high' if vuln_type in ['sql_injection', 'command_injection', 'insecure_deserialization'] else 'medium'
+                                    })
+            
+            # Run dependency check if available
+            try:
+                dep_check_result = subprocess.run([
+                    "./dependency-check/bin/dependency-check.sh",
+                    "--scan", path,
+                    "--format", "JSON",
+                    "--out", "dependency-check-report.json"
+                ], capture_output=True, text=True)
+                results['dependency'] = self._parse_dependency_results("dependency-check-report.json")
+            except Exception as e:
+                print(f"Warning: Dependency check failed: {str(e)}")
+                
         except Exception as e:
-            print(f"Error running dependency check: {str(e)}")
-            results['dependency'] = {"error": str(e)}
+            print(f"Error running code security checks: {str(e)}")
+            results['error'] = str(e)
 
         return results
 
