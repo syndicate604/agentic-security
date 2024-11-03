@@ -62,7 +62,7 @@ def process_input(user_input: str, context: Optional[Dict] = None) -> str:
     # XSS protection with multiple security layers
     def sanitize_input(input_str: str) -> str:
         # 1. Input validation - whitelist allowed characters
-        if not re.match(r'^[a-zA-Z0-9 \-_.,!?]*$', input_str):
+        if not re.match(r'^[a-zA-Z0-9 -_.,!?]*$', input_str):
             raise ValueError("Invalid characters in input")
             
         # 2. Length validation
