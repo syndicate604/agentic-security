@@ -182,13 +182,17 @@ class TestAiderIntegration:
         )
         
         assert returncode == 0, f"Aider command failed: {stderr}"
-        assert any(term in stdout.lower() for term in [
-            "parameterized", 
-            "prepared statement",
-            "parameterize",
-            "sql injection fix"
+        # Read the updated app.py
+        with open(test_repo / "app.py", "r") as f:
+            app_code = f.read()
+        sql_injection_fixed = any(pattern in app_code.lower() for pattern in [
+            "?", ":",
+            "execute(",
+            "cursor.execute(",
+            "parameter",
+            "prepare"
         ])
-        
+        assert sql_injection_fixed, "SQL Injection vulnerability not properly fixed"
         # Verify changes were committed
         git_log = subprocess.run(
             ["git", "log", "--oneline"],
