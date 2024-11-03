@@ -554,6 +554,7 @@ class SecurityPipeline:
 
     def _parse_zap_results(self, report_file: str) -> Dict:
         """Parse ZAP scan results"""
+        try:
             with open(report_file, 'r') as f:
                 data = json.load(f, object_hook=self._safe_deserialize)
                 return data
