@@ -62,10 +62,12 @@ def process_input(user_input):
 
 def test_setup_environment_missing_vars(monkeypatch):
     """Test handling of missing environment variables"""
-    pipeline = SecurityPipeline()
+    # Ensure clean environment
     monkeypatch.delenv('OPENAI_API_KEY', raising=False)
     monkeypatch.delenv('ANTHROPIC_API_KEY', raising=False)
+    monkeypatch.setenv('SKIP_DOTENV', 'true')  # Skip .env loading
     
+    pipeline = SecurityPipeline()
     with pytest.raises(OSError) as exc_info:
         pipeline.setup_environment()
     assert "Missing required environment variables" in str(exc_info.value)
