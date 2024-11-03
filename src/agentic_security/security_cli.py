@@ -162,20 +162,18 @@ def scan(path, auto_fix, output, verbose, test, config):
         vulns = results.get('vulnerabilities', [])
         if vulns:
             print_cyber_status("\nVulnerabilities found:", "error")
-            print("\n[1m[31mSource Code Vulnerabilities:[0m")
+            print("[1m[31mSource Code Vulnerabilities:[0m")
             for vuln in vulns:
                 print(f"[31m- {vuln['type']} vulnerability in `{vuln['file']}`[0m")
-        else:
-            print("\n[32m[✓] No vulnerabilities found![0m")
             
             if auto_fix:
-                print_cyber_status("\nAutomatically applying fixes...", "info")
+                print_cyber_status("Automatically applying fixes...", "info")
                 if pipeline.implement_fixes([v['details'] for v in results['vulnerabilities']]):
                     print_cyber_status("Fixes applied successfully", "success")
                 else:
                     print_cyber_status("Some fixes could not be applied", "warning")
             else:
-                print_cyber_status("\nRun with --auto-fix to attempt automatic fixes", "info")
+                print_cyber_status("Run with --auto-fix to attempt automatic fixes", "info")
         
         if output:
             pipeline.generate_report(results, output, verbose)
