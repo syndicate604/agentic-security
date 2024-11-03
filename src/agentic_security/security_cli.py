@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from datetime import datetime
+from pathlib import Path
 import click
 import yaml
 import os
@@ -260,6 +262,16 @@ def analyze(path: tuple, config: str, auto_fix: bool, verbose: bool):
         # Run security analysis on specified paths
         results = pipeline.scan_paths(path, auto_fix=auto_fix)
         
+        # Generate unique report filename with timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        report_dir = Path('security_reports')
+        report_dir.mkdir(exist_ok=True)
+        report_file = report_dir / f'security_report_{timestamp}.md'
+        
+        # Generate the report
+        pipeline.generate_review_report(results, str(report_file))
+        print_cyber_status(f"\nSecurity report generated: {report_file}", "success")
+        
         if verbose:
             print("\nAnalysis Results:")
             for vuln in results.get('vulnerabilities', []):
@@ -281,6 +293,12 @@ def analyze(path: tuple, config: str, auto_fix: bool, verbose: bool):
                 print_cyber_status("Fixes implemented successfully", "success")
             else:
                 print_cyber_status("Some fixes could not be implemented", "warning")
+    except KeyboardInterrupt:
+        print("\n\033[33m[!] Analysis interrupted. Saving partial results...\033[0m")
+        # Still try to save the report if interrupted
+        if 'results' in locals():
+            pipeline.generate_review_report(results, str(report_file))
+            print_cyber_status(f"\nPartial report saved: {report_file}", "warning")
     except Exception as e:
         print_cyber_status(f"Error during analysis: {str(e)}", "error")
         sys.exit(1)
