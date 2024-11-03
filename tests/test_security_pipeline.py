@@ -2,6 +2,7 @@ import pytest
 import os
 import yaml
 import time
+from datetime import datetime
 from pathlib import Path
 from src.agentic_security.security_pipeline import SecurityPipeline
 from src.agentic_security.cache import SecurityCache
@@ -116,8 +117,8 @@ def test_cache_integration(pipeline, tmp_path):
     assert cached_results is not None
     
     # Verify cache cleanup
-    cache.clear_old_results(days=0)
-    assert cache.get_scan_results("latest_scan") is None
+    pipeline.cache.clear_old_results(days=0)
+    assert pipeline.cache.get_scan_results(scan_id) is None
 
 def test_progress_reporting(pipeline, capsys):
     """Test progress reporting integration"""
