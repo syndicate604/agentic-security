@@ -445,12 +445,16 @@ class SecurityPipeline:
         results = self.run_security_checks()
         
         # Check if any critical vulnerabilities remain
+        has_critical = False
         for check_type, check_results in results.items():
             for result in check_results:
                 if self._get_max_severity(result) >= self.critical_threshold:
-                    return False
+                    has_critical = True
+                    break
+            if has_critical:
+                break
         
-        return True
+        return not has_critical
 
     def review_paths(self, paths: List[str], verbose: bool = False) -> Dict:
         """Review paths for security issues"""
