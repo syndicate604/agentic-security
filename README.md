@@ -23,8 +23,8 @@ The pipeline combines OWASP ZAP scans with AI-driven analysis, catching architec
 
 | Emoji | Feature                 | Description                                         | Status | Documentation                                                                                   |
 |-------|--------------------------|-----------------------------------------------------|--------|-------------------------------------------------------------------------------------------------|
-| 🧠    | AI Architecture Analysis | GPT-4 powered security architecture review and recommendations | ✅    | [Documentation](docs/implementation/README.md#ai-integration)                                     |
-| 🛠️    | AI Code Generation       | Claude-3 powered secure code generation             | ✅    | [User Guide](docs/user-guide/README.md#advanced-features)                                        |
+| 🧠    | AI Architecture Analysis | Ai powered security architecture review and recommendations (Over 120+ Ai models)))| ✅    | [Documentation](docs/implementation/README.md#ai-integration)                                     |
+| 🛠️    | Auto AI Code Generation       | Claude-3 Sonnet 3.5 powered secure code generation             | ✅    | [User Guide](docs/user-guide/README.md#advanced-features)                                        |
 | 🎭    | Context Analysis         | AI-powered code context understanding               | ✅    | [Documentation](docs/implementation/README.md#security-patterns)                                 |
 | 📚    | Code Documentation       | AI-generated security documentation                 | ✅    | [Documentation](docs/implementation/README.md#ai-integration)                                     |
 
