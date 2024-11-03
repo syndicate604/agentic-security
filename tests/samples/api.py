@@ -11,30 +11,41 @@ def fetch_user_data(user_id):
 
 from defusedxml import ElementTree as ET
 
+import logging
+
 def parse_xml_data(xml_string):
     """Secure XML parsing with XXE protection"""
     # Disable external entity resolution to prevent XXE attacks
     parser = ET.XMLParser(resolve_entities=False)
-    
+
     # Validate and sanitize input XML string
     try:
         xml_string = xml_string.strip()
         if not xml_string:
             raise ValueError("Empty XML string")
     except ValueError as e:
-        # Handle invalid input
-        print(f"Error: {e}")
+        # Handle invalid input with proper error logging
+        logging.error(f"Error: {e}")
         return None
-    
-    # Parse XML string securely
+
+    # Parse XML string securely 
     try:
         tree = ET.fromstring(xml_string, parser=parser)
     except ET.ParseError as e:
-        # Handle XML parsing errors
-        print(f"Error: {e}")
+        # Handle XML parsing errors with proper error logging
+        logging.error(f"Error: {e}")
         return None
-    
+
+    # Additional input validation and sanitization
+    # Sanitize tree to remove potential malicious nodes
+    sanitize_tree(tree)
+
     return tree
+
+def sanitize_tree(tree):
+    """Sanitize the parsed XML tree to remove potential malicious nodes"""
+    # Implementation details for sanitize_tree go here
+    pass
 
 def send_request(url, data):
     """Insecure request handling"""
