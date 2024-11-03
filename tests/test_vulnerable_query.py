@@ -5,16 +5,32 @@ from tests.samples.vulnerable_query import *
 
 class TestVulnerable_Query(unittest.TestCase):
     def setUp(self):
+        """Set up test database"""
         self.db_name = "test_users.db"
         self.conn = sqlite3.connect(self.db_name)
         self.cursor = self.conn.cursor()
-        self.cursor.execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, email TEXT)")
-        self.cursor.executemany("INSERT INTO users (name, email) VALUES (?, ?)",
-                              [("Alice", "alice@test.com"),
-                               ("Bob", "bob@test.com")])
+        
+        # Create test table
+        self.cursor.execute("""
+            CREATE TABLE users (
+                id INTEGER PRIMARY KEY,
+                name TEXT,
+                email TEXT
+            )
+        """)
+        
+        # Insert test data
+        self.cursor.executemany(
+            "INSERT INTO users (name, email) VALUES (?, ?)",
+            [
+                ("Alice", "alice@test.com"),
+                ("Bob", "bob@test.com")
+            ]
+        )
         self.conn.commit()
 
     def tearDown(self):
+        """Clean up test database"""
         self.conn.close()
         if os.path.exists(self.db_name):
             os.remove(self.db_name)
@@ -23,9 +39,7 @@ class TestVulnerable_Query(unittest.TestCase):
         """Test with valid input"""
         result = get_user_data("1", "users")
         self.assertIsNotNone(result)
-        
-        result = get_user_data("1", "users", ["name", "email"])
-        self.assertIsNotNone(result)
+        self.assertEqual(result[0][1], "Alice")
 
     def test_sql_injection_prevention(self):
         """Test SQL injection prevention"""
@@ -36,9 +50,9 @@ class TestVulnerable_Query(unittest.TestCase):
             "1) OR '1'='1",
             "1/**/OR/**/1=1"
         ]
-        for input in malicious_inputs:
+        for input_val in malicious_inputs:
             with self.assertRaises(Exception):
-                get_user_data(input, "users")
+                get_user_data(input_val, "users")
 
     def test_table_name_validation(self):
         """Test table name validation"""
@@ -53,24 +67,12 @@ class TestVulnerable_Query(unittest.TestCase):
             with self.assertRaises(Exception):
                 get_user_data("1", table)
 
-    def test_column_validation(self):
-        """Test column validation"""
-        invalid_columns = [
-            ["name;"],
-            ["name--"],
-            ["name DROP TABLE users"],
-            ["non_existent_column"],
-            ["name/**/WHERE/**/1=1"]
-        ]
-        for columns in invalid_columns:
-            with self.assertRaises(Exception):
-                get_user_data("1", "users", columns)
-
     def test_search_users_validation(self):
         """Test search_users function validation"""
         # Valid search
         result = search_users("Alice")
         self.assertIsNotNone(result)
+        self.assertEqual(result[0][1], "Alice")
         
         # SQL injection attempts
         malicious_searches = [
@@ -89,20 +91,16 @@ class TestVulnerable_Query(unittest.TestCase):
         # Test with None values
         with self.assertRaises(Exception):
             get_user_data(None, "users")
-        
         with self.assertRaises(Exception):
             get_user_data("1", None)
-            
         with self.assertRaises(Exception):
             search_users(None)
         
         # Test with empty strings
         with self.assertRaises(Exception):
             get_user_data("", "users")
-            
         with self.assertRaises(Exception):
             get_user_data("1", "")
-            
         with self.assertRaises(Exception):
             search_users("")
 

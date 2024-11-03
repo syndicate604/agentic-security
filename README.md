@@ -18,127 +18,40 @@ Agentic Security harnesses OWASP ZAP for in-depth scans, enhanced by AI-driven a
 
 ## Capabilities & Roadmap
 
-This auto-coding pipeline, developed by rUv, combines sophisticated pattern recognition with recursive validation, ensuring that generated security fixes are both precise and robust. By continuously learning from previous fixes, it adapts to evolving security landscapes, providing protection that’s not only immediate but progressively more effective. The cyberpunk-themed interface and seamless integration into DevSecOps make this an indispensable tool for agile and efficient security management.
+This auto-coding pipeline, created by rUv, merges advanced pattern recognition with recursive validation, producing accurate, adaptive security fixes. Continuous learning from past issues equips it to tackle an evolving security landscape effectively. A cyberpunk interface integrates seamlessly into DevSecOps, offering agile and efficient security management.
 
+### ⚙️ Auto-Fix/Coding Pipeline
 
-### 🤖 Next-Generation AI Security Analysis
+Empowers developers with hands-free, AI-driven remediation, handling vulnerabilities from discovery to fix. With continuous adaptation, the system improves with each iteration, enabling rapid, safe deployments.
 
-Leverage the latest in AI-powered security with over 120 models including OpenAi and Claude-3. This architecture delivers an in-depth, automated security assessment that identifies, contextualizes, and preemptively addresses vulnerabilities, setting a new standard for proactive cybersecurity.
-
-| Capability                        | Benefits                                |
-|-----------------------------------|-----------------------------------------|
-| Dual AI Architecture              | Comprehensive vulnerability detection    |
-| Advanced Pattern Recognition      | Early threat identification             |
-| Contextual Code Understanding     | Reduced false positives                 |
-| Predictive Vulnerability Detection | Proactive security measures             |
-
----
-
-### ⚙️ Revolutionary Auto-Fix/Coding Pipeline
-
-This pipeline empowers developers with an AI-driven, hands-free remediation process, tackling vulnerabilities from discovery to fix. Using OpenAI’s o1-preview for architectural oversight and Claude 3.5 Sonnet for intelligent, validated code generation, the system adapts over time, refining its accuracy with every iteration. It ensures that critical issues are addressed rapidly, while unnecessary changes are minimized, enabling faster, safer code deployment.
-
-| Capability                       | Benefits                                |
-|----------------------------------|-----------------------------------------|
-| AI-Powered Code Remediation      | Faster, automated vulnerability fixes   |
-| Self-Learning System             | Improved accuracy over time             |
-| Intelligent Fix Validation       | Minimizes regression risks              |
-| Zero-Day Vulnerability Protection | Enhanced readiness for emerging threats |
-
-
----
+| Capability                       | Benefits                               |
+|----------------------------------|----------------------------------------|
+| Automated Code Remediation       | Faster, automated fixes                |
+| Self-Learning System             | Improved accuracy over time            |
+| Intelligent Fix Validation       | Minimizes regression risks             |
+| Zero-Day Vulnerability Protection| Readiness for emerging threats         |
 
 ### 🛠 Enterprise-Grade Security Integration
 
-Integrate security seamlessly into your DevSecOps pipeline. This solution maintains industry-standard compliance and enforces automated security gates, ensuring constant monitoring with minimal workflow interruption.
+Integrates seamlessly into DevSecOps for constant security monitoring with minimal disruption, maintaining compliance and enforcing automated security gates.
 
-| Capability                         | Benefits                                |
-|------------------------------------|-----------------------------------------|
-| DevSecOps Pipeline Integration     | Minimal workflow disruption             |
-| Industry-Standard Compliance       | Automated compliance checks             |
-| Automated Security Gates           | Consistent security enforcement         |
-| Real-Time Security Monitoring      | Immediate threat response               |
-
----
-
-### 🤖 Intelligent Workflow Automation
-
-Automate security tasks like branch management, PR generation, and continuous monitoring. This setup reduces manual overhead, prioritizes alerts intelligently, and maintains constant vigilance for emerging threats.
-
-| Capability                        | Benefits                                |
-|-----------------------------------|-----------------------------------------|
-| Smart Branch Management           | Streamlined fix deployment              |
-| Automated PR Generation           | Reduced manual overhead                 |
-| Continuous Security Monitoring    | Proactive threat detection              |
-| Intelligent Alert Prioritization  | Focused security response               |
-
----
-
-### 🔒 Advanced Risk Management
-
-Empower strategic security planning with AI-driven CVSS scoring and predictive risk analysis. This approach allocates resources efficiently and maintains compliance, ensuring your organization’s security investments are optimally used.
-
-| Capability                        | Benefits                                |
-|-----------------------------------|-----------------------------------------|
-| AI-Powered CVSS Scoring           | Accurate risk assessment                |
-| Predictive Risk Analysis          | Prioritized remediation                 |
-| Smart Resource Allocation         | Optimized security investment           |
-| Automated Compliance Checking     | Maintained compliance status            |
-
----
-
-### 🎨 Cutting-Edge User Experience
-
-Operate in an immersive, cyberpunk-inspired interface designed for efficient navigation and real-time insights. With color-coded statuses, ASCII art, and progress tracking, the interface enhances productivity and reduces the learning curve for users.
-
-| Capability                        | Benefits                                |
-|-----------------------------------|-----------------------------------------|
-| Cyberpunk-Inspired Interface      | Intuitive operation                     |
-| Real-Time Progress Tracking       | Clear progress visibility               |
-| Intelligent Command Suggestions   | Reduced learning curve                  |
-| Advanced Visualization            | Better decision-making                  |
-
----
+| Capability                         | Benefits                               |
+|------------------------------------|----------------------------------------|
+| DevSecOps Integration              | Minimal workflow disruption            |
+| Compliance Checks                  | Automated compliance maintenance       |
+| Security Gates                     | Continuous enforcement                 |
+| Real-Time Monitoring               | Immediate threat response              |
 
 ### 🌐 Comprehensive Security Checks
 
-Ensure top-notch protection with OWASP ZAP for web vulnerabilities, Nuclei for known exploits, and dependency checking for outdated components. Adhering to OWASP Top 10, access controls, and secure protocols, this system maintains robust security across the codebase.
+Provides robust protection via OWASP ZAP, Nuclei, and dependency checks, aligning with OWASP Top 10 standards for a consistently secure codebase.
 
-| Capability                        | Benefits                                |
-|-----------------------------------|-----------------------------------------|
-| OWASP ZAP Web Vulnerability Scan  | Broad vulnerability coverage            |
-| Nuclei Exploit Detection          | Protection from known vulnerabilities   |
-| Dependency & Component Checks     | Risk mitigation for outdated elements   |
-| OWASP Top 10 Compliance           | Consistent security best practices      |
-
----
-
-### 🏆 Enterprise Benefits & Impact
-
-By reducing security overhead, accelerating issue resolution, and improving code quality, this AI-centered security solution strengthens your security posture and market position while minimizing operational costs.
-
-| Capability                        | Business Impact                        |
+| Capability                        | Benefits                               |
 |-----------------------------------|----------------------------------------|
-| Reduced Security Overhead         | Lower operational costs                |
-| Faster Vulnerability Resolution   | Minimized security risks               |
-| Improved Code Quality             | Enhanced product reliability           |
-| Enhanced Security Posture         | Stronger market position               |
-
----
-
-### 🚀 State-of-the-Art Technology
-
-Built with the latest AI models, advanced caching, scalable architecture, and continuous learning capabilities, this solution is designed for high performance and future-proofed security, setting a benchmark in technical excellence.
-
-| Capability                        | Technical Excellence                   |
-|-----------------------------------|----------------------------------------|
-| Latest AI Models                  | Best-in-class analysis                 |
-| Advanced Caching System           | Optimal performance                    |
-| Scalable Architecture             | Enterprise readiness                   |
-| Continuous Learning               | Evolving protection                    | 
-
----
-
+| Web Vulnerability Scans           | Broad coverage                         |
+| Exploit Detection                 | Known vulnerability protection         |
+| Dependency Checks                 | Mitigates outdated components          |
+| OWASP Compliance                  | Best security practices                |
 
 ### Current Features
 ### Architecture & Code Analysis
