@@ -61,8 +61,9 @@ class SecurityPipeline:
 
     def setup_environment(self) -> None:
         """Set up necessary environment variables and paths"""
-        # Load environment variables from .env file
-        load_dotenv()
+        # Load environment variables from .env file unless skipped
+        if not os.getenv('SKIP_DOTENV'):
+            load_dotenv()
         
         # Check for required environment variables
         required_vars = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY']
