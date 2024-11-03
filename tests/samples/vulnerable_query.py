@@ -43,24 +43,58 @@ def validate_table_name(table_name: str) -> bool:
         
     Returns:
         bool: True if table name is valid, False otherwise
+        
+    Raises:
+        DatabaseError: If table name is invalid
     """
     if not isinstance(table_name, str):
-        return False
-    # Strict validation against whitelist and character set
-    return (table_name in ALLOWED_TABLES.keys() and 
-            bool(re.match(r'^[a-zA-Z][a-zA-Z0-9_]{0,63}$', table_name)))
+        raise DatabaseError("Table name must be a string")
+        
+    if table_name not in ALLOWED_TABLES:
+        raise DatabaseError(f"Table '{table_name}' not in allowed tables list")
+        
+    # Additional strict validation against SQL injection patterns
+    if any(char in table_name for char in "';\"\\"):
+        raise DatabaseError("Invalid characters in table name")
+        
+    if not re.match(r'^[a-zA-Z][a-zA-Z0-9_]{0,63}$', table_name):
+        raise DatabaseError("Invalid table name format")
+        
+    return True
 
 def validate_columns(table_name: str, columns: List[str]) -> bool:
     """
     Validate if requested columns are allowed for the table and contain only valid characters
-    """
-    if not isinstance(columns, list) or not all(isinstance(col, str) for col in columns):
-        return False
     
-    # Validate each column name format and presence in allowed list
-    return all(col in ALLOWED_TABLES[table_name] and 
-              bool(re.match(r'^[a-zA-Z0-9_]+$', col)) 
-              for col in columns)
+    Args:
+        table_name: The table to validate columns against
+        columns: List of column names to validate
+        
+    Returns:
+        bool: True if all columns are valid
+        
+    Raises:
+        DatabaseError: If any column is invalid
+    """
+    if not isinstance(columns, list):
+        raise DatabaseError("Columns must be provided as a list")
+        
+    if not all(isinstance(col, str) for col in columns):
+        raise DatabaseError("All column names must be strings")
+    
+    allowed_cols = ALLOWED_TABLES.get(table_name, [])
+    
+    for col in columns:
+        if col not in allowed_cols:
+            raise DatabaseError(f"Column '{col}' not allowed for table '{table_name}'")
+            
+        if any(char in col for char in "';\"\\"):
+            raise DatabaseError(f"Invalid characters in column name: {col}")
+            
+        if not re.match(r'^[a-zA-Z][a-zA-Z0-9_]{0,63}$', col):
+            raise DatabaseError(f"Invalid column name format: {col}")
+    
+    return True
 
 def validate_user_id(user_id: str) -> bool:
     """
@@ -122,28 +156,25 @@ def get_user_data(user_id: str, table_name: str, columns: Optional[List[str]] = 
             if not column_list:
                 raise DatabaseError("No valid columns specified")
                 
-            # Build query with validated table and column names
-            placeholders = []
-            params = []
+            # Build query using proper parameterization
+            column_list = [col for col in columns if validate_columns(table_name, [col])]
+            if not column_list:
+                raise DatabaseError("No valid columns specified")
+                
+            # Create safe column selection using validated names
+            columns_str = ', '.join(f'"{col}"' for col in column_list)
             
-            # Create safe column selection
-            column_params = []
-            for col in column_list:
-                if col not in ALLOWED_TABLES[table_name]:
-                    raise DatabaseError(f"Invalid column: {col}")
-                column_params.append(f'"{col}"')
-            columns_str = ','.join(column_params)
-            
-            # Create parameterized query
-            query = f"""
-                SELECT {columns_str}
-                FROM "{table_name}"
-                WHERE id = :user_id 
+            # Use fully parameterized query with no string formatting
+            query = """
+                SELECT """ + columns_str + """
+                FROM """ + table_name + """
+                WHERE id = ? 
                 AND active = 1
+                AND deleted_at IS NULL
             """
             
-            # Execute with named parameters
-            cursor.execute(query, {"user_id": user_id})
+            # Execute with tuple parameters for better security
+            cursor.execute(query, (user_id,))
             results = cursor.fetchall()
             
             if not results:
