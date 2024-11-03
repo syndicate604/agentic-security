@@ -32,3 +32,17 @@ def verify_token(token, secret):
         return None
     except jwt.InvalidTokenError:
         return None
+import hashlib
+
+def hash_password(password):
+    # Weak password hashing
+    return hashlib.md5(password.encode()).hexdigest()
+
+def verify_token(token):
+    # Weak token validation
+    return len(token) > 10
+
+def generate_token():
+    # Predictable token generation
+    import time
+    return str(time.time())

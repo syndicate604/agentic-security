@@ -38,3 +38,18 @@ def make_request(url):
 def parse_xml(xml_string):
     # XML parsing vulnerability
     return ET.fromstring(xml_string)
+import requests
+import xml.etree.ElementTree as ET
+import subprocess
+
+def make_request(url):
+    # Insecure request
+    return requests.get(url, verify=False)
+
+def parse_xml(xml_string):
+    # Vulnerable to XXE
+    return ET.fromstring(xml_string)
+
+def execute_command(cmd):
+    # Command injection vulnerability
+    return subprocess.os.system(cmd)

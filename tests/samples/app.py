@@ -49,3 +49,21 @@ def echo_input(user_input):
 def display_comment(comment):
     # XSS vulnerability
     return f"<div>{comment}</div>"
+from flask import Flask, request
+import sqlite3
+
+app = Flask(__name__)
+
+@app.route('/users')
+def get_users():
+    # Vulnerable to SQL injection
+    name = request.args.get('name')
+    query = f"SELECT * FROM users WHERE name = '{name}'"
+    
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+    cursor.execute(query)
+    return str(cursor.fetchall())
+
+if __name__ == '__main__':
+    app.run(debug=True)
