@@ -454,21 +454,25 @@ class SecurityPipeline:
         """Review paths for security issues"""
         results = {'reviews': []}
 
+        # Skip cache in CI environment
+        skip_cache = os.environ.get('CI', '').lower() == 'true'
+
         for path in paths:
             if not os.path.exists(path):
                 raise FileNotFoundError(f"Path not found: {path}")
 
             # Use sanitized path as cache key
             cache_key = f"review_{path.replace('/', '_').replace('\\', '_')}"
-            cached_results = self.cache.get_scan_results(cache_key)
+            cached_results = None if skip_cache else self.cache.get_scan_results(cache_key)
 
             if cached_results:
                 security_results = cached_results
             else:
                 # Run code security checks
                 security_results = self._run_code_security_checks(path)
-                # Save results to cache
-                self.cache.save_scan_results(cache_key, security_results)
+                # Save results to cache only if not in CI
+                if not skip_cache:
+                    self.cache.save_scan_results(cache_key, security_results)
 
             # Format results
             for vuln_type, findings in security_results.items():
@@ -563,7 +567,8 @@ class SecurityPipeline:
             'results': security_results,
             'timestamp': datetime.now().isoformat()
         }
-        if not getattr(self, '_skip_cache', False):
+        # Don't cache in CI environment
+        if not os.environ.get('CI', '').lower() == 'true' and not getattr(self, '_skip_cache', False):
             self.cache.save_scan_results(scan_id, results)
         return results
 
