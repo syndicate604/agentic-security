@@ -157,7 +157,7 @@ class SecurityPipeline:
         security_patterns = {
             'sql_injection': ['execute(', 'cursor.execute(', 'raw_query', 'SELECT * FROM', 'INSERT INTO', 'UPDATE', 'DELETE FROM'],
             'command_injection': ['os.system', 'subprocess.call', 'eval(', 'exec('],
-            'xss': ['<script>', 'innerHTML', 'document.write'],
+            'xss': ['<script>', 'innerHTML', 'document.write', '<div>', 'user_input'],
             'weak_crypto': ['md5', 'sha1', 'DES', 'RC4'],
             'insecure_auth': ['basic_auth', 'plaintext_password', 'verify=False'],
             'xxe': ['xml.etree.ElementTree', 'xmlparse', 'parsexml'],
@@ -413,6 +413,14 @@ class SecurityPipeline:
 
     def generate_review_report(self, results: Dict, output_path: str) -> None:
         """Generate markdown report from review results"""
+        vulnerability_descriptions = {
+            'sql_injection': 'SQL Injection vulnerability detected',
+            'command_injection': 'Command Injection vulnerability detected',
+            'xss': 'Cross-Site Scripting (XSS) vulnerability detected',
+            'weak_crypto': 'Weak cryptographic implementation detected',
+            'insecure_deserialization': 'Insecure deserialization vulnerability detected'
+        }
+        
         with open(output_path, 'w') as f:
             f.write("# Security Review Report\n\n")
             
@@ -424,7 +432,13 @@ class SecurityPipeline:
                 if review.get('findings'):
                     f.write("### Findings\n\n")
                     for finding in review['findings']:
-                        f.write(f"- {finding.get('description', 'Security issue detected')}\n")
+                        description = vulnerability_descriptions.get(
+                            review['type'], 
+                            'Security issue detected'
+                        )
+                        f.write(f"- {description}\n")
+                        if finding.get('description'):
+                            f.write(f"  Details: {finding['description']}\n")
                 f.write("\n")
 
     def print_review_results(self, results: Dict, verbose: bool = False) -> None:
