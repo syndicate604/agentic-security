@@ -159,13 +159,26 @@ class SecurityPipeline:
                             
                             # Check for each vulnerability pattern
                             for vuln_type, patterns in security_patterns.items():
-                                if any(pattern in content.lower() for pattern in patterns):
+                                # For SQL injection, also check for string formatting with curly braces
+                                if vuln_type == 'sql_injection':
+                                    has_sql_pattern = any(pattern in content.lower() for pattern in patterns)
+                                    has_string_format = 'SELECT' in content and '{' in content and '}' in content
+                                    if has_sql_pattern or has_string_format:
+                                        if vuln_type not in results:
+                                            results[vuln_type] = []
+                                        results[vuln_type].append({
+                                            'file': file_path,
+                                            'type': vuln_type,
+                                            'severity': 'high'
+                                        })
+                                # For other vulnerability types
+                                elif any(pattern in content.lower() for pattern in patterns):
                                     if vuln_type not in results:
                                         results[vuln_type] = []
                                     results[vuln_type].append({
                                         'file': file_path,
                                         'type': vuln_type,
-                                        'severity': 'high' if vuln_type in ['sql_injection', 'command_injection', 'insecure_deserialization'] else 'medium'
+                                        'severity': 'high' if vuln_type in ['command_injection', 'insecure_deserialization'] else 'medium'
                                     })
             
             # Run dependency check if available
