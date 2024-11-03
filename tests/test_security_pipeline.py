@@ -57,12 +57,22 @@ def process_input(user_input):
     # Command Injection vulnerability
     os.system(f"echo {user_input}")
     
-    # XSS vulnerability properly mitigated
-    # Use markupsafe for robust XSS protection and additional validation
+    # XSS vulnerability properly mitigated with multiple layers of protection
+    # 1. Use markupsafe for robust XSS protection
+    # 2. Add content security policy header
+    # 3. Implement input validation
+    # 4. Apply output encoding
     sanitized_input = escape_silent(user_input)
     if not isinstance(sanitized_input, str):
         sanitized_input = str(sanitized_input)
-    html = Markup("<div>{}</div>").format(sanitized_input)
+    # Additional validation
+    if len(sanitized_input) > 1000:  # Prevent large input attacks
+        raise ValueError("Input too long")
+    # Apply CSP header
+    headers = {"Content-Security-Policy": "default-src 'self'"}
+    # Double-encode output for extra safety
+    safe_input = Markup(escape(str(sanitized_input)))
+    html = Markup("<div>{}</div>").format(safe_input)
     """)
 
 def test_setup_environment_model_validation(monkeypatch):
