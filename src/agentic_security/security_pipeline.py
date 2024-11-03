@@ -238,9 +238,16 @@ class SecurityPipeline:
                                     
                         # For SQL injection, check for unsafe string formatting
                         if vuln_type == 'sql_injection':
-                            has_sql_pattern = any(pattern in content.lower() for pattern in patterns)
-                            has_unsafe_format = ('SELECT' in content and '%s' in content) or \
-                                              ('SELECT' in content and '{' in content and '}' in content)
+                            sql_keywords = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'DROP']
+                            has_sql_pattern = any(keyword in content.upper() for keyword in sql_keywords)
+                            has_unsafe_format = (
+                                any(f"{keyword} " in content.upper() and (
+                                    '%s' in content or
+                                    '{' in content or
+                                    '+' in content or
+                                    '\\' in content
+                                ) for keyword in sql_keywords)
+                            )
                             if has_sql_pattern and has_unsafe_format:
                                 if vuln_type not in results:
                                     results[vuln_type] = []
@@ -248,7 +255,7 @@ class SecurityPipeline:
                                     'file': file_path,
                                     'type': vuln_type,
                                     'severity': 'high',
-                                    'line': content.count('\n', 0, content.find('SELECT'))
+                                    'line': content.count('\n', 0, content.find(next(k for k in sql_keywords if k in content.upper())))
                                 })
                         # For other vulnerability types
                         elif any(pattern in content.lower() for pattern in patterns) and \
@@ -665,7 +672,7 @@ class SecurityPipeline:
             cache_key = f"review_{path.replace('/', '_').replace('\\', '_')}"
             cached_results = None if skip_cache else self.cache.get_scan_results(cache_key)
 
-            if cached_results:
+            if cached_results and isinstance(cached_results, dict):
                 security_results = cached_results
             else:
                 # Run code security checks
@@ -675,14 +682,17 @@ class SecurityPipeline:
                     self.cache.save_scan_results(cache_key, security_results)
 
             # Format results
-            for vuln_type, findings in security_results.items():
-                for finding in findings:
-                    results['reviews'].append({
-                        'file': finding['file'],
-                        'type': vuln_type,
-                        'severity': finding['severity'],
-                        'findings': [finding]
-                    })
+            if isinstance(security_results, dict):
+                for vuln_type, findings in security_results.items():
+                    if vuln_type != 'dependency':  # Skip dependency check results
+                        for finding in findings:
+                            if isinstance(finding, dict):
+                                results['reviews'].append({
+                                    'file': finding.get('file', ''),
+                                    'type': vuln_type,
+                                    'severity': finding.get('severity', 'medium'),
+                                    'findings': [finding]
+                                })
 
         return results
 
