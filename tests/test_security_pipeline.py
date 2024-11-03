@@ -161,16 +161,46 @@ def test_custom_prompts(pipeline):
 
 def test_pipeline_error_handling(pipeline, test_config):
     """Test pipeline error handling"""
-    # Test invalid config
-    invalid_config = pipeline.config.copy()
-    invalid_config['security']['critical_threshold'] = -1
-    invalid_config_file = Path(test_config).parent / 'invalid_config.yml'
-    with open(invalid_config_file, 'w') as f:
-        yaml.dump(invalid_config, f)
-    with pytest.raises(ValueError):
-        # This should raise ValueError during initialization
-        SecurityPipeline(str(invalid_config_file))
-    
+    # Test invalid configuration structure
+    invalid_config = {
+        'not_security': {}
+    }
+    with pytest.raises(ValueError, match="Invalid configuration structure"):
+        pipeline.config = invalid_config
+        pipeline.run_pipeline()
+
+    # Test negative threshold
+    invalid_config = {
+        'security': {
+            'critical_threshold': -1,
+            'scan_targets': []
+        }
+    }
+    with pytest.raises(ValueError, match="Critical threshold cannot be negative"):
+        pipeline.config = invalid_config
+        pipeline.run_pipeline()
+
+    # Test missing scan targets
+    invalid_config = {
+        'security': {
+            'critical_threshold': 7.0
+        }
+    }
+    result = pipeline.run_pipeline()
+    assert result == {'status': False, 'error': 'No scan targets configured'}
+
+    # Test invalid scan target types
+    invalid_config = {
+        'security': {
+            'critical_threshold': 7.0,
+            'scan_targets': [
+                {'type': 'invalid', 'path': '/tmp'}
+            ]
+        }
+    }
+    result = pipeline.run_pipeline()
+    assert result == {'status': False, 'error': 'Invalid scan target types'}
+
     # Test missing dependencies
     pipeline.config['security']['scan_targets'] = [
         {'type': 'invalid', 'url': 'http://example.com'}

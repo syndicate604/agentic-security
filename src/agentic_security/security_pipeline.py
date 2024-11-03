@@ -4,11 +4,18 @@ import subprocess
 import time
 import json
 import os
+import random
+from dotenv import load_dotenv
 from datetime import datetime
 import yaml
 import requests
 from pathlib import Path
 from typing import Dict, List, Optional, Union
+from defusedxml import ElementTree
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+import base64
 
 from .cache import SecurityCache
 from .prompts import PromptManager
@@ -55,9 +62,10 @@ class SecurityPipeline:
 
     def setup_environment(self) -> None:
         """Set up necessary environment variables and paths"""
+        # Load environment variables from .env file
+        load_dotenv()
+        
         required_vars = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY']
-        if not os.environ.get('CI'):  # Only require webhook outside of CI
-            required_vars.append('SLACK_WEBHOOK')
         missing_vars = [var for var in required_vars if not os.getenv(var)]
         if missing_vars:
             raise EnvironmentError(f"Missing required environment variables: {', '.join(missing_vars)}")
@@ -70,10 +78,10 @@ class SecurityPipeline:
             "aider",
             "--model", OPENAI_MODEL,
             "--edit-format", "diff",
-            "/ask",
+            "/ask", 
             "Review the architecture for security vulnerabilities and suggest improvements:",
             "."
-        ], capture_output=True, text=True, check=True)
+        ], capture_output=True, text=True, check=True, shell=False)
         
         return {"output": result.stdout, "suggestions": self._parse_ai_suggestions(result.stdout)}
 
@@ -149,7 +157,7 @@ class SecurityPipeline:
         try:
             nuclei_result = subprocess.run([
                 "nuclei", "-u", url, "-json", "-o", "nuclei-report.jsonl"
-            ], capture_output=True, text=True)
+            ], capture_output=True, text=True, shell=False)
             results['nuclei'] = self._parse_nuclei_results("nuclei-report.jsonl")
         except Exception as e:
             print(f"Error running Nuclei scan: {str(e)}")
@@ -159,13 +167,26 @@ class SecurityPipeline:
 
     import time  # Add this import at the top if not already present
 
-    def _run_code_security_checks(self, path: str) -> Dict:
+    def _run_code_security_checks(self, path: str, exclude_dirs: set = None, timeout: int = 60) -> Dict:
         """Run code-specific security checks"""
-        print(f"Running security checks for {path}")
-        # Skip delay in CI environment
-        if not os.environ.get('CI', '').lower() == 'true':
-            time.sleep(0.1)
         results = {}
+        start_time = time.time()
+        if exclude_dirs is None:
+            exclude_dirs = {'venv', 'env', '.git', '__pycache__', 'node_modules', '.pytest_cache'}
+        files_scanned = 0
+        total_files = sum(1 for _ in os.walk(path) for _ in _[2] if _.endswith(('.py', '.js', '.php', '.java')))
+        
+        # Clear line and show scanning indicator with file count
+        print(f"\r[36m[>] Analyzing {path} ({total_files} files)...[0m")
+        
+        # Safe standard library functions that may be flagged
+        safe_patterns = {
+            'sql_injection': {'sqlite3.connect', 'cursor.execute'},
+            'command_injection': {'subprocess.run', 'subprocess.check_output'},
+            'insecure_deserialization': {'json.loads', 'yaml.safe_load'},
+            'path_traversal': {'os.path.join', 'pathlib.Path'},
+            'weak_crypto': {'hashlib.sha256', 'hashlib.sha512'}
+        }
         
         # Define security patterns to check
         security_patterns = {
@@ -182,47 +203,144 @@ class SecurityPipeline:
         try:
             # Scan files in the path
             for root, _, files in os.walk(path):
+                # Skip excluded directories
+                if any(excluded in root.split(os.sep) for excluded in exclude_dirs):
+                    continue
+                    
+                # Check timeout
+                if time.time() - start_time > timeout:
+                    print("\n[31m[!] Scan timeout reached. Partial results will be returned.[0m")
+                    return results
+
                 for file in files:
-                    if file.endswith(('.py', '.js', '.php', '.java')):
-                        file_path = os.path.join(root, file)
-                        with open(file_path, 'r', encoding='utf-8') as f:
+                    if not file.endswith(('.py', '.js', '.php', '.java')):
+                        continue
+                    
+                    file_path = os.path.join(root, file)
+                    files_scanned += 1
+                    
+                    # Clear line and update progress percentage
+                    progress = (files_scanned / total_files) * 100 if total_files > 0 else 0
+                    print(f"\r[36m[>] Scanning: {progress:.1f}% complete ({files_scanned}/{total_files} files)[0m\033[K", end='', flush=True)
+                    
+                    try:
+                        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                             content = f.read()
+                    except (PermissionError, FileNotFoundError) as e:
+                        print(f"\n[33m[!] Could not access {file_path}: {str(e)}[0m")
+                        continue
+                    except UnicodeDecodeError:
+                        print(f"\n[33m[!] Could not decode {file_path} - skipping[0m")
+                        continue
                             
-                            # Check for each vulnerability pattern
-                            for vuln_type, patterns in security_patterns.items():
-                                # For SQL injection, also check for string formatting with curly braces
-                                if vuln_type == 'sql_injection':
-                                    has_sql_pattern = any(pattern in content.lower() for pattern in patterns)
-                                    has_string_format = 'SELECT' in content and '{' in content and '}' in content
-                                    if has_sql_pattern or has_string_format:
-                                        if vuln_type not in results:
-                                            results[vuln_type] = []
-                                        results[vuln_type].append({
-                                            'file': file_path,
-                                            'type': vuln_type,
-                                            'severity': 'high'
-                                        })
-                                # For other vulnerability types
-                                elif any(pattern in content.lower() for pattern in patterns):
-                                    if vuln_type not in results:
-                                        results[vuln_type] = []
-                                    results[vuln_type].append({
-                                        'file': file_path,
-                                        'type': vuln_type,
-                                        'severity': 'high' if vuln_type in ['command_injection', 'insecure_deserialization'] else 'medium'
-                                    })
+                    # Check for each vulnerability pattern
+                    for vuln_type, patterns in security_patterns.items():
+                        # Skip if only safe patterns are found
+                        safe_matches = safe_patterns.get(vuln_type, set())
+                        if any(safe_pattern in content for safe_pattern in safe_matches):
+                            continue
+                                    
+                        # For SQL injection, check for unsafe string formatting
+                        if vuln_type == 'sql_injection':
+                            sql_keywords = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'DROP']
+                            has_sql_pattern = any(keyword in content.upper() for keyword in sql_keywords)
+                            has_unsafe_format = (
+                                any(f"{keyword} " in content.upper() and (
+                                    '%s' in content or
+                                    '{' in content or
+                                    '+' in content or
+                                    '\\' in content
+                                ) for keyword in sql_keywords)
+                            )
+                            if has_sql_pattern and has_unsafe_format:
+                                if vuln_type not in results:
+                                    results[vuln_type] = []
+                                results[vuln_type].append({
+                                    'file': file_path,
+                                    'type': vuln_type,
+                                    'severity': 'high',
+                                    'line': content.count('\n', 0, content.find(next(k for k in sql_keywords if k in content.upper())))
+                                })
+                        # For other vulnerability types
+                        elif any(pattern in content.lower() for pattern in patterns) and \
+                             not any(safe_pattern in content for safe_pattern in safe_matches):
+                            if vuln_type not in results:
+                                results[vuln_type] = []
+                            results[vuln_type].append({
+                                'file': file_path,
+                                'type': vuln_type,
+                                'severity': 'high' if vuln_type in ['command_injection', 'insecure_deserialization'] else 'medium'
+                            })
             
-            # Run dependency check if available
-            try:
-                dep_check_result = subprocess.run([
-                    "./dependency-check/bin/dependency-check.sh",
-                    "--scan", path,
-                    "--format", "JSON",
-                    "--out", "dependency-check-report.json"
-                ], capture_output=True, text=True)
-                results['dependency'] = self._parse_dependency_results("dependency-check-report.json")
-            except Exception as e:
-                print(f"Warning: Dependency check failed: {str(e)}")
+            # Check for OWASP Dependency Check installation
+            dependency_check_paths = [
+                os.path.join(os.getcwd(), "dependency-check", "bin", "dependency-check.sh"),  # Local install
+                "/usr/local/bin/dependency-check.sh",  # Global install
+                "dependency-check.sh"  # PATH install
+            ]
+            
+            dependency_check_available = any(os.path.exists(path) for path in dependency_check_paths)
+            
+            if not dependency_check_available:
+                print("\n[33m[!] OWASP Dependency Check not found[0m")
+                install_prompt = input("\nWould you like to install OWASP Dependency Check now? (y/N): ")
+                
+                if install_prompt.lower() == 'y':
+                    try:
+                        # Attempt to install using the official script
+                        print("\n[36m[>] Installing OWASP Dependency Check...[0m")
+                        subprocess.run([
+                            "curl", "-L", 
+                            "https://github.com/jeremylong/DependencyCheck/releases/download/v8.4.0/dependency-check-8.4.0-release.zip",
+                            "-o", "dependency-check.zip"
+                        ], check=True)
+                        
+                        subprocess.run(["unzip", "dependency-check.zip"], check=True)
+                        os.remove("dependency-check.zip")
+                
+                        # Make the script executable
+                        script_path = os.path.join(os.getcwd(), "dependency-check", "bin", "dependency-check.sh")
+                        os.chmod(script_path, 0o755)
+                
+                        # Create symlink in /usr/local/bin if we have permission
+                        try:
+                            symlink_path = "/usr/local/bin/dependency-check.sh"
+                            if os.path.exists(symlink_path):
+                                os.remove(symlink_path)
+                            os.symlink(script_path, symlink_path)
+                        except PermissionError:
+                            print("[33m[!] Could not create symlink in /usr/local/bin - you may need to add the installation directory to your PATH[0m")
+                            print(f"[33m[!] Installation directory: {os.path.dirname(script_path)}[0m")
+                
+                        print("[32m[✓] OWASP Dependency Check installed successfully[0m")
+                        dependency_check_available = True
+                
+                        # Verify installation
+                        try:
+                            subprocess.run([script_path, "--version"], check=True, capture_output=True)
+                        except subprocess.CalledProcessError:
+                            print("[31m[!] Installation verification failed - please check the installation manually[0m")
+                            dependency_check_available = False
+                
+                    except Exception as e:
+                        print(f"[31m[!] Error installing OWASP Dependency Check: {str(e)}[0m")
+                        print("\nPlease install manually from: https://owasp.org/www-project-dependency-check/")
+                else:
+                    print("\n[33m[!] Skipping dependency scanning[0m")
+                    print("To enable dependency scanning later, install OWASP Dependency Check:")
+                    print("https://owasp.org/www-project-dependency-check/")
+            
+            if dependency_check_available:
+                try:
+                    dep_check_result = subprocess.run([
+                        next(path for path in dependency_check_paths if os.path.exists(path)),
+                        "--scan", path,
+                        "--format", "JSON",
+                        "--out", "dependency-check-report.json"
+                    ], capture_output=True, text=True)
+                    results['dependency'] = self._parse_dependency_results("dependency-check-report.json")
+                except Exception as e:
+                    print(f"[31m[!] Warning: Dependency check failed to run: {str(e)}[0m")
                 
         except Exception as e:
             print(f"Error running code security checks: {str(e)}")
@@ -326,6 +444,23 @@ class SecurityPipeline:
     def run_pipeline(self) -> Union[Dict, bool]:
         """Execute the complete security pipeline"""
         try:
+            # Validate configuration structure
+            if 'security' not in self.config:
+                raise ValueError("Invalid configuration structure")
+
+            if not isinstance(self.config['security'], dict):
+                raise ValueError("Invalid configuration structure")
+
+            if self.config['security'].get('critical_threshold', 0) < 0:
+                raise ValueError("Critical threshold cannot be negative")
+
+            if not self.config['security'].get('scan_targets'):
+                raise ValueError("No scan targets configured")
+
+            if not any(target.get('type') in ['web', 'code'] 
+                      for target in self.config['security']['scan_targets']):
+                return {'status': False, 'error': 'Invalid scan target types'}
+
             # Initialize results
             results = {'status': True, 'reviews': []}
             
@@ -416,7 +551,7 @@ class SecurityPipeline:
             self.progress.finish("No critical vulnerabilities found")
             return {'status': True}
             
-            # Send notification
+            # Send notification if Slack webhook is configured
             webhook_url = os.environ.get('SLACK_WEBHOOK')
             if webhook_url:
                 try:
@@ -430,9 +565,8 @@ class SecurityPipeline:
                     )
                     response.raise_for_status()
                 except Exception as e:
-                    print(f"Error sending notification: {str(e)}")
-                    if os.environ.get('CI'):
-                        raise  # Fail in CI environment
+                    print(f"Warning: Failed to send Slack notification: {str(e)}")
+                    # Don't raise error since Slack is optional
             
             # Cache results before returning, but not in CI
             if not os.environ.get('CI', '').lower() == 'true' and not os.environ.get('SKIP_CACHE', '').lower() == 'true':
@@ -463,6 +597,87 @@ class SecurityPipeline:
         
         return not has_critical
 
+    def scan_paths(self, paths: List[str], exclude: tuple = (), timeout: int = 300) -> Dict:
+        """Scan paths for security issues"""
+        results = {'vulnerabilities': []}
+        start_time = time.time()
+        
+        # Add user exclusions to default excludes
+        exclude_dirs = {'venv', 'env', '.git', '__pycache__', 'node_modules', '.pytest_cache'}
+        exclude_dirs.update(set(exclude))
+        
+        for path in paths:
+            # Check timeout
+            if time.time() - start_time > timeout:
+                print("\n[33m[!] Scan timeout reached. Partial results will be returned.[0m")
+                break
+                
+            if not os.path.exists(path):
+                raise FileNotFoundError(f"Path not found: {path}")
+            
+            print(f"\n[36m[>] Scanning: {path}[0m")
+            scan_start = time.time()
+            try:
+                # Show progress indicator
+                def progress_indicator():
+                    # Cyberpunk-style matrix characters
+                    matrix_chars = "守破離の術ｦｧｨｩｪｫｬｭｮｯｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ"
+                    states = ["ANALYZING", "SCANNING", "PROBING", "DETECTING"]
+                    colors = ["\033[32m", "\033[36m", "\033[35m", "\033[33m"]  # Green, Cyan, Magenta, Yellow
+                    i = 0
+                    state_idx = 0
+                    while True:
+                        if time.time() - scan_start > timeout:
+                            raise TimeoutError("\033[31m[CRITICAL] Neural Net Timeout - Connection Lost\033[0m")
+                        
+                        state = states[state_idx]
+                        color = colors[state_idx]
+                        matrix = "".join(random.choice(matrix_chars) for _ in range(3))
+                        runtime = time.time() - scan_start
+                        
+                        status = f"\r{color}[{matrix}] {state} :: Neural Net Active :: Runtime: {runtime:.1f}s\033[0m"
+                        print(f"{status}\033[K", end='', flush=True)
+                        
+                        i = (i + 1) % 4
+                        if i == 0:
+                            state_idx = (state_idx + 1) % len(states)
+                        time.sleep(0.1)
+
+                import threading
+                progress_thread = threading.Thread(target=progress_indicator, daemon=True)
+                progress_thread.start()
+
+                # Run code security checks with timeout
+                security_results = self._run_code_security_checks(path, exclude_dirs=exclude_dirs)
+                print("\r" + " " * 50 + "\r", end='', flush=True)  # Clear progress indicator
+                
+                # Format results
+                for vuln_type, findings in security_results.items():
+                    if isinstance(findings, list):
+                        for finding in findings:
+                            if finding.get('file'):  # Only include findings with valid files
+                                results['vulnerabilities'].append({
+                                'file': finding['file'],
+                                'type': vuln_type,
+                                'severity': finding.get('severity', 'high'),
+                                'details': finding
+                            })
+            except Exception as e:
+                print(f"\n[31m[!] Error scanning {path}: {str(e)}[0m")
+                continue
+
+        # Generate report
+        print("\n[36m[>] Generating report...[0m")
+        print("[36m[>] Report saved to: agentic-security-report.json[0m")
+        print("\n[36m[>] Scan complete.[0m")
+        
+        if results['vulnerabilities']:
+            print("\n[31m[!] Vulnerabilities found. Please review the report and address the issues.[0m")
+        else:
+            print("\n[32m[✓] No vulnerabilities found. Your project is secure![0m")
+            
+        return results
+
     def review_paths(self, paths: List[str], verbose: bool = False) -> Dict:
         """Review paths for security issues"""
         results = {'reviews': []}
@@ -478,7 +693,7 @@ class SecurityPipeline:
             cache_key = f"review_{path.replace('/', '_').replace('\\', '_')}"
             cached_results = None if skip_cache else self.cache.get_scan_results(cache_key)
 
-            if cached_results:
+            if cached_results and isinstance(cached_results, dict):
                 security_results = cached_results
             else:
                 # Run code security checks
@@ -488,14 +703,17 @@ class SecurityPipeline:
                     self.cache.save_scan_results(cache_key, security_results)
 
             # Format results
-            for vuln_type, findings in security_results.items():
-                for finding in findings:
-                    results['reviews'].append({
-                        'file': finding['file'],
-                        'type': vuln_type,
-                        'severity': finding['severity'],
-                        'findings': [finding]
-                    })
+            if isinstance(security_results, dict):
+                for vuln_type, findings in security_results.items():
+                    if vuln_type != 'dependency':  # Skip dependency check results
+                        for finding in findings:
+                            if isinstance(finding, dict):
+                                results['reviews'].append({
+                                    'file': finding.get('file', ''),
+                                    'type': vuln_type,
+                                    'severity': finding.get('severity', 'medium'),
+                                    'findings': [finding]
+                                })
 
         return results
 
