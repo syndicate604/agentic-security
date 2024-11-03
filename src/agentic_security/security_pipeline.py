@@ -318,13 +318,14 @@ class SecurityPipeline:
         
             # Check cache for recent results
             cached_results = self.cache.get_scan_results(scan_id)
-            if cached_results:
+            if cached_results and not getattr(self, '_skip_cache', False):
                 self.progress.update(10, "Found cached results")
                 security_results = cached_results['results']
             else:
                 self.progress.update(20, "Running security checks")
                 security_results = self.run_security_checks()
-                self.cache.save_scan_results(scan_id, security_results)
+                if not getattr(self, '_skip_cache', False):
+                    self.cache.save_scan_results(scan_id, security_results)
             
             # Try architecture review if aider is available
             try:
