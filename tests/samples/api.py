@@ -13,6 +13,8 @@ from defusedxml import ElementTree as ET
 
 import logging
 
+import re
+
 def parse_xml_data(xml_string):
     """Secure XML parsing with XXE protection"""
     # Disable external entity resolution to prevent XXE attacks
@@ -22,13 +24,20 @@ def parse_xml_data(xml_string):
     try:
         xml_string = xml_string.strip()
         if not xml_string:
-            raise ValueError("Empty XML string")
+            raise ValueError("Invalid XML string: Empty input")
+        
+        # Additional input validation
+        # Reject XML strings with potential malicious patterns
+        malicious_patterns = [r'<!ENTITY', r'<!DOCTYPE']
+        for pattern in malicious_patterns:
+            if re.search(pattern, xml_string, re.IGNORECASE):
+                raise ValueError("Invalid XML string: Potential XXE attack detected")
     except ValueError as e:
         # Handle invalid input with proper error logging
         logging.error(f"Error: {e}")
         return None
 
-    # Parse XML string securely 
+    # Parse XML string securely
     try:
         tree = ET.fromstring(xml_string, parser=parser)
     except ET.ParseError as e:
@@ -36,11 +45,19 @@ def parse_xml_data(xml_string):
         logging.error(f"Error: {e}")
         return None
 
-    # Additional input validation and sanitization
-    # Sanitize tree to remove potential malicious nodes
+    # Additional input sanitization
+    # Remove potential malicious nodes from the parsed tree
     sanitize_tree(tree)
 
     return tree
+
+def sanitize_tree(tree):
+    """Sanitize the parsed XML tree to remove potential malicious nodes"""
+    # Remove nodes with potentially malicious content
+    malicious_tags = ['ENTITY', 'DOCTYPE']
+    for elem in tree.iter():
+        if elem.tag in malicious_tags:
+            elem.getparent().remove(elem)
 
 def sanitize_tree(tree):
     """Sanitize the parsed XML tree to remove potential malicious nodes"""
