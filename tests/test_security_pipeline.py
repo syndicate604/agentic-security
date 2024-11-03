@@ -176,9 +176,9 @@ def test_pipeline_error_handling(pipeline, test_config):
             'scan_targets': []
         }
     }
-    with pytest.raises(ValueError, match="Critical threshold cannot be negative"):
-        pipeline.config = invalid_config
-        pipeline.run_pipeline()
+    pipeline.config = invalid_config
+    result = pipeline.run_pipeline()
+    assert result == {'status': False, 'error': 'Critical threshold cannot be negative'}
 
     # Test missing scan targets
     invalid_config = {
