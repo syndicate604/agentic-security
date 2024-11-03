@@ -261,24 +261,13 @@ class SecurityPipeline:
         return suggestions
 
     def implement_fixes(self, suggestions: List[Dict], timeout: int = 300) -> bool:
-        """Implement fixes using aider with batched approach and detailed logging"""
+        """Implement security fixes with detailed logging"""
         print("\n\033[1;36m=== Starting Fix Implementation ===\033[0m")
         print(f"\033[36m[>] Processing {len(suggestions)} suggestions\033[0m")
-
+        
         if not suggestions:
             print("\033[33m[!] No suggestions to implement\033[0m")
             return False
-
-        # Group suggestions by file to reduce aider calls
-        fixes_by_file = {}
-        for suggestion in suggestions:
-            file_path = suggestion.get('file')
-            if not file_path or not os.path.exists(file_path):
-                print(f"\033[31m[!] Invalid or missing file: {file_path}\033[0m")
-                continue
-            if file_path not in fixes_by_file:
-                fixes_by_file[file_path] = []
-            fixes_by_file[file_path].append(suggestion)
 
         # Create fix branch if needed
         if not self.branch_name.startswith('security-fixes-'):
@@ -289,59 +278,77 @@ class SecurityPipeline:
                 print(f"\033[31m[!] Failed to create fix branch: {e}\033[0m")
                 return False
 
+        prompts_logger = logging.getLogger('prompts')
         success = True
-        total_files = len(fixes_by_file)
-        for idx, (file_path, file_suggestions) in enumerate(fixes_by_file.items(), 1):
-            print(f"\n\033[1;36m--- Processing File {idx}/{total_files}: {file_path} ---\033[0m")
-            print("\033[36m[>] Suggestions for this file:\033[0m")
-            print(json.dumps(file_suggestions, indent=2))
-            
+
+        for idx, suggestion in enumerate(suggestions, 1):
+            print(f"\n\033[1;36m--- Processing Fix {idx}/{len(suggestions)} ---\033[0m")
+            print("\033[36m[>] Suggestion details:\033[0m")
+            print(json.dumps(suggestion, indent=2))
+
+            file_path = suggestion.get('file')
+            if not file_path or not os.path.exists(file_path):
+                print(f"\033[31m[!] Invalid or missing file: {file_path}\033[0m")
+                success = False
+                continue
+
             try:
-                # Combine vulnerability types for more efficient fixing
-                vuln_types = [s.get('type') for s in file_suggestions]
-                fix_prompt = f"Fix the following vulnerabilities in this file: {', '.join(vuln_types)}"
-                
-                print("\n\033[36m[>] Generated Fix Prompt:\033[0m")
+                # Get the fix generation prompt
+                fix_prompt = self.prompt_manager.get_prompt(
+                    'fix_generation',
+                    vulnerability_type=suggestion.get('type', 'unknown'),
+                    file_path=file_path
+                )
+                print("\n\033[36m[>] Prompt being sent to Aider:\033[0m")
                 print("\033[36m----------------------------\033[0m")
                 print(fix_prompt)
                 print("\033[36m----------------------------\033[0m")
                 
-                # Run aider with combined fixes and shorter timeout
-                file_timeout = min(timeout // total_files, 60)  # Max 60 seconds per file
-                print(f"\n\033[36m[>] Executing Aider (timeout: {file_timeout}s)\033[0m")
+                # Log prompt for record keeping
+                prompts_logger.info(f"Fix Prompt ({file_path}): {fix_prompt}")
                 
-                result = subprocess.run([
-                    "aider",
-                    "--model", self.analysis_model,
-                    "--yes",
-                    "--no-auto-commits",
-                    "--edit-format", "diff",
-                    file_path,
-                    fix_prompt
-                ], capture_output=True, text=True, timeout=file_timeout)
-                
-                print("\n\033[36m[>] Aider Response:\033[0m")
-                print("\033[36m---------------\033[0m")
-                print(result.stdout)
-                
-                if result.stderr:
-                    print("\n\033[33m[!] Errors/Warnings:\033[0m")
-                    print(result.stderr)
-                
-                if result.returncode == 0 and "No changes made" not in result.stdout:
-                    subprocess.run(['git', 'add', file_path], check=True)
-                    commit_msg = f"Fix security issues in {file_path}: {', '.join(vuln_types)}"
-                    subprocess.run(['git', 'commit', '-m', commit_msg], check=True)
-                    print(f"\n\033[32m[✓] Successfully applied and committed fixes to {file_path}\033[0m")
-                else:
-                    print(f"\n\033[33m[!] No changes made to {file_path}\033[0m")
+                try:
+                    # Run aider with the fix prompt
+                    result = subprocess.run([
+                        "aider",
+                        "--model", self.analysis_model,
+                        "--yes",
+                        "--no-auto-commits",
+                        "--edit-format", "diff",
+                        file_path,
+                        fix_prompt
+                    ], capture_output=True, text=True, timeout=timeout)
+                    
+                    print("\n\033[36m[>] Aider Response:\033[0m")
+                    print("\033[36m---------------\033[0m")
+                    print(result.stdout)
+                    
+                    # Log aider's response
+                    prompts_logger.info(f"Aider Response: {result.stdout}")
+                    
+                    if result.stderr:
+                        print("\n\033[33m[!] Errors/Warnings:\033[0m")
+                        print(result.stderr)
+                        prompts_logger.warning(f"Aider Errors: {result.stderr}")
+                    
+                    if result.returncode == 0:
+                        if "No changes made" not in result.stdout:
+                            subprocess.run(['git', 'add', file_path], check=True)
+                            commit_msg = f"Fix {suggestion.get('type')} in {file_path}"
+                            subprocess.run(['git', 'commit', '-m', commit_msg], check=True)
+                            print(f"\n\033[32m[✓] Successfully applied fix to {file_path}\033[0m")
+                        else:
+                            print(f"\n\033[33m[!] No changes were necessary for {file_path}\033[0m")
+                    else:
+                        print(f"\n\033[31m[!] Fix failed for {file_path}\033[0m")
+                        success = False
+                        
+                except subprocess.TimeoutExpired:
+                    print(f"\n\033[31m[!] Timeout occurred after {timeout} seconds\033[0m")
                     success = False
                     
-            except subprocess.TimeoutExpired:
-                print(f"\n\033[31m[!] Timeout while fixing {file_path} after {file_timeout}s\033[0m")
-                success = False
             except Exception as e:
-                print(f"\n\033[31m[!] Error fixing {file_path}: {str(e)}\033[0m")
+                print(f"\n\033[31m[!] Error during fix implementation: {str(e)}\033[0m")
                 if hasattr(e, '__traceback__'):
                     print("\033[31m[!] Traceback:\033[0m")
                     import traceback
