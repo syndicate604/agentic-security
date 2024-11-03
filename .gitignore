@@ -163,3 +163,4 @@ cython_debug/
 .aider*
 testing_reports/*
 !testing_reports/.gitkeep
+.security_cache
