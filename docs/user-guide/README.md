@@ -29,7 +29,9 @@ mindmap
 
 ### CLI Interface
 
-The CLI provides a cyberpunk-themed interface:
+The CLI provides a cyberpunk-themed interface with advanced scanning options:
+
+#### Basic Commands
 
 ```bash
 ╔══════════════════════════════════════════════════════════════╗
@@ -57,7 +59,14 @@ The CLI provides a cyberpunk-themed interface:
 
 3. **Run Full Pipeline**
    ```bash
-   agentic-security run --config config.yml
+   # Full pipeline with architecture review
+   agentic-security run --config config.yml --with-architecture-review
+
+   # Skip architecture review
+   agentic-security run --config config.yml --skip-architecture-review
+
+   # Custom model selection
+   agentic-security run --config config.yml --arch-model gpt-4 --fix-model claude-3
    ```
 
 ## Advanced Features
