@@ -788,6 +788,8 @@ class SecurityPipeline:
                 if not self._validate_cached_results(security_results):
                     self.progress.update(15, "Cache validation failed, running new scan")
                     security_results = self._run_new_scan(scan_id)
+                    # Log the reason for running a new scan
+                    print_cyber_status("Running new scan due to cache validation failure", "warning")
             else:
                 security_results = self._run_new_scan(scan_id)
             
@@ -1155,17 +1157,17 @@ class SecurityPipeline:
 
     def _detect_sql_injection(self, content: str) -> bool:
         """Detect potential SQL injection vulnerabilities in code
-        
+
         Args:
             content: Source code content to analyze
-            
+
         Returns:
             bool: True if SQL injection vulnerability detected
         """
-        # Look for string formatting in SQL queries
+        # Use parameterized queries instead of string formatting
         sql_formatting_patterns = [
             r"SELECT.*\%.*FROM",
-            r"INSERT.*\%.*INTO", 
+            r"INSERT.*\%.*INTO",
             r"UPDATE.*\%.*SET",
             r"DELETE.*\%.*FROM",
             r".*execute\(.*%.*\)",
@@ -1174,16 +1176,16 @@ class SecurityPipeline:
             r".*cursor\.executemany\(.*%.*\)",
             r".*\.format\(.*\)",
             r"f\".*SELECT.*{.*}.*\"",
-            r"f\".*INSERT.*{.*}.*\"", 
+            r"f\".*INSERT.*{.*}.*\"",
             r"f\".*UPDATE.*{.*}.*\"",
             r"f\".*DELETE.*{.*}.*\""
         ]
-        
+
         import re
         for pattern in sql_formatting_patterns:
             if re.search(pattern, content, re.IGNORECASE | re.MULTILINE):
                 return True
-                
+
         return False
 
     def _get_vulnerability_description(self, vuln_type: str) -> str:
