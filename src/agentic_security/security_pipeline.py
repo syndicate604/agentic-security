@@ -303,8 +303,8 @@ class SecurityPipeline:
                         })
                         
                 except subprocess.CalledProcessError as e:
-                    print(f"\033[31m[!] Error implementing fix: {str(e)}\033[0m")
-                    print(f"Command output: {e.output}")
+                    print(f"\033[31m[!] Error implementing fix: {e}\033[0m")
+                    # Do not print command output to avoid potential information exposure
                     success = False
                     # Restore backup
                     shutil.move(backup_path, file_path)
@@ -437,7 +437,7 @@ class SecurityPipeline:
                         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                             content = f.read()
                     except (PermissionError, FileNotFoundError) as e:
-                        print(f"\n[33m[!] Could not access {file_path}: {str(e)}[0m")
+                        logging.warning(f"Could not access {file_path}: {e}")
                         continue
                     except UnicodeDecodeError:
                         print(f"\n[33m[!] Could not decode {file_path} - skipping[0m")
@@ -454,14 +454,7 @@ class SecurityPipeline:
                         if vuln_type == 'sql_injection':
                             sql_keywords = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'DROP']
                             has_sql_pattern = any(keyword in content.upper() for keyword in sql_keywords)
-                            has_unsafe_format = (
-                                any(f"{keyword} " in content.upper() and (
-                                    '%s' in content or
-                                    '{' in content or
-                                    '+' in content or
-                                    '\\' in content
-                                ) for keyword in sql_keywords)
-                            )
+                            has_unsafe_format = self._detect_sql_injection(content, sql_keywords)
                             if has_sql_pattern and has_unsafe_format:
                                 if vuln_type not in results:
                                     results[vuln_type] = []
@@ -560,9 +553,8 @@ class SecurityPipeline:
 
     def _parse_zap_results(self, report_file: str) -> Dict:
         """Parse ZAP scan results"""
-        try:
             with open(report_file, 'r') as f:
-                data = json.load(f)
+                data = json.load(f, object_hook=self._safe_deserialize)
                 return data
         except Exception as e:
             return {"error": f"Failed to parse ZAP results: {str(e)}"}
