@@ -61,6 +61,17 @@ mindmap
 - [Issue Tracker](https://github.com/ruvnet/agentic-security/issues)
 - [Contributing Guide](../CONTRIBUTING.md)
 - [Code of Conduct](../CODE_OF_CONDUCT.md)
+- [Security Patterns Guide](implementation/security-patterns.md)
+- [AI Integration Guide](implementation/ai-integration.md)
+
+## Key Features
+
+- Dual AI model support (GPT-4 and Claude-3)
+- Comprehensive vulnerability scanning
+- Pattern-based code analysis
+- Automated fix validation
+- Smart PR generation
+- Multi-tool security integration
 
 ## Documentation Updates
 
