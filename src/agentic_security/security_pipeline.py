@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import logging
 import subprocess
 import threading
 import time
@@ -22,6 +23,8 @@ import base64
 from .cache import SecurityCache
 from .prompts import PromptManager
 from .progress import ProgressReporter
+
+logger = logging.getLogger(__name__)
 
 # AI Model Configuration
 VALID_MODELS = {
@@ -107,16 +110,11 @@ class SecurityPipeline:
         print(f"Running architecture review with {model_info['name']}...")
         start_time = time.time()
         
-        # In CI mode, return mock suggestions for testing
+        # In CI mode, return an empty result to avoid potential security risks
         if os.environ.get('CI', '').lower() == 'true':
             return {
-                "output": "CI Mode - Mock Review",
-                "suggestions": [{
-                    "file": "src/test.py",
-                    "type": "sql_injection", 
-                    "severity": "high",
-                    "description": "Test vulnerability"
-                }]
+                "output": "CI Mode - No review performed",
+                "suggestions": []
             }
 
         # Get list of all Python files in repo
@@ -135,6 +133,7 @@ class SecurityPipeline:
                         python_files.append(full_path)
 
         if not python_files:
+            logger.warning("No Python files found to review")
             return {
                 "output": "No Python files found to review",
                 "suggestions": []
@@ -183,6 +182,7 @@ class SecurityPipeline:
                 # Use configured analysis model
                 model = self.analysis_model
                 remaining_time = max(30, int(timeout - (time.time() - start_time)))
+                review_prompt = self.prompt_manager.sanitize_input(review_prompt)
                 result = subprocess.run([
                     "aider",
                     "--model", model,
@@ -234,11 +234,15 @@ class SecurityPipeline:
                 "error": "Process timed out"
             }
         except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
             print(f"\033[31m[!] Error during architecture review: {str(e)}\033[0m")
+            print(f"Error details:\n{error_details}")
             return {
                 "output": f"Error: {str(e)}",
                 "suggestions": [],
-                "error": str(e)
+                "error": str(e),
+                "error_details": error_details
             }
 
     def _parse_ai_suggestions(self, output: str) -> List[str]:
@@ -479,7 +483,7 @@ class SecurityPipeline:
                                     'file': file_path,
                                     'type': vuln_type,
                                     'severity': 'high',
-                                    'line': content.count('\n', 0, content.find(next(k for k in sql_keywords if k in content.upper()))),
+                                    'line': content.count('\n', 0, content.find(next(k for k in sql_keywords if k in content.upper()))) + 1,
                                     'description': 'Potential SQL injection vulnerability detected. User input is being used in SQL queries without proper sanitization.'
                                 })
                         # For other vulnerability types
@@ -559,10 +563,10 @@ class SecurityPipeline:
                         "--scan", path,
                         "--format", "JSON",
                         "--out", "dependency-check-report.json"
-                    ], capture_output=True, text=True)
+                    ], capture_output=True, text=True, check=True)
                     results['dependency'] = self._parse_dependency_results("dependency-check-report.json")
-                except Exception as e:
-                    print(f"[31m[!] Warning: Dependency check failed to run: {str(e)}[0m")
+                except subprocess.CalledProcessError as e:
+                    print(f"[31m[!] Warning: Dependency check failed to run: {e.stderr}[0m")
                 
         except Exception as e:
             print(f"Error running code security checks: {str(e)}")
@@ -1114,7 +1118,8 @@ class SecurityPipeline:
                             description = self._get_vulnerability_description(review['type'])
                             f.write(f"- {description}\n")
                             if finding.get('description'):
-                                f.write(f"  Details: {finding['description']}\n")
+                                sanitized_description = self._sanitize_input(finding['description'])
+                                f.write(f"  Details: {sanitized_description}\n")
                     f.write("\n")
 
             f.write("## Recommendations\n\n")
@@ -1131,9 +1136,11 @@ class SecurityPipeline:
                     f.write("#### Details\n\n")
                     for finding in review['findings']:
                         description = self._get_vulnerability_description(review['type'])
-                        f.write(f"- {description}\n")
+                        sanitized_description = self._sanitize_input(description)
+                        f.write(f"- {sanitized_description}\n")
                         if finding.get('description'):
-                            f.write(f"  Details: {finding['description']}\n")
+                            sanitized_description = self._sanitize_input(finding['description'])
+                            f.write(f"  Details: {sanitized_description}\n")
                 f.write("\n")
             
             f.write("## Recommendations\n\n")
