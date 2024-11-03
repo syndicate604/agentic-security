@@ -60,6 +60,16 @@ def process_input(user_input):
     html = f"<div>{escape(user_input)}</div>"
     """)
 
+def test_setup_environment_missing_vars(monkeypatch):
+    """Test handling of missing environment variables"""
+    pipeline = SecurityPipeline()
+    monkeypatch.delenv('OPENAI_API_KEY', raising=False)
+    monkeypatch.delenv('ANTHROPIC_API_KEY', raising=False)
+    
+    with pytest.raises(OSError) as exc_info:
+        pipeline.setup_environment()
+    assert "Missing required environment variables" in str(exc_info.value)
+
     results = pipeline._run_code_security_checks(str(tmp_path))
     
     # Check for expected vulnerabilities
