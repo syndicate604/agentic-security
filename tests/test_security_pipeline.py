@@ -488,7 +488,7 @@ def test_cache_in_ci(pipeline, tmp_path):
         assert first_results.get('status') is True, "Pipeline should succeed"
         
         # Verify cache behavior in CI
-        cache_files = list(tmp_path.glob('**/*.json'))
+        cache_files = list(Path(tmp_path).glob('**/*.json'))
         assert len(cache_files) == 0, "Cache should not be created in CI"
         
         # Second run - should also skip cache

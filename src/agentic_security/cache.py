@@ -10,6 +10,7 @@ class SecurityCache:
         self.cache_dir.mkdir(exist_ok=True)
         self.results_dir = self.cache_dir / "results"
         self.results_dir.mkdir(exist_ok=True)
+        self.results_dir.mkdir(exist_ok=True)
 
     def save_scan_results(self, scan_id: str, results: Dict[str, Any]) -> None:
         """Save scan results to cache"""
