@@ -311,7 +311,7 @@ class SecurityPipeline:
                         
                 except subprocess.CalledProcessError as e:
                     print(f"\033[31m[!] Error implementing fix: {e}\033[0m")
-                    # Do not print command output to avoid potential information exposure
+                    print(f"Command output: {result.stdout}")
                     success = False
                     # Restore backup
                     shutil.move(backup_path, file_path)
@@ -461,7 +461,7 @@ class SecurityPipeline:
                         if vuln_type == 'sql_injection':
                             sql_keywords = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'DROP']
                             has_sql_pattern = any(keyword in content.upper() for keyword in sql_keywords)
-                            has_unsafe_format = self._detect_sql_injection(content, sql_keywords)
+                            has_unsafe_format = self._detect_sql_injection(content)
                             if has_sql_pattern and has_unsafe_format:
                                 if vuln_type not in results:
                                     results[vuln_type] = []
@@ -562,7 +562,7 @@ class SecurityPipeline:
         """Parse ZAP scan results"""
         try:
             with open(report_file, 'r') as f:
-                data = json.load(f, object_hook=self._safe_deserialize)
+                data = json.load(f)
                 return data
         except Exception as e:
             return {"error": f"Failed to parse ZAP results: {str(e)}"}
