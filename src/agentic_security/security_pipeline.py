@@ -594,39 +594,55 @@ tree = parse(xml_file, forbid_dtd=True, forbid_entities=True)
                     continue
 
                 try:
-                    # Run aider
+                    # Run aider with improved error handling
                     if self.verbose:
                         print("\033[36m[>] Running aider...\033[0m")
                     
-                    result = subprocess.run([
-                        "aider",
-                        "--model", self.analysis_model,
-                        "--edit-format", "diff",
-                        "--yes",  # Auto-approve changes
-                        "--no-auto-commits",  # Don't auto-commit changes
-                        file_path,
-                        fix_prompt
-                    ], capture_output=True, text=True, timeout=timeout)
+                    try:
+                        result = subprocess.run([
+                            "aider",
+                            "--model", self.analysis_model,
+                            "--edit-format", "diff",
+                            "--yes",  # Auto-approve changes
+                            "--no-auto-commits",  # Don't auto-commit changes
+                            file_path,
+                            fix_prompt
+                        ], capture_output=True, text=True, timeout=timeout)
+                    except FileNotFoundError:
+                        print("\033[33m[!] Aider not found. Please install it with: pip install aider-chat\033[0m")
+                        continue
+                    except subprocess.TimeoutExpired:
+                        print(f"\033[33m[!] Aider timed out after {timeout}s - skipping this fix\033[0m")
+                        continue
 
-                    # Stage changes if successful
+                    # Handle specific error cases
+                    if result.returncode != 0:
+                        if "repo_url" in result.stderr:
+                            print("\033[33m[!] Skipping repository operations - URL not configured\033[0m")
+                            # Continue processing without git operations
+                        elif "git" in result.stderr.lower():
+                            print("\033[33m[!] Git operation failed - continuing without version control\033[0m")
+                            # Continue processing without git
+                        else:
+                            print(f"\033[31m[!] Aider failed with return code {result.returncode}\033[0m")
+                            if result.stderr:
+                                print(f"\033[31m[!] Error: {result.stderr}\033[0m")
+                            if self.verbose:
+                                print("\033[31m[!] Full output:", result.stdout, "\033[0m")
+                            if self.verbose:
+                                print(f"\033[36m[>] Restoring from backup: {backup_path}\033[0m")
+                            shutil.move(backup_path, file_path)
+                            continue
+
+                    # Stage changes if successful and git is available
                     if result.returncode == 0 and "No changes made" not in result.stdout:
                         try:
                             subprocess.run(['git', 'add', file_path], check=True)
                             subprocess.run(['git', 'commit', '-m', f'Fix {vuln_type} in {file_path}'], check=True)
                         except subprocess.CalledProcessError as e:
-                            print(f"\033[31m[!] Failed to commit changes: {e}\033[0m")
-
-                    if result.returncode != 0:
-                        print(f"\033[31m[!] Aider failed with return code {result.returncode}\033[0m")
-                        if result.stderr:
-                            print(f"\033[31m[!] Error: {result.stderr}\033[0m")
-                        if self.verbose:
-                            print("\033[31m[!] Full output:", result.stdout, "\033[0m")
-                        success = False
-                        if self.verbose:
-                            print(f"\033[36m[>] Restoring from backup: {backup_path}\033[0m")
-                        shutil.move(backup_path, file_path)
-                        continue
+                            print(f"\033[33m[!] Git operations failed - continuing without version control: {e}\033[0m")
+                        except FileNotFoundError:
+                            print("\033[33m[!] Git not found - continuing without version control\033[0m")
                     
                     if "No changes made" in result.stdout:
                         print(f"\033[33m[!] No changes made for {vuln_type} in {file_path}\033[0m")
