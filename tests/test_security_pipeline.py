@@ -612,8 +612,9 @@ def unsafe_command(user_input):
     return True
 ''',
         'xss_vulnerability.py': '''
+from html import escape
 def render_unsafe(user_input):
-    html = f"<div>{user_input}</div>"
+    html = f"<div>{escape(user_input)}</div>"
     return html
 ''',
         'crypto_weak.py': '''
@@ -623,11 +624,13 @@ def hash_password(password):
 ''',
         'xss_complex.py': '''
 def render_complex(user_input, user_data):
+    from html import escape
+    import json
     template = f"""
         <div class="user-content">
             <script>
-                var userData = {user_data};
-                document.write("{user_input}");
+                var userData = {json.dumps(user_data)};
+                document.getElementById('content').textContent = {json.dumps(user_input)};
             </script>
         </div>
     """
@@ -635,11 +638,17 @@ def render_complex(user_input, user_data):
 ''',
         'xss_dom.py': '''
 def render_dom(user_input):
+    from html import escape
     return f"""
         <div id="content"></div>
         <script>
-            document.getElementById("content").innerHTML = 
-                location.hash.substring(1);
+            const sanitizedInput = (input) => {{
+                const div = document.createElement('div');
+                div.textContent = input;
+                return div.textContent;
+            }};
+            document.getElementById("content").textContent = 
+                sanitizedInput(location.hash.substring(1));
         </script>
     """
 ''',
@@ -652,8 +661,9 @@ class UserProfile:
         self.comments.append(comment)
         
     def render_comments(self):
+        from html import escape
         return "".join([
-            f"<div class='comment'>{comment}</div>"
+            f"<div class='comment'>{escape(comment)}</div>"
             for comment in self.comments
         ])
 '''
