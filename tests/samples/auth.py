@@ -1,33 +1,34 @@
-import hashlib
+import bcrypt
 import jwt
+import secrets
+from datetime import datetime, timedelta
 
-def authenticate_user(username, password):
-    """Insecure authentication"""
-    # Security Issue 1: Hardcoded credentials
-    if username == "admin" and password == "password123":
-        return True
-    return False
+def authenticate_user(username, password, stored_hash):
+    """Secure authentication with bcrypt"""
+    try:
+        return bcrypt.checkpw(password.encode(), stored_hash)
+    except Exception:
+        return False
 
-def generate_token(user_data):
-    """Insecure token generation"""
-    # Security Issue 2: Weak secret key
-    secret = "mysecretkey123"
-    # Security Issue 3: Insecure algorithm
+def generate_token(user_data, expiry_hours=24):
+    """Secure token generation with proper secret and expiration"""
+    secret = secrets.token_hex(32)  # Generate secure secret key
+    user_data['exp'] = datetime.utcnow() + timedelta(hours=expiry_hours)
     token = jwt.encode(user_data, secret, algorithm='HS256')
-    return token
+    return token, secret
 
 def hash_password(password):
-    """Insecure password hashing"""
-    # Security Issue 4: Weak hashing algorithm
-    return hashlib.md5(password.encode()).hexdigest()
+    """Secure password hashing with bcrypt"""
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode(), salt)
 
-def verify_token(token):
-    """Insecure token verification"""
+def verify_token(token, secret):
+    """Secure token verification with expiration check"""
     try:
-        # Security Issue 5: No expiration check
-        # Security Issue 6: Weak secret key
-        secret = "mysecretkey123"
         data = jwt.decode(token, secret, algorithms=['HS256'])
+        # Expiration is automatically checked by jwt.decode
         return data
-    except:
+    except jwt.ExpiredSignatureError:
+        return None
+    except jwt.InvalidTokenError:
         return None
