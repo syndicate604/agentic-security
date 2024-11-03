@@ -274,6 +274,16 @@ class SecurityPipeline:
             print("\n[36m[>] Starting fix implementation in verbose mode[0m")
             print(f"[36m[>] Total fixes to implement: {len(suggestions)}[0m")
 
+        # Create and switch to fix branch if not already on it
+        if not self.branch_name.startswith('security-fixes-'):
+            self.branch_name = f"security-fixes-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+            try:
+                subprocess.run(['git', 'checkout', '-b', self.branch_name], check=True)
+                print(f"Created fix branch: {self.branch_name}")
+            except subprocess.CalledProcessError as e:
+                print(f"\033[31m[!] Failed to create fix branch: {e}\033[0m")
+                return False
+
         total_fixes = len(suggestions)
         fixes_applied = []
         success = True
