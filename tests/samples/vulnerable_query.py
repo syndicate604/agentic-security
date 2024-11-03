@@ -20,7 +20,8 @@ DB_CONFIG = {
 # Cache for prepared statements
 STMT_CACHE = {}
 
-def get_prepared_statement(conn: sqlite3.Connection, sql: str, params: tuple = None) -> sqlite3.Cursor:
+def get_prepared_statement(conn: sqlite3.Connection, sql: str, params: tuple = None, 
+                          identifiers: Dict[str, str] = None) -> sqlite3.Cursor:
     """
     Get or create a prepared statement with proper parameter binding and caching
     
@@ -28,11 +29,22 @@ def get_prepared_statement(conn: sqlite3.Connection, sql: str, params: tuple = N
         conn: Database connection
         sql: SQL query string
         params: Query parameters
+        identifiers: Dict of table/column names to be safely quoted
         
     Returns:
         sqlite3.Cursor: Prepared statement cursor
     """
     cursor = conn.cursor()
+    
+    # Safely quote identifiers if provided
+    if identifiers:
+        for key, value in identifiers.items():
+            if not isinstance(value, str):
+                raise DatabaseError(f"Invalid identifier type for {key}")
+            if not re.match(r'^[a-zA-Z][a-zA-Z0-9_]*$', value):
+                raise DatabaseError(f"Invalid identifier format: {value}")
+            # Replace placeholder with properly quoted identifier
+            sql = sql.replace(f":{key}:", f'"{value}"')
     
     # Use query template as cache key
     cache_key = hash(sql)
@@ -40,7 +52,7 @@ def get_prepared_statement(conn: sqlite3.Connection, sql: str, params: tuple = N
     if cache_key not in STMT_CACHE:
         try:
             # Validate the SQL before caching
-            cursor.execute("EXPLAIN QUERY PLAN " + sql)
+            cursor.execute("EXPLAIN QUERY PLAN " + sql, ())
             STMT_CACHE[cache_key] = sql
         except sqlite3.Error as e:
             raise DatabaseError(f"Invalid SQL statement: {str(e)}")
@@ -246,18 +258,24 @@ def get_user_data(user_id: str, table_name: str, columns: Optional[List[str]] = 
                 # Build safe parameterized query
                 cols = validate_columns(table_name, columns)
                 
-                # Create dynamic column selection safely
-                column_list = ', '.join(f'"{col}"' for col in cols)
+                # Create query with identifier placeholders
+                column_placeholders = [f":col{i}:" for i in range(len(cols))]
+                column_list = ', '.join(column_placeholders)
                 
-                query = f"""
-                    SELECT {column_list}
-                    FROM "{table_name}"
+                query = """
+                    SELECT {0}
+                    FROM :table:
                     WHERE id = ?
                     AND active = 1 
                     AND deleted_at IS NULL
-                """
+                """.format(column_list)
                 
-                # Only user_id needs to be parameterized
+                # Create identifiers dict for safe quoting
+                identifiers = {'table': table_name}
+                for i, col in enumerate(cols):
+                    identifiers[f'col{i}'] = col
+                
+                # Parameters for WHERE clause
                 params = (user_id,)
                 
                 # Get prepared statement with parameters
@@ -308,32 +326,38 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
         with get_db_connection() as conn:
             conn.execute("BEGIN TRANSACTION")
             try:
-                # Build safe parameterized query
+                # Build safe parameterized query with identifier placeholders
                 cols = validate_columns('users', columns)
-                column_list = ', '.join(f'"{col}"' for col in cols)
+                column_placeholders = [f":col{i}:" for i in range(len(cols))]
+                column_list = ', '.join(column_placeholders)
                 
-                # Split search terms and escape LIKE patterns
-                search_terms = [term.strip() for term in keyword.split()]
-                escaped_terms = []
-                for term in search_terms:
-                    escaped_term = term.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
-                    escaped_terms.append(f"%{escaped_term}%")
+                # Create identifiers dict for safe quoting
+                identifiers = {'table': 'users'}
+                for i, col in enumerate(cols):
+                    identifiers[f'col{i}'] = col
                 
-                # Build WHERE clause for each search term
-                where_clauses = []
+                # Split and validate search terms
+                search_terms = [term.strip() for term in keyword.split() if term.strip()]
+                if not search_terms:
+                    raise DatabaseError("No valid search terms provided")
+                
+                # Prepare LIKE patterns with proper escaping
                 params = []
-                for _ in escaped_terms:
+                where_clauses = []
+                for i, term in enumerate(search_terms):
+                    # Escape special characters and add wildcards
+                    escaped = re.escape(term).replace('\\', '\\\\')
+                    params.append(f"%{escaped}%")
                     where_clauses.append('name LIKE ? ESCAPE "\\"')
-                    params.append(_)
                 
-                query = f"""
-                    SELECT {column_list}
-                    FROM users
-                    WHERE {' AND '.join(where_clauses)}
+                query = """
+                    SELECT {0}
+                    FROM :table:
+                    WHERE {1}
                     AND active = 1
                     ORDER BY id ASC
                     LIMIT 100
-                """
+                """.format(column_list, ' AND '.join(where_clauses))
                 
                 # Get prepared statement with parameters
                 stmt = get_prepared_statement(conn, query, params)
