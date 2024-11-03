@@ -15,7 +15,7 @@ def process_user_input(user_input):
     os.system(f"echo {user_input}")
     
     # Security Issue 3: XSS
-    html = f"<div>{user_input}</div>"
+    html = f"<div>{escape(user_input)}</div>"
     
     return query, html
 
