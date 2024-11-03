@@ -1,5 +1,5 @@
 import requests
-import defusedxml.ElementTree as ET
+from defusedxml import ElementTree as ET
 
 def fetch_user_data(user_id):
     """Insecure API endpoint"""
@@ -8,7 +8,7 @@ def fetch_user_data(user_id):
     response = requests.get(f"http://api.example.com/users/{user_id}", verify=False)
     return response.json()
 
-import defusedxml.ElementTree as ET
+from defusedxml import ElementTree as ET
 
 def parse_xml_data(xml_string):
     """Secure XML parsing with XXE protection"""
@@ -29,7 +29,7 @@ def process_response(response_data):
     return eval(response_data)
 # Sample vulnerable API code
 import requests
-import xml.etree.ElementTree as ET
+from defusedxml import ElementTree as ET
 
 def make_request(url):
     # SSL verification disabled
@@ -52,6 +52,10 @@ def parse_xml(xml_string):
     # Vulnerable to XXE
     return ET.fromstring(xml_string)
 
+import shlex
+
 def execute_command(cmd):
-    # Command injection vulnerability
-    return subprocess.os.system(cmd)
+    # Secure command execution
+    cmd_args = shlex.split(cmd)
+    result = subprocess.run(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    return result.stdout
