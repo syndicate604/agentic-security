@@ -72,7 +72,7 @@ def run_aider_command(command: str, files: list, config_file: Path = None, auto_
             "--no-stream",
             "--auto-commits",
             "--model", "gpt-4",  # Use standard model name
-            "--commit-prompt", "[SECURITY] {msg}"  # Add security prefix to commit messages
+            "--commit", "--commit-message", "[SECURITY] Fix security vulnerabilities"  # Use explicit commit message
         ])
         
         # Add message
