@@ -291,7 +291,6 @@ def review(path, output, verbose, config):
         sys.exit(1)
 
 @cli.command()
-@cli.command()
 @click.option('--path', '-p', multiple=True, help='Paths to review')
 @click.option('--output', '-o', type=click.Path(), help='Output markdown report path')
 @click.option('--verbose/--no-verbose', '-v/', default=False, help='Verbose output')
