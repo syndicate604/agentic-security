@@ -261,8 +261,12 @@ class SecurityPipeline:
         return suggestions
 
     def implement_fixes(self, suggestions: List[Dict], timeout: int = 300) -> bool:
-        """Implement fixes using aider with batched approach"""
+        """Implement fixes using aider with batched approach and detailed logging"""
+        print("\n\033[1;36m=== Starting Fix Implementation ===\033[0m")
+        print(f"\033[36m[>] Processing {len(suggestions)} suggestions\033[0m")
+
         if not suggestions:
+            print("\033[33m[!] No suggestions to implement\033[0m")
             return False
 
         # Group suggestions by file to reduce aider calls
@@ -270,6 +274,7 @@ class SecurityPipeline:
         for suggestion in suggestions:
             file_path = suggestion.get('file')
             if not file_path or not os.path.exists(file_path):
+                print(f"\033[31m[!] Invalid or missing file: {file_path}\033[0m")
                 continue
             if file_path not in fixes_by_file:
                 fixes_by_file[file_path] = []
@@ -287,15 +292,24 @@ class SecurityPipeline:
         success = True
         total_files = len(fixes_by_file)
         for idx, (file_path, file_suggestions) in enumerate(fixes_by_file.items(), 1):
-            print(f"\033[36m[>] Processing fixes for {file_path} ({idx}/{total_files})\033[0m")
+            print(f"\n\033[1;36m--- Processing File {idx}/{total_files}: {file_path} ---\033[0m")
+            print("\033[36m[>] Suggestions for this file:\033[0m")
+            print(json.dumps(file_suggestions, indent=2))
             
             try:
                 # Combine vulnerability types for more efficient fixing
                 vuln_types = [s.get('type') for s in file_suggestions]
                 fix_prompt = f"Fix the following vulnerabilities in this file: {', '.join(vuln_types)}"
                 
+                print("\n\033[36m[>] Generated Fix Prompt:\033[0m")
+                print("\033[36m----------------------------\033[0m")
+                print(fix_prompt)
+                print("\033[36m----------------------------\033[0m")
+                
                 # Run aider with combined fixes and shorter timeout
                 file_timeout = min(timeout // total_files, 60)  # Max 60 seconds per file
+                print(f"\n\033[36m[>] Executing Aider (timeout: {file_timeout}s)\033[0m")
+                
                 result = subprocess.run([
                     "aider",
                     "--model", self.analysis_model,
@@ -306,22 +320,35 @@ class SecurityPipeline:
                     fix_prompt
                 ], capture_output=True, text=True, timeout=file_timeout)
                 
+                print("\n\033[36m[>] Aider Response:\033[0m")
+                print("\033[36m---------------\033[0m")
+                print(result.stdout)
+                
+                if result.stderr:
+                    print("\n\033[33m[!] Errors/Warnings:\033[0m")
+                    print(result.stderr)
+                
                 if result.returncode == 0 and "No changes made" not in result.stdout:
                     subprocess.run(['git', 'add', file_path], check=True)
                     commit_msg = f"Fix security issues in {file_path}: {', '.join(vuln_types)}"
                     subprocess.run(['git', 'commit', '-m', commit_msg], check=True)
-                    print(f"\033[32m[✓] Applied fixes to {file_path}\033[0m")
+                    print(f"\n\033[32m[✓] Successfully applied and committed fixes to {file_path}\033[0m")
                 else:
-                    print(f"\033[33m[!] No changes made to {file_path}\033[0m")
+                    print(f"\n\033[33m[!] No changes made to {file_path}\033[0m")
                     success = False
                     
             except subprocess.TimeoutExpired:
-                print(f"\033[31m[!] Timeout while fixing {file_path}\033[0m")
+                print(f"\n\033[31m[!] Timeout while fixing {file_path} after {file_timeout}s\033[0m")
                 success = False
             except Exception as e:
-                print(f"\033[31m[!] Error fixing {file_path}: {str(e)}\033[0m")
+                print(f"\n\033[31m[!] Error fixing {file_path}: {str(e)}\033[0m")
+                if hasattr(e, '__traceback__'):
+                    print("\033[31m[!] Traceback:\033[0m")
+                    import traceback
+                    print(traceback.format_exc())
                 success = False
                 
+        print(f"\n\033[1;36m=== Fix Implementation {'Succeeded' if success else 'Failed'} ===\033[0m")
         return success
 
         # Create and switch to fix branch if not already on it
