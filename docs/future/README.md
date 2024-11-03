@@ -5,12 +5,12 @@ This section outlines planned enhancements and future development roadmap for Ag
 ## Implemented Features
 
 Recent implementations include:
-- Dual AI model support (GPT-4 and Claude-3)
-- Pattern-based vulnerability detection
-- Performance-optimized caching system
-- Comprehensive review system
-- GitHub Actions integration
-- Docker container support
+- Dual AI model support (GPT-4-1106-preview and Claude-3-sonnet-20240229)
+- Pattern-based vulnerability detection with context awareness
+- Performance-optimized caching system with validation
+- Comprehensive review system with multiple output modes
+- GitHub Actions integration with automated PR creation
+- Docker container support for isolated scanning
 
 ## Next Steps
 
