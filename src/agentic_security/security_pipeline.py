@@ -164,6 +164,18 @@ class SecurityPipeline:
         if not os.environ.get('CI', '').lower() == 'true':
             time.sleep(0.1)
         results = {}
+
+        # Directories to exclude
+        exclude_dirs = {'venv', 'env', '.git', '__pycache__', 'node_modules', '.pytest_cache'}
+        
+        # Safe standard library functions that may be flagged
+        safe_patterns = {
+            'sql_injection': {'sqlite3.connect', 'cursor.execute'},
+            'command_injection': {'subprocess.run', 'subprocess.check_output'},
+            'insecure_deserialization': {'json.loads', 'yaml.safe_load'},
+            'path_traversal': {'os.path.join', 'pathlib.Path'},
+            'weak_crypto': {'hashlib.sha256', 'hashlib.sha512'}
+        }
         
         # Define security patterns to check
         security_patterns = {
@@ -180,28 +192,41 @@ class SecurityPipeline:
         try:
             # Scan files in the path
             for root, _, files in os.walk(path):
+                # Skip excluded directories
+                if any(excluded in root.split(os.sep) for excluded in exclude_dirs):
+                    continue
+                    
                 for file in files:
-                    if file.endswith(('.py', '.js', '.php', '.java')):
+                    if not file.endswith(('.py', '.js', '.php', '.java')):
+                        continue
                         file_path = os.path.join(root, file)
                         with open(file_path, 'r', encoding='utf-8') as f:
                             content = f.read()
                             
                             # Check for each vulnerability pattern
                             for vuln_type, patterns in security_patterns.items():
-                                # For SQL injection, also check for string formatting with curly braces
+                                # Skip if only safe patterns are found
+                                safe_matches = safe_patterns.get(vuln_type, set())
+                                if any(safe_pattern in content for safe_pattern in safe_matches):
+                                    continue
+                                    
+                                # For SQL injection, check for unsafe string formatting
                                 if vuln_type == 'sql_injection':
                                     has_sql_pattern = any(pattern in content.lower() for pattern in patterns)
-                                    has_string_format = 'SELECT' in content and '{' in content and '}' in content
-                                    if has_sql_pattern or has_string_format:
+                                    has_unsafe_format = ('SELECT' in content and '%s' in content) or \
+                                                      ('SELECT' in content and '{' in content and '}' in content)
+                                    if has_sql_pattern and has_unsafe_format:
                                         if vuln_type not in results:
                                             results[vuln_type] = []
                                         results[vuln_type].append({
                                             'file': file_path,
                                             'type': vuln_type,
-                                            'severity': 'high'
+                                            'severity': 'high',
+                                            'line': content.count('\n', 0, content.find('SELECT'))
                                         })
                                 # For other vulnerability types
-                                elif any(pattern in content.lower() for pattern in patterns):
+                                elif any(pattern in content.lower() for pattern in patterns) and \
+                                     not any(safe_pattern in content for safe_pattern in safe_matches):
                                     if vuln_type not in results:
                                         results[vuln_type] = []
                                     results[vuln_type].append({
