@@ -251,7 +251,7 @@ def analyze(path: tuple, config: str, auto_fix: bool, verbose: bool):
     try:
         print(CYBER_BANNER)
         if not validate_environment():
-            return
+            sys.exit(1)
         
         print_cyber_status("Initializing security analysis...", "info")
         pipeline = SecurityPipeline(config)
@@ -281,26 +281,16 @@ def analyze(path: tuple, config: str, auto_fix: bool, verbose: bool):
                 if vuln.get('details', {}).get('description'):
                     print(f"Details: {vuln['details']['description']}")
         
-        # Run architecture review
-        review_results = pipeline.run_architecture_review()
-        
-        print_cyber_status("\nArchitecture Review Results:", "info")
-        print(f"\033[36m{review_results['output']}\033[0m")
-        
-        if auto_fix and review_results.get('suggestions'):
-            print_cyber_status("\nImplementing suggested fixes...", "info")
-            if pipeline.implement_fixes(review_results['suggestions']):
-                print_cyber_status("Fixes implemented successfully", "success")
-            else:
-                print_cyber_status("Some fixes could not be implemented", "warning")
+        # Exit after completion
+        sys.exit(0)
+                
     except KeyboardInterrupt:
         print("\n\033[33m[!] Analysis interrupted. Saving partial results...\033[0m")
         # Still try to save the report if interrupted
         if 'results' in locals() and results:
             pipeline.generate_review_report(results, str(report_file))
             print_cyber_status(f"\nPartial report saved: {report_file}", "warning")
-        else:
-            print_cyber_status("No results to save", "warning")
+        sys.exit(1)
     except Exception as e:
         print_cyber_status(f"Error during analysis: {str(e)}", "error")
         sys.exit(1)

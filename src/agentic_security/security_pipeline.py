@@ -1097,35 +1097,29 @@ class SecurityPipeline:
             f.write("# Security Review Report\n\n")
             f.write("## Findings\n\n")
             
-            if isinstance(results, bool):
-                f.write("No security issues found.\n\n")
-            elif isinstance(results, dict):
-                if not results.get('reviews'):
+            if isinstance(results, dict):
+                vulnerabilities = results.get('vulnerabilities', [])
+                if not vulnerabilities:
                     f.write("No security issues found.\n\n")
                 else:
-                    for review in results.get('reviews', []):
-                        f.write(f"### {review.get('file', 'Unknown File')}\n\n")
-                        f.write(f"- Type: {review.get('type', 'Unknown')}\n")
-                        f.write(f"- Severity: {review.get('severity', 'Unknown')}\n\n")
-                for review in results.get('reviews', []):
-                    f.write(f"### {review.get('file', 'Unknown File')}\n\n")
-                    f.write(f"- Type: {review.get('type', 'Unknown')}\n")
-                    f.write(f"- Severity: {review.get('severity', 'Unknown')}\n\n")
-
-                    if review.get('findings'):
-                        f.write("#### Details\n\n")
-                        for finding in review['findings']:
-                            description = self._get_vulnerability_description(review['type'])
-                            f.write(f"- {description}\n")
-                            if finding.get('description'):
-                                sanitized_description = self._sanitize_input(finding['description'])
-                                f.write(f"  Details: {sanitized_description}\n")
-                    f.write("\n")
+                    for vuln in vulnerabilities:
+                        f.write(f"### {vuln['file']}\n\n")
+                        f.write(f"- Type: {vuln['type']}\n")
+                        f.write(f"- Severity: {vuln['severity']}\n")
+                        if vuln.get('details', {}).get('description'):
+                            f.write(f"- Details: {vuln['details']['description']}\n")
+                        f.write("\n")
 
             f.write("## Recommendations\n\n")
-            f.write("1. Review and address all identified vulnerabilities\n")
-            f.write("2. Implement security best practices\n")
-            f.write("3. Regular security scanning and monitoring\n")
+            if isinstance(results, dict) and results.get('vulnerabilities'):
+                f.write("1. Address identified vulnerabilities with priority on high severity issues\n")
+                f.write("2. Implement input validation and sanitization\n")
+                f.write("3. Use secure coding practices and frameworks\n")
+                f.write("4. Regular security testing and monitoring\n")
+            else:
+                f.write("1. Continue monitoring for security issues\n")
+                f.write("2. Maintain security best practices\n")
+                f.write("3. Regular security scanning\n")
                 
             for review in results.get('reviews', []):
                 f.write(f"### {review.get('file', 'Unknown File')}\n\n")
