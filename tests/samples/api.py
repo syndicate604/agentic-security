@@ -65,7 +65,7 @@ def parse_xml(xml_string):
     parser = ET.XMLParser(resolve_entities=False)
     return ET.fromstring(xml_string, parser=parser)
 import requests
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 import subprocess
 
 def make_request(url):
@@ -73,9 +73,29 @@ def make_request(url):
     return requests.get(url, verify=False)
 
 def parse_xml(xml_string):
-    # Secure XML parsing with XXE protection
+    """Secure XML parsing with XXE protection"""
+    # Disable external entity resolution to prevent XXE attacks
     parser = ET.XMLParser(resolve_entities=False)
-    return ET.fromstring(xml_string, parser=parser)
+    
+    # Validate and sanitize input XML string
+    try:
+        xml_string = xml_string.strip()
+        if not xml_string:
+            raise ValueError("Empty XML string")
+    except ValueError as e:
+        # Handle invalid input
+        print(f"Error: {e}")
+        return None
+    
+    # Parse XML string securely
+    try:
+        tree = ET.fromstring(xml_string, parser=parser)
+    except ET.ParseError as e:
+        # Handle XML parsing errors
+        print(f"Error: {e}")
+        return None
+    
+    return tree
 
 import shlex
 
