@@ -77,7 +77,6 @@ class SecurityPipeline:
         
         # In CI mode, return mock suggestions for testing
         if os.environ.get('CI', '').lower() == 'true':
-            # Don't actually run aider in CI mode
             return {
                 "output": "CI Mode - Mock Review",
                 "suggestions": [{
@@ -88,16 +87,60 @@ class SecurityPipeline:
                 }]
             }
         
-        result = subprocess.run([
-            "aider",
-            "--model", OPENAI_MODEL,
-            "--edit-format", "diff",
-            "/ask", 
-            "Review the architecture for security vulnerabilities and suggest improvements:",
-            "."
-        ], capture_output=True, text=True, check=True, shell=False)
-        
-        return {"output": result.stdout, "suggestions": self._parse_ai_suggestions(result.stdout)}
+        try:
+            # First check if aider is available
+            try:
+                subprocess.run(["aider", "--version"], 
+                             capture_output=True, 
+                             check=True,
+                             timeout=5)
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                print("\033[33m[!] Aider not found. Please install it with: pip install aider-chat\033[0m")
+                return {
+                    "output": "Error: Aider not installed",
+                    "suggestions": [],
+                    "error": "Aider tool not found"
+                }
+            
+            # Run the architecture review
+            result = subprocess.run([
+                "aider",
+                "--model", OPENAI_MODEL,
+                "--edit-format", "diff",
+                "/ask", 
+                "Review the architecture for security vulnerabilities and suggest improvements:",
+                "."
+            ], capture_output=True, text=True, timeout=300)  # 5 minute timeout
+            
+            if result.returncode != 0:
+                print(f"\033[33m[!] Aider command failed: {result.stderr}\033[0m")
+                # Fallback to basic analysis
+                return {
+                    "output": "Automated review failed - manual review recommended",
+                    "suggestions": [{
+                        "file": "security_pipeline.py",
+                        "type": "process_error",
+                        "severity": "medium",
+                        "description": "Architecture review process failed - manual security review recommended"
+                    }]
+                }
+            
+            return {"output": result.stdout, "suggestions": self._parse_ai_suggestions(result.stdout)}
+            
+        except subprocess.TimeoutExpired:
+            print("\033[31m[!] Architecture review timed out\033[0m")
+            return {
+                "output": "Review timed out",
+                "suggestions": [],
+                "error": "Process timed out"
+            }
+        except Exception as e:
+            print(f"\033[31m[!] Error during architecture review: {str(e)}\033[0m")
+            return {
+                "output": f"Error: {str(e)}",
+                "suggestions": [],
+                "error": str(e)
+            }
 
     def _parse_ai_suggestions(self, output: str) -> List[str]:
         """Parse AI suggestions from output"""
