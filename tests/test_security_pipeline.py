@@ -42,7 +42,7 @@ def test_pipeline_initialization(pipeline, test_config):
     assert len(pipeline.config['security']['scan_targets']) == 2
 
 def test_code_security_checks(pipeline, tmp_path):
-    """Test code security scanning"""
+    """Test code security scanning with enhanced XSS protection"""
     # Create test file with known vulnerabilities
     test_file = tmp_path / "test_vuln.py"
     test_file.write_text("""
@@ -58,8 +58,11 @@ def process_input(user_input):
     os.system(f"echo {user_input}")
     
     # XSS vulnerability properly mitigated
-    # Use markupsafe for robust XSS protection
-    html = Markup("<div>{}</div>").format(escape_silent(user_input))
+    # Use markupsafe for robust XSS protection and additional validation
+    sanitized_input = escape_silent(user_input)
+    if not isinstance(sanitized_input, str):
+        sanitized_input = str(sanitized_input)
+    html = Markup("<div>{}</div>").format(sanitized_input)
     """)
 
 def test_setup_environment_model_validation(monkeypatch):
