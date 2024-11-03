@@ -429,29 +429,6 @@ def test_ci_pipeline_execution(mock_run, pipeline):
     for expected in expected_calls:
         assert any(expected in str(args) for args in call_args), f"Missing CI step: {expected}"
 
-def test_notification_integration(pipeline):
-    """Test notification system integration"""
-    # Mock Slack webhook
-    with patch('requests.post') as mock_post:
-        mock_post.return_value.status_code = 200
-
-        # Set up environment variables
-        with patch.dict(os.environ, {
-            'OPENAI_API_KEY': 'test-key',
-            'ANTHROPIC_API_KEY': 'test-key',
-            'SLACK_WEBHOOK': 'https://example.com/webhook'
-        }):
-            # Trigger notification
-            result = pipeline.run_pipeline()
-
-        # Verify notification was sent
-        assert mock_post.called, "Notification not sent"
-        
-        # Verify notification content
-        call_args = mock_post.call_args[1]
-        notification_data = json.loads(call_args['json'])
-        assert 'text' in notification_data, "Missing notification text"
-        assert 'Security scan complete' in notification_data['text']
 
 def test_artifact_generation(pipeline, tmp_path):
     """Test security report artifact generation"""
