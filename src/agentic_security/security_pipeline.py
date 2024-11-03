@@ -537,7 +537,7 @@ class SecurityPipeline:
         # Check threshold before scan targets
         threshold = self.config['security'].get('critical_threshold', 0)
         if threshold < 0:
-            raise ValueError("Critical threshold cannot be negative")
+            return {'status': False, 'error': 'Critical threshold cannot be negative'}
         self.critical_threshold = threshold  # Update instance variable
 
         # Then check scan targets

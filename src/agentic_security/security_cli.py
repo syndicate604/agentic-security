@@ -331,7 +331,7 @@ def test(config, verbose):
 @click.option('--output', '-o', type=click.Path(), help='Output markdown report path')
 @click.option('--verbose/--no-verbose', '-v/', default=False, help='Verbose output')
 @click.option('--config', '-c', default='config.yml', help='Path to configuration file')
-def review(path, output, verbose, config):
+def review(path: tuple, output: str, verbose: bool, config: str):
     """Generate security review report"""
     print_cyber_status("Security Review Report", "info")
     print_cyber_status("Starting analysis...", "info")
