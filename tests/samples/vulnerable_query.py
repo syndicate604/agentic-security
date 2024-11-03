@@ -339,9 +339,9 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
                         SELECT 1 FROM split 
                         WHERE word != ''
                         AND u.name LIKE '%' || replace(replace(replace(word, 
-                            '\', '\\'), 
-                            '%', '\%'), 
-                            '_', '\_') || '%' ESCAPE '\'
+                            '\\', '\\\\'), 
+                            '%', '\\%'), 
+                            '_', '\\_') || '%' ESCAPE '\\'
                     )
                     AND u.active = 1
                     ORDER BY u.id ASC
@@ -355,7 +355,7 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
                 stmt = get_prepared_statement(
                     conn,
                     query,
-                    params=(search_pattern,)
+                    params=params
                 )
                 results = stmt.fetchall()
                 
