@@ -69,9 +69,6 @@ def test_setup_environment_missing_vars(monkeypatch):
     with pytest.raises(OSError) as exc_info:
         pipeline.setup_environment()
     assert "Missing required environment variables" in str(exc_info.value)
-    assert 'command_injection' in results
-    assert 'xss' not in results  # XSS should be mitigated
-    assert any('test_vuln.py' in finding['file'] for finding in results['sql_injection'])
 
 def test_validate_fixes(pipeline, tmp_path):
     """Test fix validation"""
