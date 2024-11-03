@@ -157,10 +157,12 @@ class SecurityPipeline:
 
     import time  # Add this import at the top if not already present
 
-    def _run_code_security_checks(self, path: str, timeout: int = 60) -> Dict:
+    def _run_code_security_checks(self, path: str, exclude_dirs: set = None, timeout: int = 60) -> Dict:
         """Run code-specific security checks"""
         results = {}
         start_time = time.time()
+        if exclude_dirs is None:
+            exclude_dirs = {'venv', 'env', '.git', '__pycache__', 'node_modules', '.pytest_cache'}
         files_scanned = 0
         total_files = sum(1 for _ in os.walk(path) for _ in _[2] if _.endswith(('.py', '.js', '.php', '.java')))
         
@@ -598,7 +600,7 @@ class SecurityPipeline:
                 progress_thread.start()
 
                 # Run code security checks with timeout
-                security_results = self._run_code_security_checks(path)
+                security_results = self._run_code_security_checks(path, exclude_dirs=exclude_dirs)
                 print("\r" + " " * 50 + "\r", end='', flush=True)  # Clear progress indicator
                 
                 # Format results
