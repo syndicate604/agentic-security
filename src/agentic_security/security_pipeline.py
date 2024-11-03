@@ -387,3 +387,56 @@ class SecurityPipeline:
                     return False
         
         return True
+
+    def review_paths(self, paths: List[str], verbose: bool = False) -> Dict:
+        """Review paths for security issues"""
+        results = {'reviews': []}
+        
+        for path in paths:
+            if not os.path.exists(path):
+                raise FileNotFoundError(f"Path not found: {path}")
+                
+            # Run code security checks
+            security_results = self._run_code_security_checks(path)
+            
+            # Format results
+            for vuln_type, findings in security_results.items():
+                for finding in findings:
+                    results['reviews'].append({
+                        'file': finding['file'],
+                        'type': vuln_type,
+                        'severity': finding['severity'],
+                        'findings': [finding]
+                    })
+                    
+        return results
+
+    def generate_review_report(self, results: Dict, output_path: str) -> None:
+        """Generate markdown report from review results"""
+        with open(output_path, 'w') as f:
+            f.write("# Security Review Report\n\n")
+            
+            for review in results.get('reviews', []):
+                f.write(f"## {review['file']}\n\n")
+                f.write(f"- Type: {review['type']}\n")
+                f.write(f"- Severity: {review['severity']}\n\n")
+                
+                if review.get('findings'):
+                    f.write("### Findings\n\n")
+                    for finding in review['findings']:
+                        f.write(f"- {finding.get('description', 'Security issue detected')}\n")
+                f.write("\n")
+
+    def print_review_results(self, results: Dict, verbose: bool = False) -> None:
+        """Print review results to console"""
+        for review in results.get('reviews', []):
+            if verbose:
+                print(f"\nFile: {review['file']}")
+                print(f"Type: {review['type']}")
+                print(f"Severity: {review['severity']}")
+                if review.get('findings'):
+                    print("Findings:")
+                    for finding in review['findings']:
+                        print(f"- {finding.get('description', 'Security issue detected')}")
+            else:
+                print(f"- {review['file']}: {review['type']} ({review['severity']})")
