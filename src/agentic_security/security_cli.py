@@ -4,6 +4,7 @@ import click
 import yaml
 import os
 import sys
+import time
 from .security_pipeline import SecurityPipeline
 from typing import Optional
 
@@ -142,22 +143,43 @@ def scan(path, exclude, auto_fix, output, verbose, test, config):
     if not validate_environment():
         return
 
-    print_cyber_status("Initializing security scan...", "info")
-    
+    # Cyberpunk initialization sequence
+    init_messages = [
+        ("INITIALIZING NEURAL SCAN SEQUENCE", 0.3),
+        ("LOADING SECURITY PROTOCOLS", 0.2),
+        ("CALIBRATING QUANTUM SCANNERS", 0.2),
+        ("ENGAGING CYBER-DEFENSE MATRIX", 0.3),
+    ]
+        
+    for msg, delay in init_messages:
+        sys.stdout.write(f"\r\033[35m[SYSTEM] \033[36m{msg}...\033[0m")
+        sys.stdout.flush()
+        time.sleep(delay)
+        sys.stdout.write("\033[K")  # Clear line
+    print("\n")
+        
     if not path:
         path = ['.']  # Default to current directory
-        
+            
     try:
         pipeline = SecurityPipeline(config)
-        
+            
         if test:
-            print_cyber_status("Running in test mode", "info")
+            print("\033[35m[TEST MODE] \033[36mInitiating diagnostic sequence\033[0m")
             pipeline.run_tests()
             return
 
-        print_cyber_status("Scanning source code...", "info")
-        print_cyber_status("Scanning dependencies...", "info")
-        print_cyber_status("Analyzing results...", "info")
+        # Animated scanning sequence
+        scan_messages = [
+            "\033[35m[SCAN] \033[36mInitiating source code analysis\033[0m",
+            "\033[35m[SCAN] \033[36mMapping dependency structure\033[0m",
+            "\033[35m[SCAN] \033[36mLaunching vulnerability detection\033[0m",
+            "\033[35m[SCAN] \033[36mEngaging pattern recognition\033[0m"
+        ]
+            
+        for msg in scan_messages:
+            print(f"\r{msg}")
+            time.sleep(0.5)
         
         try:
             results = pipeline.scan_paths(path, exclude=exclude, timeout=300)  # 5 minute timeout

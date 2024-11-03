@@ -586,13 +586,21 @@ class SecurityPipeline:
             try:
                 # Show progress indicator
                 def progress_indicator():
-                    chars = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+                    # Cyberpunk-style spinner characters
+                    chars = "▁▂▃▄▅▆▇█▇▆▅▄▃▂▁"
+                    states = ["ANALYZING", "SCANNING", "PROBING", "DETECTING"]
                     i = 0
+                    state_idx = 0
                     while True:
                         if time.time() - scan_start > timeout:
-                            raise TimeoutError("Scan timeout reached")
-                        print(f"\r[36m[{chars[i]}] Scanning in progress...[0m", end='', flush=True)
+                            raise TimeoutError("\033[31m[CRITICAL] Scan timeout threshold exceeded\033[0m")
+                        state = states[state_idx]
+                        spinner = chars[i]
+                        print(f"\r\033[35m[{spinner}] \033[36m{state} NEURAL NET ACTIVE \033[33m{{'RUNTIME': {time.time() - scan_start:.1f}s}}\033[0m", 
+                              end='', flush=True)
                         i = (i + 1) % len(chars)
+                        if i == 0:
+                            state_idx = (state_idx + 1) % len(states)
                         time.sleep(0.1)
 
                 import threading
