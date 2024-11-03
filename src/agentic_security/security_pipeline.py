@@ -21,8 +21,9 @@ from .cache import SecurityCache
 from .prompts import PromptManager
 from .progress import ProgressReporter
 
-# Configuration Variables
-OPENAI_MODEL = "gpt-4-1106-preview"  # o1-preview model
+# Load model choice from environment
+ANALYSIS_MODEL = os.getenv('ANALYSIS_MODEL', 'claude-3-sonnet-20240229')  # Default to Claude 3.5
+OPENAI_MODEL = "gpt-4o-mini"  # Lightweight OpenAI model
 CLAUDE_MODEL = "claude-3-sonnet-20240229"  # Latest Sonnet model
 DEFAULT_CONFIG = {
     "security": {
@@ -64,6 +65,12 @@ class SecurityPipeline:
         # Load environment variables from .env file unless skipped
         if not os.getenv('SKIP_DOTENV'):
             load_dotenv()
+            
+        # Validate analysis model choice
+        valid_models = {CLAUDE_MODEL, OPENAI_MODEL}
+        analysis_model = os.getenv('ANALYSIS_MODEL')
+        if analysis_model and analysis_model not in valid_models:
+            raise ValueError(f"Invalid ANALYSIS_MODEL. Must be one of: {', '.join(valid_models)}")
         
         # Check for required environment variables
         required_vars = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY']
@@ -148,9 +155,11 @@ class SecurityPipeline:
             # Run the architecture review with proper arguments
             try:
                 # Pass files directly to Aider
+                # Use configured analysis model
+                model = ANALYSIS_MODEL if ANALYSIS_MODEL else CLAUDE_MODEL
                 result = subprocess.run([
                     "aider",
-                    "--model", OPENAI_MODEL,
+                    "--model", model,
                     "--edit-format", "diff",
                     "--no-git",  # Don't require git
                     *python_files,  # Pass files as separate arguments
