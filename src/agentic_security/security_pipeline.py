@@ -96,8 +96,9 @@ class SecurityPipeline:
             raise OSError(f"Missing required environment variables: {', '.join(missing_vars)}")
 
     def run_architecture_review(self) -> Dict:
-        """Run architecture review using OpenAI o1-preview"""
-        print("Running architecture review with OpenAI o1-preview...")
+        """Run architecture review using configured AI model"""
+        model_info = VALID_MODELS[self.analysis_model]
+        print(f"Running architecture review with {model_info['name']}...")
         
         # In CI mode, return mock suggestions for testing
         if os.environ.get('CI', '').lower() == 'true':
