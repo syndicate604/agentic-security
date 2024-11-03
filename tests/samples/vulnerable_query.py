@@ -97,12 +97,24 @@ def get_user_data(user_id: str, table_name: str, columns: Optional[List[str]] = 
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
-            # Build query using validated table name and columns
-            column_names = ','.join(f'"{col}"' for col in columns)  # Quote column names
-            query = f'SELECT {column_names} FROM "{table_name}" WHERE id = ?'
+            # Use parameterized query with validated table/column names
+            allowed_tables = list(ALLOWED_TABLES.keys())
+            if table_name not in allowed_tables:
+                raise DatabaseError("Invalid table access attempt")
+                
+            column_list = [col for col in columns if col in ALLOWED_TABLES[table_name]]
+            if not column_list:
+                raise DatabaseError("No valid columns specified")
+                
+            # Build safe query using sqlite parameter substitution
+            placeholders = {
+                'table': table_name,
+                'cols': ', '.join(column_list)
+            }
+            query = 'SELECT :cols FROM :table WHERE id = ?'
             
-            # Execute with properly bound parameter
-            cursor.execute(query, (user_id,))
+            # Execute with all parameters properly bound
+            cursor.execute(query.format(**placeholders), (user_id,))
             results = cursor.fetchall()
             
             if not results:
@@ -147,19 +159,26 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
-            # Build secure parameterized query
-            column_names = ','.join(f'"{col}"' for col in columns)  # Quote column names
-            query = f"""
-                SELECT {column_names} FROM "users"
-                WHERE LOWER("name") LIKE LOWER(?)
-                AND "active" = 1
-                ORDER BY "id" ASC
+            # Build safe parameterized query
+            column_list = [col for col in columns if col in ALLOWED_TABLES['users']]
+            if not column_list:
+                raise DatabaseError("No valid columns specified")
+                
+            # Use proper parameter binding for all values
+            placeholders = {
+                'cols': ', '.join(column_list)
+            }
+            query = """
+                SELECT :cols FROM users 
+                WHERE name LIKE ? ESCAPE '\\' 
+                AND active = 1
+                ORDER BY id ASC 
                 LIMIT 100
             """
             
-            # Properly escape and sanitize LIKE pattern
+            # Properly escape LIKE pattern and bind all parameters
             search_pattern = "%" + keyword.replace("%", "\\%").replace("_", "\\_") + "%"
-            cursor.execute(query, (search_pattern,))
+            cursor.execute(query.format(**placeholders), (search_pattern,))
             results = cursor.fetchall()
             
             if not results:
