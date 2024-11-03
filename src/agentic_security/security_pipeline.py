@@ -427,20 +427,30 @@ class SecurityPipeline:
         """Generate markdown report from review results"""
         with open(output_path, 'w') as f:
             f.write("# Security Review Report\n\n")
+            f.write("## Findings\n\n")
             
+            if isinstance(results, bool):
+                f.write("No security issues found.\n\n")
+                return
+                
             for review in results.get('reviews', []):
-                f.write(f"## {review['file']}\n\n")
-                f.write(f"- Type: {review['type']}\n")
-                f.write(f"- Severity: {review['severity']}\n\n")
+                f.write(f"### {review.get('file', 'Unknown File')}\n\n")
+                f.write(f"- Type: {review.get('type', 'Unknown')}\n")
+                f.write(f"- Severity: {review.get('severity', 'Unknown')}\n\n")
                 
                 if review.get('findings'):
-                    f.write("### Findings\n\n")
+                    f.write("#### Details\n\n")
                     for finding in review['findings']:
                         description = self._get_vulnerability_description(review['type'])
                         f.write(f"- {description}\n")
                         if finding.get('description'):
                             f.write(f"  Details: {finding['description']}\n")
                 f.write("\n")
+            
+            f.write("## Recommendations\n\n")
+            f.write("1. Review and address all identified vulnerabilities\n")
+            f.write("2. Implement security best practices\n")
+            f.write("3. Regular security scanning and monitoring\n")
 
     def print_review_results(self, results: Dict, verbose: bool = False) -> None:
         """Print review results to console"""
