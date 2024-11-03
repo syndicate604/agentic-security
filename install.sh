@@ -86,6 +86,14 @@ echo -e "\n${CYAN}╔═══════════════════�
 echo -e "${CYAN}║${NC}                  Installing Security Tools                  ${CYAN}║${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════════════════════════════╝${NC}\n"
 
+# Install Python Dependencies
+echo -e "\n${CYAN}╔══════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${CYAN}║${NC}                Installing Python Dependencies               ${CYAN}║${NC}"
+echo -e "${CYAN}╚══════════════════════════════════════════════════════════════╝${NC}\n"
+
+execute_with_animation "pip install --upgrade pip" "Upgrading pip"
+execute_with_animation "pip install -r requirements.txt" "Installing Python packages"
+
 # Install OWASP ZAP
 execute_with_animation "docker pull owasp/zap2docker-stable" "Installing OWASP ZAP"
 

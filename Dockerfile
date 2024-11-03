@@ -51,11 +51,10 @@ RUN apt-get update && apt-get install -y \
 
 # Install wget and security tools
 RUN apt-get update && apt-get install -y wget && \
-    curl -s https://api.github.com/repos/projectdiscovery/nuclei/releases/latest | \
-    grep 'browser_download_url.*linux_amd64.zip' | cut -d '"' -f 4 | wget -qi - && \
-    unzip -q nuclei-*-linux_amd64.zip && \
+    wget https://github.com/projectdiscovery/nuclei/releases/download/v3.1.1/nuclei_3.1.1_linux_amd64.zip && \
+    unzip nuclei_3.1.1_linux_amd64.zip && \
     mv nuclei /usr/local/bin/ && \
-    rm nuclei-*-linux_amd64.zip && \
+    rm nuclei_3.1.1_linux_amd64.zip && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Set up working directory
