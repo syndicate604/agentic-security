@@ -64,6 +64,7 @@ class SecurityPipeline:
         # Load environment variables from .env file
         load_dotenv()
         
+        # Check for required environment variables
         required_vars = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY']
         missing_vars = [var for var in required_vars if not os.getenv(var)]
         if missing_vars:
