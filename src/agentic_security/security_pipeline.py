@@ -188,6 +188,8 @@ class SecurityPipeline:
                     "--model", model,
                     "--edit-format", "diff",
                     "--no-git",  # Don't require git
+                    "--yes",  # Run in non-interactive mode
+                    "--no-auto-commits",  # Don't try to commit changes
                     *python_files,  # Pass files as separate arguments
                     "--message", review_prompt
                 ], capture_output=True, text=True, timeout=remaining_time)
