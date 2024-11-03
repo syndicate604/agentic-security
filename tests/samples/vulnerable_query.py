@@ -97,22 +97,9 @@ def get_user_data(user_id: str, table_name: str, columns: Optional[List[str]] = 
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
-            # Use a prepared statement with table mapping
-            table_queries = {
-                'users': 'SELECT {} FROM users WHERE id = ?',
-                'profiles': 'SELECT {} FROM profiles WHERE id = ?',
-                'settings': 'SELECT {} FROM settings WHERE id = ?'
-            }
-            
-            if table_name not in table_queries:
-                raise DatabaseError("Invalid table selection")
-                
-            # Get the appropriate pre-validated query template
-            query_template = table_queries[table_name]
-            
-            # Format column names (safe since already validated)
-            column_names = ','.join(columns)
-            query = query_template.format(column_names)
+            # Build query using validated table name and columns
+            column_names = ','.join(f'"{col}"' for col in columns)  # Quote column names
+            query = f'SELECT {column_names} FROM "{table_name}" WHERE id = ?'
             
             # Execute with properly bound parameter
             cursor.execute(query, (user_id,))
@@ -150,11 +137,6 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
     if not re.match(r'^[a-zA-Z0-9\s-]{3,50}$', keyword):
         raise DatabaseError("Invalid search keyword format - must be 3-50 chars, alphanumeric with spaces and hyphens only")
     
-    # Check for common SQL injection patterns
-    dangerous_patterns = ["--", ";", "/*", "*/", "UNION", "SELECT", "DROP", "DELETE", "UPDATE"]
-    if any(pattern.lower() in keyword.lower() for pattern in dangerous_patterns):
-        raise DatabaseError("Invalid characters in search keyword")
-    
     # Use all columns if none specified
     if columns is None:
         columns = ALLOWED_TABLES['users']
@@ -165,15 +147,15 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
-            # Use parameterized query template
-            column_names = ','.join(columns)  # Safe since columns are validated
-            query = """
-                SELECT {} FROM users 
-                WHERE LOWER(name) LIKE LOWER(?) 
-                AND active = 1
-                ORDER BY id ASC
+            # Build secure parameterized query
+            column_names = ','.join(f'"{col}"' for col in columns)  # Quote column names
+            query = f"""
+                SELECT {column_names} FROM "users"
+                WHERE LOWER("name") LIKE LOWER(?)
+                AND "active" = 1
+                ORDER BY "id" ASC
                 LIMIT 100
-            """.format(column_names)
+            """
             
             # Properly escape and sanitize LIKE pattern
             search_pattern = "%" + keyword.replace("%", "\\%").replace("_", "\\_") + "%"
