@@ -50,8 +50,9 @@ def make_request(url):
     return requests.get(url, verify=False)
 
 def parse_xml(xml_string):
-    # Vulnerable to XXE
-    return ET.fromstring(xml_string)
+    # Secure XML parsing with XXE protection
+    parser = ET.XMLParser(resolve_entities=False)
+    return ET.fromstring(xml_string, parser=parser)
 
 import shlex
 
