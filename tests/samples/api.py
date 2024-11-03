@@ -27,3 +27,14 @@ def process_response(response_data):
     # Security Issue 6: Unsafe deserialization
     # Security Issue 7: No content type validation
     return eval(response_data)
+# Sample vulnerable API code
+import requests
+import xml.etree.ElementTree as ET
+
+def make_request(url):
+    # SSL verification disabled
+    return requests.get(url, verify=False)
+
+def parse_xml(xml_string):
+    # XML parsing vulnerability
+    return ET.fromstring(xml_string)
