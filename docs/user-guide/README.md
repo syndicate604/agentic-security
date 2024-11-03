@@ -6,15 +6,15 @@ Welcome to the Agentic Security user guide. This guide covers everything from ba
 
 ### Pattern-Based Security Analysis
 
-The system detects various vulnerability patterns including:
-- SQL Injection patterns
-- Command Injection vulnerabilities
-- Cross-Site Scripting (XSS)
-- Weak Cryptography
-- Insecure Deserialization
-- XXE Vulnerabilities
-- Path Traversal
-- Authentication Weaknesses
+The system uses advanced pattern detection to identify:
+- SQL Injection vulnerabilities (including string formatting)
+- Command Injection and RCE vulnerabilities
+- Cross-Site Scripting (XSS) and DOM manipulation
+- Weak Cryptography implementations
+- Insecure Deserialization (pickle, yaml, etc)
+- XXE and XML Parser vulnerabilities
+- Path Traversal and file access issues
+- Authentication and session weaknesses
 
 ### Caching System
 
@@ -32,10 +32,11 @@ Three output modes available:
 
 ### AI Integration
 
-- **Architecture Review**: Uses GPT-4 for high-level security analysis
-- **Fix Generation**: Uses Claude-3 for precise fix implementation
-- **PR Description**: AI-generated detailed pull request descriptions
-- **Vulnerability Analysis**: Smart severity scoring and prioritization
+- **Architecture Review**: Uses GPT-4-1106-preview for high-level security analysis
+- **Fix Generation**: Uses Claude-3-sonnet-20240229 for precise fix implementation
+- **PR Description**: AI-generated detailed pull request descriptions with context
+- **Vulnerability Analysis**: Smart severity scoring and risk prioritization
+- **Multi-Model Orchestration**: Leverages both models' strengths
 
 ### Performance Optimization
 
