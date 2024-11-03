@@ -68,7 +68,7 @@ def test_setup_environment_missing_vars(monkeypatch):
     monkeypatch.setenv('SKIP_DOTENV', 'true')  # Skip .env loading
     
     pipeline = SecurityPipeline()
-    with pytest.raises(OSError) as exc_info:
+    with pytest.raises(EnvironmentError) as exc_info:
         pipeline.setup_environment()
     assert "Missing required environment variables" in str(exc_info.value)
 
