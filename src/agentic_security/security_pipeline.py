@@ -451,7 +451,7 @@ class SecurityPipeline:
     def _get_vulnerability_description(self, vuln_type: str) -> str:
         """Get detailed description for vulnerability type"""
         descriptions = {
-            'sql_injection': 'SQL Injection vulnerability detected - Risk of database manipulation',
+            'sql_injection': 'SQL injection vulnerability detected - Risk of database manipulation',
             'command_injection': 'Command injection vulnerability detected - Risk of arbitrary command execution',
             'xss': 'Cross-Site Scripting (XSS) vulnerability detected - Risk of client-side code injection',
             'weak_crypto': 'Weak cryptographic implementation detected - Risk of data exposure',
