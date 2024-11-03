@@ -345,9 +345,18 @@ class SecurityPipeline:
                         "--model", self.analysis_model,
                         "--edit-format", "diff",
                         "--yes",  # Auto-approve changes
+                        "--no-auto-commits",  # Don't auto-commit changes
                         file_path,
                         fix_prompt
                     ], capture_output=True, text=True, timeout=timeout)
+
+                    # Stage changes if successful
+                    if result.returncode == 0 and "No changes made" not in result.stdout:
+                        try:
+                            subprocess.run(['git', 'add', file_path], check=True)
+                            subprocess.run(['git', 'commit', '-m', f'Fix {vuln_type} in {file_path}'], check=True)
+                        except subprocess.CalledProcessError as e:
+                            print(f"\033[31m[!] Failed to commit changes: {e}\033[0m")
 
                     if result.returncode != 0:
                         print(f"\033[31m[!] Aider failed with return code {result.returncode}\033[0m")
@@ -1042,20 +1051,23 @@ class SecurityPipeline:
     def validate_fixes(self) -> bool:
         """Validate implemented fixes"""
         print("\n[36m[>] Validating applied fixes...[0m")
-        
+    
         # Re-run security checks
         results = self.run_security_checks()
-        
+    
         remaining_issues = []
-        for check_type, check_results in results.items():
-            for result in check_results:
-                severity = self._get_max_severity(result)
-                if severity >= self.critical_threshold:
-                    remaining_issues.append({
-                        'type': check_type,
-                        'severity': severity,
-                        'file': result.get('file', 'unknown')
-                    })
+        if isinstance(results, dict):
+            for check_type, check_results in results.items():
+                if isinstance(check_results, list):
+                    for result in check_results:
+                        if isinstance(result, dict):
+                            severity = self._get_max_severity({'results': [result]})
+                            if severity >= self.critical_threshold:
+                                remaining_issues.append({
+                                    'type': check_type,
+                                    'severity': severity,
+                                    'file': result.get('file', 'unknown')
+                                })
         
         if remaining_issues:
             print("\n[31m[!] Validation found remaining issues:[0m")
