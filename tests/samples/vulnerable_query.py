@@ -122,18 +122,28 @@ def get_user_data(user_id: str, table_name: str, columns: Optional[List[str]] = 
             if not column_list:
                 raise DatabaseError("No valid columns specified")
                 
-            # Build safe query using proper parameter binding
-            columns_str = ','.join(f'"{col}"' for col in column_list)
+            # Build query with validated table and column names
+            placeholders = []
+            params = []
             
-            # Use a prepared statement with proper escaping
+            # Create safe column selection
+            column_params = []
+            for col in column_list:
+                if col not in ALLOWED_TABLES[table_name]:
+                    raise DatabaseError(f"Invalid column: {col}")
+                column_params.append(f'"{col}"')
+            columns_str = ','.join(column_params)
+            
+            # Create parameterized query
             query = f"""
-                SELECT {columns_str} 
-                FROM "{table_name}" 
-                WHERE id = ? AND active = 1
+                SELECT {columns_str}
+                FROM "{table_name}"
+                WHERE id = :user_id 
+                AND active = 1
             """
             
-            # Execute with properly bound parameters
-            cursor.execute(query, (user_id,))
+            # Execute with named parameters
+            cursor.execute(query, {"user_id": user_id})
             results = cursor.fetchall()
             
             if not results:
@@ -183,20 +193,27 @@ def search_users(keyword: str, columns: Optional[List[str]] = None) -> Optional[
             if not column_list:
                 raise DatabaseError("No valid columns specified")
             
-            # Build safe query with validated columns and proper parameterization
-            columns_str = ','.join(f'"{col}"' for col in column_list)
+            # Build query with validated columns
+            column_params = []
+            for col in column_list:
+                if col not in ALLOWED_TABLES['users']:
+                    raise DatabaseError(f"Invalid column: {col}")
+                column_params.append(f'"{col}"')
+            columns_str = ','.join(column_params)
+            
+            # Create parameterized query with named parameters
             query = f"""
-                SELECT {columns_str} 
-                FROM "users"
-                WHERE name LIKE ? ESCAPE '\\' 
+                SELECT {columns_str}
+                FROM "users" 
+                WHERE name LIKE :pattern ESCAPE '\\' 
                 AND active = 1
                 ORDER BY id ASC 
                 LIMIT 100
             """
             
-            # Properly escape LIKE pattern and use parameterized query
+            # Use named parameter with properly escaped LIKE pattern
             search_pattern = f"%{re.escape(keyword)}%"
-            cursor.execute(query, (search_pattern,))
+            cursor.execute(query, {"pattern": search_pattern})
             results = cursor.fetchall()
             
             if not results:
