@@ -260,10 +260,31 @@ class SecurityPipeline:
                         
                         subprocess.run(["unzip", "dependency-check.zip"], check=True)
                         os.remove("dependency-check.zip")
-                        
+                
+                        # Make the script executable
+                        script_path = os.path.join(os.getcwd(), "dependency-check", "bin", "dependency-check.sh")
+                        os.chmod(script_path, 0o755)
+                
+                        # Create symlink in /usr/local/bin if we have permission
+                        try:
+                            symlink_path = "/usr/local/bin/dependency-check.sh"
+                            if os.path.exists(symlink_path):
+                                os.remove(symlink_path)
+                            os.symlink(script_path, symlink_path)
+                        except PermissionError:
+                            print("[33m[!] Could not create symlink in /usr/local/bin - you may need to add the installation directory to your PATH[0m")
+                            print(f"[33m[!] Installation directory: {os.path.dirname(script_path)}[0m")
+                
                         print("[32m[✓] OWASP Dependency Check installed successfully[0m")
                         dependency_check_available = True
-                        
+                
+                        # Verify installation
+                        try:
+                            subprocess.run([script_path, "--version"], check=True, capture_output=True)
+                        except subprocess.CalledProcessError:
+                            print("[31m[!] Installation verification failed - please check the installation manually[0m")
+                            dependency_check_available = False
+                
                     except Exception as e:
                         print(f"[31m[!] Error installing OWASP Dependency Check: {str(e)}[0m")
                         print("\nPlease install manually from: https://owasp.org/www-project-dependency-check/")
