@@ -499,11 +499,19 @@ def test_artifact_generation(pipeline, tmp_path):
     for section in required_sections:
         assert section in content, f"Missing report section: {section}"
 
-def test_cache_in_ci(pipeline, tmp_path):
+@patch('subprocess.run')
+def test_cache_in_ci(mock_run, pipeline, tmp_path):
     """Test caching behavior in CI environment"""
     # Configure clean cache for test
     pipeline.cache = SecurityCache(str(tmp_path))
     
+    # Mock successful command executions
+    mock_run.return_value = MagicMock(
+        returncode=0,
+        stdout="Test output",
+        stderr=""
+    )
+
     # Set up CI environment
     with patch.dict(os.environ, {
         'CI': 'true', 
