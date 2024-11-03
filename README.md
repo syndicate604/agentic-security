@@ -217,6 +217,17 @@ from datetime import datetime
 import yaml
 import requests
 
+# Configuration Variables
+OPENAI_MODEL = "gpt-4-1106-preview"  # o1-preview model
+CLAUDE_MODEL = "claude-3-sonnet-20240229"  # Latest Sonnet model
+DEFAULT_CONFIG = {
+    "security": {
+        "critical_threshold": 7.0,
+        "max_fix_attempts": 3,
+        "scan_targets": []
+    }
+}
+
 class SecurityPipeline:
     def __init__(self, config_file='config.yml'):
         self.load_config(config_file)
@@ -225,110 +236,150 @@ class SecurityPipeline:
         self.branch_name = f"security-fixes-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
 
     def load_config(self, config_file):
-        with open(config_file, 'r') as f:
-            self.config = yaml.safe_load(f)
+        """Load configuration from YAML file or use defaults"""
+        try:
+            with open(config_file, 'r') as f:
+                self.config = yaml.safe_load(f)
+        except FileNotFoundError:
+            self.config = DEFAULT_CONFIG
+
+    def run_architecture_review(self):
+        """Run architecture review using OpenAI o1-preview"""
+        print("Running architecture review with OpenAI o1-preview...")
+        
+        subprocess.run([
+            "aider",
+            "--model", OPENAI_MODEL,
+            "--edit-format", "diff",
+            "/ask",
+            "Review the architecture for security vulnerabilities and suggest improvements:",
+            "."
+        ], check=True)
+
+    def implement_fixes(self):
+        """Implement fixes using Claude 3.5 Sonnet"""
+        print("Implementing fixes with Claude 3.5 Sonnet...")
+        
+        subprocess.run([
+            "aider",
+            "--model", CLAUDE_MODEL,
+            "--edit-format", "diff",
+            "/code",
+            "Implement the suggested security fixes:",
+            "."
+        ], check=True)
 
     def run_security_checks(self):
-        # Security scanning implementation remains the same
-        pass
+        """Run comprehensive security scans"""
+        for target in self.config['security']['scan_targets']:
+            if target['type'] == 'web':
+                self._run_web_security_checks(target['url'])
+            elif target['type'] == 'code':
+                self._run_code_security_checks(target['path'])
 
-    def analyze_vulnerabilities(self):
-        # Vulnerability analysis implementation remains the same
-        pass
+    def _run_web_security_checks(self, url):
+        """Run web-specific security checks"""
+        print(f"Running web security checks for {url}")
+        
+        # OWASP ZAP scan
+        subprocess.run([
+            "aider",
+            "--model", OPENAI_MODEL,
+            "/ask",
+            f"Analyze OWASP ZAP results for {url}:",
+            "zap-report.json"
+        ], check=True)
+
+        # Nuclei scan
+        subprocess.run([
+            "aider",
+            "--model", CLAUDE_MODEL,
+            "/ask",
+            f"Review Nuclei scan results for {url}:",
+            "nuclei-report.jsonl"
+        ], check=True)
+
+    def _run_code_security_checks(self, path):
+        """Run code-specific security checks"""
+        print(f"Running code security checks for {path}")
+        
+        subprocess.run([
+            "aider",
+            "--model", CLAUDE_MODEL,
+            "/ask",
+            f"Analyze dependency vulnerabilities in {path}:",
+            "dependency-check-report.json"
+        ], check=True)
 
     def create_fix_branch(self):
+        """Create a new branch for security fixes"""
         print(f"Creating fix branch: {self.branch_name}")
         subprocess.run(["git", "checkout", "-b", self.branch_name], check=True)
 
-    def run_aider_fixes(self):
-        print("Running Aider with automated fixes...")
+    def validate_fixes(self):
+        """Validate implemented fixes"""
+        print("Validating fixes...")
         
-        # Basic Aider command with --yes-always flag
         subprocess.run([
-            "aider", "--yes-always",
-            "--apply-fixes", ".",
-            "--commit-prefix", "fix: security",
-            "--no-git-commit"
-        ], check=True)
-
-        # Run additional Aider commands for specific fix types
-        fix_commands = [
-            ["--fix-security-issues"],
-            ["--fix-dependencies"],
-            ["--fix-code-quality"]
-        ]
-
-        for cmd in fix_commands:
-            subprocess.run([
-                "aider", "--yes-always",
-                *cmd,
-                "--apply-fixes", ".",
-                "--commit-prefix", f"fix: {cmd[0].replace('--fix-', '')}",
-                "--no-git-commit"
-            ], check=True)
-
-    def run_tests(self):
-        print("Running tests...")
-        result = subprocess.run(["pytest", "tests/"], capture_output=True)
-        return result.returncode == 0
-
-    def commit_changes(self):
-        subprocess.run([
-            "aider", "--yes-always",
-            "--commit",
-            "--message", "Automated security fixes",
-            "--no-edit"
-        ], check=True)
-
-    def push_changes(self):
-        print("Pushing changes to remote...")
-        subprocess.run([
-            "aider", "--yes-always",
-            "--push",
-            "--branch", self.branch_name
+            "aider",
+            "--model", OPENAI_MODEL,
+            "/test",
+            "Validate the implemented security fixes:",
+            "."
         ], check=True)
 
     def create_pull_request(self):
+        """Create PR with AI-generated description"""
         print("Creating pull request...")
-        pr_body = """
-        ## Automated Security Fixes
         
-        This PR contains automated security fixes applied by the Agentic Security pipeline.
+        # Get changed files
+        changed_files = subprocess.check_output([
+            "git", "diff", "--name-only", "main", self.branch_name
+        ]).decode().strip().split('\n')
         
-        ### Changes Made:
-        - Dependency updates
-        - Security vulnerability fixes
-        - Code quality improvements
+        # Generate PR description using o1-preview
+        pr_command = [
+            "aider",
+            "--model", OPENAI_MODEL,
+            "/ask",
+            "Generate a detailed PR description for these security changes:",
+            *changed_files
+        ]
         
-        Please review the changes carefully before merging.
-        """
+        pr_description = subprocess.check_output(pr_command).decode().strip()
         
+        # Create PR
         subprocess.run([
-            "aider", "--yes-always",
-            "--create-pr",
-            "--title", "Security: Automated fixes for vulnerabilities",
-            "--body", pr_body,
+            "gh", "pr", "create",
+            "--title", "Security: AI-Reviewed Security Fixes",
+            "--body", pr_description,
+            "--head", self.branch_name,
             "--base", "main"
         ], check=True)
 
     def run_pipeline(self):
+        """Execute the complete security pipeline"""
         try:
+            # Architecture review with o1-preview
+            self.run_architecture_review()
+            
+            # Security checks
             self.run_security_checks()
             
-            if self.analyze_vulnerabilities():
-                self.create_fix_branch()
-                self.run_aider_fixes()
-                
-                if self.run_tests():
-                    self.commit_changes()
-                    self.push_changes()
-                    self.create_pull_request()
-                    print("Security pipeline completed successfully")
-                else:
-                    print("Tests failed after applying fixes")
-            else:
-                print("No critical security issues found")
-                
+            # Create fix branch
+            self.create_fix_branch()
+            
+            # Implement fixes with Claude
+            self.implement_fixes()
+            
+            # Validate fixes with o1-preview
+            self.validate_fixes()
+            
+            # Create PR
+            self.create_pull_request()
+            
+            print("Security pipeline completed successfully")
+            
         except subprocess.CalledProcessError as e:
             print(f"Pipeline failed: {str(e)}")
             raise
