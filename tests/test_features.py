@@ -14,7 +14,7 @@ def test_security_cache(tmp_path):
     
     # Test retrieving results
     cached = cache.get_scan_results("test_scan")
-    assert cached['results'] == results
+    assert cached == results
     
     # Test clearing old results
     cache.clear_old_results(days=0)
