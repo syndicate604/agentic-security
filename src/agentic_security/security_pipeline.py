@@ -318,6 +318,9 @@ class SecurityPipeline:
             results = {'status': True, 'reviews': []}
             self.progress.start("Starting security pipeline")
             
+            # Generate unique scan ID based on current timestamp
+            scan_id = f"pipeline_scan_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            
             # Always run security checks in CI mode
             if skip_cache:
                 security_results = self._run_new_scan(scan_id)
@@ -327,9 +330,6 @@ class SecurityPipeline:
                     security_results = cached_results['results']
                 else:
                     security_results = self._run_new_scan(scan_id)
-            
-            # Generate unique scan ID based on current timestamp
-            scan_id = f"pipeline_scan_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
             
             # Check cache for recent results
             cached_results = self.cache.get_scan_results(scan_id)
