@@ -1,11 +1,11 @@
 name: Security Pipeline
 
 on:
-  schedule:
-    - cron: '0 5 * * *'  # Daily at 5 AM
   pull_request:
     branches: [ main ]
   workflow_dispatch: {}
+  schedule:
+    - cron: '0 5 * * *'  # Daily at 5 AM
 
 jobs:
   security-check:

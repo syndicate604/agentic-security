@@ -318,11 +318,15 @@ class SecurityPipeline:
             results = {'status': True, 'reviews': []}
             self.progress.start("Starting security pipeline")
             
-            # Use cache if available and not skipped
-            if not skip_cache:
+            # Always run security checks in CI mode
+            if skip_cache:
+                security_results = self._run_new_scan(scan_id)
+            else:
                 cached_results = self.cache.get_scan_results("latest_scan")
                 if cached_results:
-                    return cached_results['results']
+                    security_results = cached_results['results']
+                else:
+                    security_results = self._run_new_scan(scan_id)
             
             # Generate unique scan ID based on current timestamp
             scan_id = f"pipeline_scan_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -382,8 +386,8 @@ class SecurityPipeline:
             self.progress.finish("No critical vulnerabilities found")
             
             # Send notification
-            if 'SLACK_WEBHOOK' in os.environ:
-                try:
+            try:
+                if 'SLACK_WEBHOOK' in os.environ:
                     requests.post(
                         os.environ['SLACK_WEBHOOK'],
                         json={
@@ -391,9 +395,9 @@ class SecurityPipeline:
                         },
                         timeout=10
                     )
-                except Exception as e:
-                    print(f"Error sending notification: {str(e)}")
-                    return False
+            except Exception as e:
+                print(f"Error sending notification: {str(e)}")
+                # Don't fail the pipeline on notification error
             
             # Cache results before returning
             if not getattr(self, '_skip_cache', False):
@@ -510,6 +514,11 @@ class SecurityPipeline:
     def _validate_cached_results(self, results: Dict) -> bool:
         """Validate cached results structure and content"""
         try:
+            # Check if results is a dictionary
+            if not isinstance(results, dict):
+                return False
+
+            # Check for required keys
             required_keys = ['web', 'code']
             if not all(key in results for key in required_keys):
                 return False
@@ -517,6 +526,12 @@ class SecurityPipeline:
             # Validate result structure
             for key in required_keys:
                 if not isinstance(results[key], list):
+                    return False
+                    
+            # Validate cache timestamp if present
+            if 'timestamp' in results:
+                cache_time = datetime.fromisoformat(results['timestamp'])
+                if (datetime.now() - cache_time).days > 1:  # Cache expires after 1 day
                     return False
                     
             return True
