@@ -605,31 +605,18 @@ class SecurityPipeline:
                 for result in check_type
             )
             
-            # Run architecture review in CI mode with mock results
+            # Run architecture review (both in normal and CI mode)
+            self.progress.update(40, "Running architecture review")
+            review_results = self.run_architecture_review()
+            results['architecture_review'] = review_results
+
+            # In CI mode, return early with mock results
             if os.environ.get('CI', '').lower() == 'true':
-                # Mock the architecture review step
-                mock_review = {
-                    'output': 'CI Mode - Mock Architecture Review',
-                    'suggestions': [{
-                        'file': 'test.py',
-                        'type': 'mock_vulnerability',
-                        'severity': 'low',
-                        'description': 'Mock finding for CI testing'
-                    }]
-                }
-                results['architecture_review'] = mock_review
                 return {
                     'status': True,
-                    'reviews': [{
-                        'file': 'test.py',
-                        'type': 'mock_vulnerability',
-                        'severity': 'low',
-                        'findings': [{
-                            'description': 'Mock finding for CI testing'
-                        }]
-                    }],
+                    'reviews': review_results.get('suggestions', []),
                     'severity': 0.0,
-                    'architecture_review': mock_review
+                    'architecture_review': review_results
                 }
             
             # Otherwise check severity threshold
