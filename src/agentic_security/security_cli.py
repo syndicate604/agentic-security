@@ -1,5 +1,26 @@
 #!/usr/bin/env python3
 
+# Cyberpunk color scheme
+COLORS = {
+    "neon_blue": "\033[38;5;51m",
+    "neon_pink": "\033[38;5;198m", 
+    "neon_green": "\033[38;5;46m",
+    "neon_yellow": "\033[38;5;226m",
+    "neon_red": "\033[38;5;196m",
+    "neon_purple": "\033[38;5;165m",
+    "reset": "\033[0m",
+    "bold": "\033[1m",
+    "blink": "\033[5m"
+}
+
+# Cyberpunk decorators
+DECORATORS = {
+    "box_top": f"{COLORS['neon_blue']}╔{'═'*60}╗{COLORS['reset']}",
+    "box_bottom": f"{COLORS['neon_blue']}╚{'═'*60}╝{COLORS['reset']}",
+    "box_line": f"{COLORS['neon_blue']}║{COLORS['reset']}",
+    "arrow": f"{COLORS['neon_pink']}[►]{COLORS['reset']}"
+}
+
 from datetime import datetime
 from pathlib import Path
 import click
@@ -12,23 +33,23 @@ from .security_pipeline import SecurityPipeline
 from .fix_cycle import FixCycle
 from typing import Optional
 
-CYBER_BANNER = """
-\033[36m
+CYBER_BANNER = f"""
+{COLORS['neon_blue']}
     █████╗  ██████╗ ███████╗███╗   ██╗████████╗██╗ ██████╗
    ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝██║██╔════╝
    ███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║   ██║██║     
    ██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║   ██║██║     
    ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║   ██║╚██████╗
    ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚═╝ ╚═════╝
-   \033[35m███████╗███████╗ ██████╗██╗   ██╗██████╗ ██╗████████╗██╗   ██╗
+{COLORS['neon_pink']}   ███████╗███████╗ ██████╗██╗   ██╗██████╗ ██╗████████╗██╗   ██╗
    ██╔════╝██╔════╝██╔════╝██║   ██║██╔══██╗██║╚══██╔══╝╚██╗ ██╔╝
    ███████╗█████╗  ██║     ██║   ██║██████╔╝██║   ██║    ╚████╔╝ 
    ╚════██║██╔══╝  ██║     ██║   ██║██╔══██╗██║   ██║     ╚██╔╝  
    ███████║███████╗╚██████╗╚██████╔╝██║  ██║██║   ██║      ██║   
    ╚══════╝╚══════╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝   ╚═╝      ╚═╝   
-\033[0m
-\033[36m[ AI-Powered Security Scanner & Auto-Fix Pipeline ]\033[0m
-\033[35m[ Created by rUv, cause he could. ]\033[0m
+{COLORS['reset']}
+{COLORS['neon_purple']}[ {COLORS['blink']}AI-Powered Security Scanner & Auto-Fix Pipeline{COLORS['reset']}{COLORS['neon_purple']} ]{COLORS['reset']}
+{COLORS['neon_green']}[ Created by rUv, cause he could. ]{COLORS['reset']}
 
 """
 
@@ -83,14 +104,24 @@ CYBER_HELP = """
 
 def print_cyber_status(message: str, status: str = "info") -> None:
     """Print cyberpunk-styled status messages"""
-    colors = {
-        "info": "\033[36m",    # Cyan
-        "success": "\033[32m",  # Green
-        "warning": "\033[33m",  # Yellow
-        "error": "\033[31m",    # Red
+    status_styles = {
+        "info": f"{COLORS['neon_blue']}{COLORS['bold']}",
+        "success": f"{COLORS['neon_green']}{COLORS['bold']}",
+        "warning": f"{COLORS['neon_yellow']}{COLORS['bold']}",
+        "error": f"{COLORS['neon_red']}{COLORS['blink']}"
     }
-    color = colors.get(status, colors["info"])
-    print(f"{color}[>] {message}\033[0m")
+    
+    status_icons = {
+        "info": "ℹ",
+        "success": "✓",
+        "warning": "⚠",
+        "error": "✗"
+    }
+    
+    color = status_styles.get(status, status_styles["info"])
+    icon = status_icons.get(status, "►")
+    
+    print(f"{DECORATORS['box_line']} {color}{icon} {message}{COLORS['reset']}")
 
 def load_config(config_file: str) -> dict:
     """Load configuration from file"""
@@ -125,6 +156,16 @@ class CyberpunkGroup(click.Group):
         print(CYBER_HELP)
 
 @click.group(cls=CyberpunkGroup)
+def cyber_spinner():
+    """Cyberpunk-styled spinner animation"""
+    frames = [
+        f"{COLORS['neon_purple']}◢{COLORS['reset']}",
+        f"{COLORS['neon_blue']}◣{COLORS['reset']}",
+        f"{COLORS['neon_pink']}◤{COLORS['reset']}",
+        f"{COLORS['neon_green']}◥{COLORS['reset']}"
+    ]
+    return frames
+
 def cli():
     """Agentic Security CLI - AI-powered security scanning and fixing pipeline"""
     pass
