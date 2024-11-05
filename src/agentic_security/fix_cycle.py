@@ -5,6 +5,7 @@ import os
 import sys
 from pathlib import Path
 import logging
+import re
 import difflib
 import shlex
 from typing import Dict, List, Optional, Union
@@ -291,6 +292,14 @@ class FixCycle:
                     logger.error("aider is not installed. Please install it with: pip install aider-chat")
                     return False
 
+                # Modify command for better verbose output
+                if '--verbose' in cmd:
+                    # Add --no-pretty when verbose is enabled for raw output
+                    cmd.append('--no-pretty')
+                    # Check if running in VSCode terminal
+                    if 'VSCODE_PID' in os.environ:
+                        logger.info("VSCode terminal detected - disabling pretty output")
+                
                 # Run aider with real-time output display
                 process = subprocess.Popen(
                     cmd,
@@ -302,12 +311,23 @@ class FixCycle:
                     cwd=os.getcwd()
                 )
 
-                # Display output in real-time
+                # Display output in real-time with token tracking
+                token_pattern = re.compile(r'Tokens: (\d+)')
+                total_tokens = 0
+                
                 while True:
                     output = process.stdout.readline()
                     if output:
                         print(output.rstrip())
                         logger.info(output.rstrip())
+                        
+                        # Track token usage when reported
+                        if '--verbose' in cmd:
+                            token_match = token_pattern.search(output)
+                            if token_match:
+                                tokens = int(token_match.group(1))
+                                total_tokens += tokens
+                                logger.info(f"Accumulated tokens: {total_tokens}")
                     error = process.stderr.readline()
                     if error:
                         print(f"{COLORS['neon_red']}{error.rstrip()}{COLORS['reset']}")
