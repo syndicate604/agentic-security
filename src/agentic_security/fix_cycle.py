@@ -16,7 +16,7 @@ from .security_cli import COLORS, DECORATORS
 
 # Configure logging with more detailed format
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.WARNING,  # Default to WARNING level
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
@@ -36,6 +36,13 @@ class FixCycle:
     def __init__(self, files=None, message=None, max_attempts=3, report_path=None, verbose=False):
         self.max_attempts = max_attempts
         self.verbose = verbose
+        
+        # Set logging level based on verbose flag
+        if self.verbose:
+            logger.setLevel(logging.INFO)
+        else:
+            logger.setLevel(logging.WARNING)
+            
         self.original_contents = {}
         
         if report_path:
