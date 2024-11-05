@@ -61,12 +61,12 @@ class FixCycle:
         base_dir = Path.cwd().resolve()
         for f in files:
             try:
-                path = Path(f).resolve()
+                path = Path(f).resolve(strict=True)  # strict=True ensures all parts exist
                 # Prevent path traversal by checking if path is within base directory
-                if not str(path).startswith(str(base_dir)):
+                try:
+                    path.relative_to(base_dir)
+                except ValueError:
                     raise ValueError(f"File path {f} must be within the current directory")
-                if not path.exists():
-                    raise ValueError(f"File not found: {f}")
                 if not path.is_file():
                     raise ValueError(f"Path is not a file: {f}")
                 if not os.access(path, os.R_OK | os.W_OK):
