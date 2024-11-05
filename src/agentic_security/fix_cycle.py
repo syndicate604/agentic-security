@@ -261,9 +261,19 @@ class FixCycle:
             logger.info(f"\nAttempt {attempts + 1}/{self.max_attempts}")
             
             try:
+                print(f"\n{DECORATORS['box_top']}")
+                print(f"{DECORATORS['box_line']} {COLORS['neon_purple']}ATTEMPT {attempts + 1}/{self.max_attempts}{COLORS['reset']}")
+                print(f"{DECORATORS['box_bottom']}\n")
+                
                 # Apply fixes using aider with direct message passing
                 logger.info("Applying fixes with aider")
-                logger.info(f"Files to process: {', '.join(files)}")
+                
+                print(f"\n{DECORATORS['box_top']}")
+                print(f"{DECORATORS['box_line']} {COLORS['neon_blue']}FILES TO PROCESS:{COLORS['reset']}")
+                for file in files:
+                    print(f"{DECORATORS['box_line']} {COLORS['neon_green']}• {file}{COLORS['reset']}")
+                print(f"{DECORATORS['box_bottom']}\n")
+                
                 logger.info(f"Message to aider: {message}")
                 
                 # Construct command with proper escaping
