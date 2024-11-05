@@ -32,9 +32,10 @@ except Exception as e:
     logger.warning(f"Failed to set up file logging: {e}")
 
 class FixCycle:
-    def __init__(self, files=None, message=None, max_attempts=3, report_path=None):
+    def __init__(self, files=None, message=None, max_attempts=3, report_path=None, verbose=False):
         self.max_attempts = max_attempts
         self.original_contents = {}
+        self.verbose = verbose
         
         if report_path:
             self.findings = self.parse_security_report(report_path)
@@ -276,6 +277,8 @@ class FixCycle:
                 
                 # Construct command with proper escaping
                 cmd = ["aider", "--yes-always"]
+                if hasattr(self, 'verbose') and self.verbose:
+                    cmd.extend(["--verbose", "--no-pretty"])
                 cmd.extend(files)
                 cmd.extend(["--message", message])
                 
@@ -421,13 +424,16 @@ def main():
     parser.add_argument('--max-attempts', type=int, default=3, help='Maximum fix attempts')
     parser.add_argument('--extensions', nargs='+', default=['.py', '.js', '.ts', '.jsx', '.tsx'],
                       help='File extensions to process (default: .py .js .ts .jsx .tsx)')
+    parser.add_argument('--verbose', action='store_true',
+                      help='Enable verbose output')
     
     args = parser.parse_args()
     
     if args.report:
         fixer = FixCycle(
             report_path=args.report,
-            max_attempts=args.max_attempts
+            max_attempts=args.max_attempts,
+            verbose=args.verbose
         )
         success = fixer.run_fix_cycle(min_severity=args.min_severity)
     else:
@@ -457,7 +463,8 @@ def main():
         fixer = FixCycle(
             files=all_files,
             message=args.message,
-            max_attempts=args.max_attempts
+            max_attempts=args.max_attempts,
+            verbose=args.verbose
         )
     
     success = fixer.run_fix_cycle()
