@@ -34,18 +34,26 @@ except Exception as e:
     logger.warning(f"Failed to set up file logging: {e}")
 
 class FixCycle:
-    def __init__(self, files, message, max_attempts=3):
+    def __init__(self, files=None, message=None, max_attempts=3, report_path=None):
+        self.max_attempts = max_attempts
+        self.original_contents = {}
+        
+        if report_path:
+            self.findings = self.parse_security_report(report_path)
+            self.files = list(set(finding['file'] for finding in self.findings))
+        else:
+            self.files = files
+            self.message = message
+            self.findings = []
+
         # Sanitize and validate file paths
-        self.files = [str(Path(f).resolve()) for f in files]
+        self.files = [str(Path(f).resolve()) for f in self.files]
         for file in self.files:
             if not os.path.exists(file):
                 raise ValueError(f"File not found: {file}")
             if not os.access(file, os.R_OK | os.W_OK):
                 raise PermissionError(f"Insufficient permissions for file: {file}")
-            
-        self.message = message
-        self.max_attempts = max_attempts
-        self.original_contents = {}
+        
         self._store_original_contents()
 
     def _store_original_contents(self):
@@ -125,8 +133,48 @@ class FixCycle:
         except Exception as e:
             return f"Failed to generate diff summary: {e}"
 
-    def run_fix_cycle(self):
-        """Run fix cycle using aider with direct message passing"""
+    def parse_security_report(self, report_path: str) -> List[Dict]:
+        """Parse a security report markdown file and extract findings"""
+        findings = []
+        current_file = None
+        
+        try:
+            with open(report_path, 'r') as f:
+                lines = f.readlines()
+                
+            for line in lines:
+                line = line.strip()
+                
+                # Look for file paths
+                if line.startswith('###'):
+                    current_file = line.replace('### ', '').strip()
+                # Look for findings details
+                elif line.startswith('- Type:'):
+                    finding = {'file': current_file}
+                    finding['type'] = line.replace('- Type:', '').strip()
+                elif line.startswith('- Severity:'):
+                    finding['severity'] = line.replace('- Severity:', '').strip()
+                elif line.startswith('- Details:'):
+                    finding['details'] = line.replace('- Details:', '').strip()
+                    findings.append(finding.copy())
+                    
+            return findings
+        except Exception as e:
+            logger.error(f"Failed to parse security report {report_path}: {e}")
+            return []
+
+    def _generate_fix_message(self, findings: List[Dict]) -> str:
+        """Generate a fix message from findings"""
+        message = "Please fix the following security issues:\n\n"
+        for finding in findings:
+            message += f"- {finding['type']} ({finding['severity']}): {finding['details']}\n"
+        return message
+
+    def _run_single_fix(self, files: Union[str, List[str]], message: str) -> bool:
+        """Run a single fix cycle for given files and message"""
+        if isinstance(files, str):
+            files = [files]
+            
         attempts = 0
         while attempts < self.max_attempts:
             logger.info(f"\nAttempt {attempts + 1}/{self.max_attempts}")
@@ -134,13 +182,13 @@ class FixCycle:
             try:
                 # Apply fixes using aider with direct message passing
                 logger.info("Applying fixes with aider")
-                logger.info(f"Files to process: {', '.join(self.files)}")
-                logger.info(f"Message to aider: {self.message}")
+                logger.info(f"Files to process: {', '.join(files)}")
+                logger.info(f"Message to aider: {message}")
                 
                 # Construct command with proper escaping
                 cmd = ["aider", "--yes-always"]
-                cmd.extend(self.files)
-                cmd.extend(["--message", self.message])
+                cmd.extend(files)
+                cmd.extend(["--message", message])
                 
                 logger.info(f"Executing command: {' '.join(cmd)}")
                 
@@ -263,40 +311,47 @@ def main():
     parser = argparse.ArgumentParser(description='Run fix cycle with direct message passing to aider')
     parser.add_argument('--path', nargs='+', help='Files or directories to fix')
     parser.add_argument('--message', help='Message to pass directly to aider')
+    parser.add_argument('--report', help='Path to security report markdown file')
     parser.add_argument('--max-attempts', type=int, default=3, help='Maximum fix attempts')
     parser.add_argument('--extensions', nargs='+', default=['.py', '.js', '.ts', '.jsx', '.tsx'],
                       help='File extensions to process (default: .py .js .ts .jsx .tsx)')
     
     args = parser.parse_args()
     
-    # Default values if not provided
-    if not args.path:
-        args.path = ['src/agentic_security/fix_cycle.py']  # Default to self
-    if not args.message:
-        args.message = "Review this code for security issues and propose fixes"
-    
-    # Collect all files from provided paths
-    all_files = []
-    for path in args.path:
-        files = _get_files_from_path(path, tuple(args.extensions))
-        if files:
-            all_files.extend(files)
-        else:
-            logger.warning(f"No matching files found in {path}")
-    
-    if not all_files:
-        logger.error("No files found to process")
-        return 1
-    
-    logger.info(f"Found {len(all_files)} files to process:")
-    for file in all_files:
-        logger.info(f"  - {file}")
-    
-    fixer = FixCycle(
-        files=all_files,
-        message=args.message,
-        max_attempts=args.max_attempts
-    )
+    if args.report:
+        fixer = FixCycle(
+            report_path=args.report,
+            max_attempts=args.max_attempts
+        )
+    else:
+        # Default values if not provided
+        if not args.path:
+            args.path = ['src/agentic_security/fix_cycle.py']  # Default to self
+        if not args.message:
+            args.message = "Review this code for security issues and propose fixes"
+        
+        # Collect all files from provided paths
+        all_files = []
+        for path in args.path:
+            files = _get_files_from_path(path, tuple(args.extensions))
+            if files:
+                all_files.extend(files)
+            else:
+                logger.warning(f"No matching files found in {path}")
+        
+        if not all_files:
+            logger.error("No files found to process")
+            return 1
+        
+        logger.info(f"Found {len(all_files)} files to process:")
+        for file in all_files:
+            logger.info(f"  - {file}")
+        
+        fixer = FixCycle(
+            files=all_files,
+            message=args.message,
+            max_attempts=args.max_attempts
+        )
     
     success = fixer.run_fix_cycle()
     return 0 if success else 1
