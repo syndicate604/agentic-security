@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.1.1] - 2024-03-22
+
+### Security
+- Enhanced input validation and SQL injection protection
+- Improved file path handling and permissions checks
+- Added secure subprocess execution controls
+- Implemented constant-time string comparison
+- Enhanced CHANGELOG.md file permission handling
+
 ## [1.1.0] - 2024-03-21
 
 ### Added
@@ -19,18 +28,6 @@
 - Initial implementation of SecurityPipeline
 - Basic CLI interface
 - Security scanning and fixing capabilities
-
-## Security Fix
-- Applied security fixes to: tests/samples/vulnerable_query.py
-- Changes made based on provided instructions
-
-## Security Fix
-- Applied security fixes to: tests/samples/vulnerable_query.py
-- Changes made based on provided instructions
-
-Changes in tests/samples/vulnerable_query.py:
-Added:
-  - # Additional security checks...
   - if any(char in table_name for char in "\"';-/\\"):...
   - # Prevent SQL injection attempts...
   - if any(keyword.lower() in table_name.lower()...
