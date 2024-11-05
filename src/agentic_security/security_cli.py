@@ -166,6 +166,7 @@ def cyber_spinner():
     ]
     return frames
 
+@click.group(cls=CyberpunkGroup)
 def cli():
     """Agentic Security CLI - AI-powered security scanning and fixing pipeline"""
     pass
