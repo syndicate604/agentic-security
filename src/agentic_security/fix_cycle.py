@@ -291,21 +291,36 @@ class FixCycle:
                     logger.error("aider is not installed. Please install it with: pip install aider-chat")
                     return False
 
-                result = subprocess.run(
+                # Run aider with real-time output display
+                process = subprocess.Popen(
                     cmd,
-                    capture_output=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
                     text=True,
-                    timeout=300,  # Increased timeout to 5 minutes
-                    shell=False,  # Prevent shell injection
-                    env=os.environ.copy(),  # Use clean environment
-                    cwd=os.getcwd()  # Explicitly set working directory
+                    bufsize=1,  # Line buffered
+                    env=os.environ.copy(),
+                    cwd=os.getcwd()
                 )
+
+                # Display output in real-time
+                while True:
+                    output = process.stdout.readline()
+                    if output:
+                        print(output.rstrip())
+                        logger.info(output.rstrip())
+                    error = process.stderr.readline()
+                    if error:
+                        print(f"{COLORS['neon_red']}{error.rstrip()}{COLORS['reset']}")
+                        logger.error(error.rstrip())
+                    
+                    # Check if process has finished
+                    if output == '' and error == '' and process.poll() is not None:
+                        break
+
+                result = process.wait()
                 
-                if result.returncode == 0:
+                if result == 0:
                     logger.info("Aider completed successfully")
-                    logger.info("Aider output:")
-                    if result.stdout:
-                        logger.info(result.stdout)
                     
                     # Generate and log summary of changes
                     logger.info("\nSummary of changes made:")
