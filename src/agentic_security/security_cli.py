@@ -167,7 +167,8 @@ def cyber_spinner():
     return frames
 
 @click.group(cls=CyberpunkGroup)
-def cli():
+@click.option('--verbose/--no-verbose', '-v/', default=False, help='Verbose output')
+def cli(verbose):
     """Agentic Security CLI - AI-powered security scanning and fixing pipeline"""
     pass
 
@@ -235,8 +236,7 @@ def analyze(path: tuple, config: str, auto_fix: bool, verbose: bool):
               help='Use predefined fix template')
 @click.option('--extensions', '-e', multiple=True, default=['.py'],
               help='File extensions to process (default: .py)')
-@click.option('--verbose/--no-verbose', '-v/', default=False, help='Verbose output')
-def fix(paths, message, max_attempts, template, extensions, verbose):
+def fix(paths, message, max_attempts, template, extensions):
     """Apply security fixes to specified files or directories"""
     try:
         if not paths:
