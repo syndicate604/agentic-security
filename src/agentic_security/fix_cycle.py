@@ -170,6 +170,27 @@ class FixCycle:
             message += f"- {finding['type']} ({finding['severity']}): {finding['details']}\n"
         return message
 
+    def run_fix_cycle(self):
+        """Run fix cycle using aider with direct message passing"""
+        if self.findings:
+            # Group findings by file
+            file_findings = {}
+            for finding in self.findings:
+                if finding['file'] not in file_findings:
+                    file_findings[finding['file']] = []
+                file_findings[finding['file']].append(finding)
+            
+            # Process each file's findings
+            overall_success = True
+            for file, findings in file_findings.items():
+                message = self._generate_fix_message(findings)
+                success = self._run_single_fix(file, message)
+                if not success:
+                    overall_success = False
+            return overall_success
+        else:
+            return self._run_single_fix(self.files, self.message)
+
     def _run_single_fix(self, files: Union[str, List[str]], message: str) -> bool:
         """Run a single fix cycle for given files and message"""
         if isinstance(files, str):
