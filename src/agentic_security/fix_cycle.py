@@ -197,24 +197,39 @@ class FixCycle:
                 stdout_chunks = []
                 stderr_chunks = []
                 
-                while True:
-                    # Read output and error streams
-                    stdout_data = process.stdout.readline()
-                    stderr_data = process.stderr.readline()
+                try:
+                    while True:
+                        try:
+                            # Read output and error streams with timeout
+                            stdout_data = process.stdout.readline()
+                            stderr_data = process.stderr.readline()
+                            
+                            if stdout_data:
+                                logger.info(f"Aider output: {stdout_data.strip()}")
+                                stdout_chunks.append(stdout_data)
+                            if stderr_data:
+                                logger.warning(f"Aider error: {stderr_data.strip()}")
+                                stderr_chunks.append(stderr_data)
+                            
+                            # Check if process has finished
+                            if process.poll() is not None:
+                                break
+                                
+                        except KeyboardInterrupt:
+                            logger.warning("Received keyboard interrupt, terminating aider process...")
+                            process.terminate()
+                            try:
+                                process.wait(timeout=5)  # Give it 5 seconds to terminate gracefully
+                            except subprocess.TimeoutExpired:
+                                process.kill()  # Force kill if it doesn't terminate
+                            raise
                     
-                    if stdout_data:
-                        logger.info(f"Aider output: {stdout_data.strip()}")
-                        stdout_chunks.append(stdout_data)
-                    if stderr_data:
-                        logger.warning(f"Aider error: {stderr_data.strip()}")
-                        stderr_chunks.append(stderr_data)
-                        
-                    # Check if process has finished
-                    if process.poll() is not None:
-                        break
-                        
-                # Get any remaining output
-                remaining_stdout, remaining_stderr = process.communicate(timeout=30)
+                    # Get any remaining output with timeout
+                    remaining_stdout, remaining_stderr = process.communicate(timeout=30)
+                except subprocess.TimeoutExpired:
+                    logger.error("Timeout while reading aider output")
+                    process.kill()
+                    remaining_stdout, remaining_stderr = process.communicate()
                 if remaining_stdout:
                     logger.info(f"Final output: {remaining_stdout}")
                     stdout_chunks.append(remaining_stdout)
