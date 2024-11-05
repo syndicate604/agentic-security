@@ -133,6 +133,11 @@ class FixCycle:
         except Exception as e:
             return f"Failed to generate diff summary: {e}"
 
+    VALID_FINDING_TYPES = {
+        'command_injection', 'xxe', 'insecure_deserialization', 
+        'xss', 'weak_crypto', 'sql_injection', 'path_traversal'
+    }
+    
     def parse_security_report(self, report_path: str, min_severity: str = None) -> List[Dict]:
         """Parse a security report markdown file and extract findings
         
@@ -142,9 +147,13 @@ class FixCycle:
             
         Returns:
             List of finding dictionaries
+            
+        Raises:
+            ValueError: If report format is invalid or required fields are missing
         """
         findings = []
         current_file = None
+        current_finding = {}
         severity_levels = {'low': 0, 'medium': 1, 'high': 2}
         min_severity_level = severity_levels.get(min_severity, 0) if min_severity else 0
         
@@ -161,27 +170,54 @@ class FixCycle:
                 
                 # Look for file paths
                 if line.startswith('###'):
+                    if current_finding:
+                        self._validate_and_add_finding(current_finding, findings, min_severity_level, severity_levels)
                     current_file = line.replace('### ', '').strip()
+                    current_finding = {'file': current_file}
                 # Look for findings details
                 elif line.startswith('- Type:'):
-                    finding = {'file': current_file}
-                    finding['type'] = line.replace('- Type:', '').strip()
+                    finding_type = line.replace('- Type:', '').strip()
+                    if finding_type not in self.VALID_FINDING_TYPES:
+                        logger.warning(f"Unknown finding type: {finding_type}")
+                    current_finding['type'] = finding_type
                 elif line.startswith('- Severity:'):
-                    finding['severity'] = line.replace('- Severity:', '').strip()
+                    severity = line.replace('- Severity:', '').strip()
+                    if severity not in severity_levels:
+                        raise ValueError(f"Invalid severity level: {severity}")
+                    current_finding['severity'] = severity
                 elif line.startswith('- Details:'):
-                    finding['details'] = line.replace('- Details:', '').strip()
-                    # Only add findings that meet minimum severity
-                    finding_severity = finding.get('severity', 'low')
-                    if severity_levels.get(finding_severity, 0) >= min_severity_level:
-                        findings.append(finding.copy())
+                    current_finding['details'] = line.replace('- Details:', '').strip()
+                    
+            # Add final finding if exists
+            if current_finding:
+                self._validate_and_add_finding(current_finding, findings, min_severity_level, severity_levels)
             
-            # Sort findings by severity
-            return sorted(findings, 
+            # Remove duplicates and sort by severity
+            unique_findings = []
+            seen = set()
+            for finding in findings:
+                key = (finding['file'], finding['type'], finding['severity'])
+                if key not in seen:
+                    seen.add(key)
+                    unique_findings.append(finding)
+            
+            return sorted(unique_findings,
                         key=lambda x: severity_levels.get(x.get('severity'), 0),
                         reverse=True)
         except Exception as e:
             logger.error(f"Failed to parse security report {report_path}: {e}")
             return []
+
+    def _validate_and_add_finding(self, finding: Dict, findings: List, min_severity_level: int, severity_levels: Dict):
+        """Validate finding and add to list if it meets criteria"""
+        required_fields = {'file', 'type', 'severity', 'details'}
+        if not all(field in finding for field in required_fields):
+            missing = required_fields - finding.keys()
+            raise ValueError(f"Finding missing required fields: {missing}")
+            
+        finding_severity = finding.get('severity', 'low')
+        if severity_levels.get(finding_severity, 0) >= min_severity_level:
+            findings.append(finding.copy())
 
     def _generate_fix_message(self, findings: List[Dict]) -> str:
         """Generate a fix message from findings"""
