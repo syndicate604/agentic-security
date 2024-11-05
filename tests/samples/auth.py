@@ -1,5 +1,6 @@
 import bcrypt
 import jwt
+import re
 import secrets
 from datetime import datetime, timedelta
 from typing import Dict, Optional, Tuple, Union
