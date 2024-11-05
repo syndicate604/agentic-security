@@ -94,6 +94,10 @@ def _check_rate_limit(username: str, ip_address: str) -> None:
         'day': 20
     }
     
+    # Define Redis keys for rate limiting
+    user_key = f"{_REDIS_KEY_PREFIX}user:{username}"
+    ip_key = f"{_REDIS_KEY_PREFIX}ip:{ip_address}"
+    
     current_time = int(time())
     redis = _get_redis()
     
