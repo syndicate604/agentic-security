@@ -17,7 +17,11 @@ import re
 import logging
 
 def parse_xml_data(xml_string):
-    """Secure XML parsing with XXE protection"""
+    """Secure XML parsing with XXE protection and strict validation"""
+    if not isinstance(xml_string, str):
+        logging.error("Invalid input type for XML parsing")
+        raise TypeError("XML input must be a string")
+
     # Disable external entity resolution to prevent XXE attacks
     parser = ET.XMLParser(resolve_entities=False)
 
@@ -27,16 +31,26 @@ def parse_xml_data(xml_string):
         if not xml_string:
             raise ValueError("Invalid XML string: Empty input")
         
-        # Additional input validation
-        # Reject XML strings with potential malicious patterns
-        malicious_patterns = [r'<!ENTITY', r'<!DOCTYPE']
+        # Comprehensive input validation
+        malicious_patterns = [
+            r'<!ENTITY',
+            r'<!DOCTYPE',
+            r'<!ELEMENT',
+            r'<!ATTLIST',
+            r'<\?xml-stylesheet',
+            r'data:',
+            r'file:',
+            r'gopher:',
+            r'http:',
+            r'ftp:'
+        ]
         for pattern in malicious_patterns:
             if re.search(pattern, xml_string, re.IGNORECASE):
-                raise ValueError("Invalid XML string: Potential XXE attack detected")
+                raise ValueError(f"Invalid XML string: Potentially malicious content detected: {pattern}")
+                
     except ValueError as e:
-        # Handle invalid input with proper error logging
-        logging.error(f"Error: {e}")
-        return None
+        logging.error(f"XML Validation Error: {str(e)}")
+        raise
 
     # Parse XML string securely
     try:
@@ -73,63 +87,79 @@ def send_request(url, data):
     return response.text
 
 def process_response(response_data):
-    """Secure response handling"""
+    """Secure response handling with validation"""
+    if not isinstance(response_data, str):
+        logging.error("Invalid response data type")
+        raise TypeError("Response data must be a string")
+
     try:
-        return json.loads(response_data)
-    except json.JSONDecodeError:
-        # Handle invalid JSON data
-        return None
-# Sample vulnerable API code
+        # Set strict parsing options
+        parsed_data = json.loads(
+            response_data,
+            parse_float=decimal.Decimal,  # Use Decimal for precise floating point
+            parse_constant=lambda x: ValueError(f'Invalid constant {x}')  # Reject inf/nan
+        )
+        
+        # Validate parsed data structure
+        if not isinstance(parsed_data, (dict, list)):
+            raise ValueError("Response must be a JSON object or array")
+            
+        return parsed_data
+        
+    except (json.JSONDecodeError, ValueError) as e:
+        logging.error(f"JSON Processing Error: {str(e)}")
+        raise
+import json
+import decimal
+import logging
 import requests
-from defusedxml import ElementTree as ET
-
-def make_request(url):
-    # SSL verification disabled
-    return requests.get(url, verify=False)
-
-import defusedxml.ElementTree as ET
-
-def parse_xml(xml_string):
-    # Secure XML parsing
-    parser = ET.XMLParser(resolve_entities=False)
-    return ET.fromstring(xml_string, parser=parser)
-import requests
-import defusedxml.ElementTree as ET
 import subprocess
-
-def make_request(url):
-    # Insecure request
-    return requests.get(url, verify=False)
-
-def parse_xml(xml_string):
-    """Secure XML parsing with XXE protection"""
-    # Disable external entity resolution to prevent XXE attacks
-    parser = ET.XMLParser(resolve_entities=False)
-    
-    # Validate and sanitize input XML string
-    try:
-        xml_string = xml_string.strip()
-        if not xml_string:
-            raise ValueError("Empty XML string")
-    except ValueError as e:
-        # Handle invalid input
-        print(f"Error: {e}")
-        return None
-    
-    # Parse XML string securely
-    try:
-        tree = ET.fromstring(xml_string, parser=parser)
-    except ET.ParseError as e:
-        # Handle XML parsing errors
-        print(f"Error: {e}")
-        return None
-    
-    return tree
+import shlex
+import re
+from defusedxml import ElementTree as ET
+from typing import Union, Dict, List, Any
 
 import shlex
 
 def execute_command(cmd):
-    # Secure command execution
-    cmd_args = shlex.split(cmd)
-    result = subprocess.run(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    return result.stdout
+    """Secure command execution with strict validation"""
+    if not isinstance(cmd, str):
+        logging.error("Invalid command type")
+        raise TypeError("Command must be a string")
+
+    # Whitelist of allowed commands
+    ALLOWED_COMMANDS = {'ls', 'dir', 'echo', 'pwd'}
+    
+    try:
+        # Safely split command
+        cmd_args = shlex.split(cmd)
+        if not cmd_args:
+            raise ValueError("Empty command")
+            
+        # Validate base command
+        base_cmd = cmd_args[0].lower()
+        if base_cmd not in ALLOWED_COMMANDS:
+            raise ValueError(f"Command not allowed: {base_cmd}")
+            
+        # Additional argument validation
+        for arg in cmd_args[1:]:
+            if arg.startswith('-'):
+                raise ValueError(f"Command flags not allowed: {arg}")
+            if any(c in arg for c in ';&|$()`'):
+                raise ValueError(f"Invalid character in argument: {arg}")
+                
+        # Execute with restricted permissions
+        result = subprocess.run(
+            cmd_args,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            shell=False,  # Prevent shell injection
+            timeout=10,   # Prevent hanging
+            check=True    # Raise on non-zero exit
+        )
+        return result.stdout
+        
+    except (ValueError, subprocess.SubprocessError) as e:
+        logging.error(f"Command Execution Error: {str(e)}")
+        raise
