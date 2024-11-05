@@ -1436,22 +1436,30 @@ tree = parse(xml_file, forbid_dtd=True, forbid_entities=True)
                             print(f"[36m[>] Found {len(files_in_dir)} relevant files in {root}[0m")
                             relevant_files.extend(files_in_dir)
 
-                # Run code security checks with timeout
-                security_results = self._run_code_security_checks(path, exclude_dirs=exclude_dirs)
+                # Generate security report first
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                report_dir = Path('security_reports')
+                report_dir.mkdir(exist_ok=True)
+                report_file = report_dir / f'security_report_{timestamp}.md'
 
-                # Display vulnerability summary
-                if security_results:
-                    print(f"\n[31m[!] Found {len(security_results)} potential vulnerabilities:[0m")
-                    for vuln_type, findings in security_results.items():
-                        if isinstance(findings, list):
-                            for finding in findings:
-                                severity = finding.get('severity', 'medium')
-                                severity_color = {
-                                    'high': '\033[31m',    # Red
-                                    'medium': '\033[33m',   # Yellow
-                                    'low': '\033[36m'       # Cyan
-                                }.get(severity, '\033[37m')
-                                print(f"{severity_color}  - {vuln_type} in {finding.get('file', 'unknown')} ({severity})[0m")
+                # Run code security checks and generate report
+                security_results = self._run_code_security_checks(path, exclude_dirs=exclude_dirs)
+                self.generate_review_report({'vulnerabilities': security_results}, str(report_file))
+
+                print(f"\n[36m[>] Security report generated: {report_file}[0m")
+
+                # If auto_fix enabled, use fix-from-report functionality
+                if auto_fix:
+                    print("\n[36m[>] Attempting automatic fixes using report...[0m")
+                    fixer = FixCycle(report_path=str(report_file))
+                    if fixer.run_fix_cycle():
+                        print("\n[32m[✓] Fixes applied successfully![0m")
+                    else:
+                        print("\n[31m[!] Some fixes could not be applied[0m")
+                else:
+                    # Display vulnerability summary
+                    if security_results:
+                        print(f"\n[31m[!] Found vulnerabilities - see {report_file} for details[0m")
                 
                 # Clean shutdown of progress animation
                 stop_progress.set()
