@@ -320,16 +320,20 @@ class FixCycle:
                 env['PYTHONEXITFUNC'] = '0'  # Prevent interpreter shutdown issues
                 
                 # Run aider with real-time output display
-                process = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    universal_newlines=True,
-                    bufsize=1,  # Line buffered
-                    env=env,
-                    cwd=os.getcwd()
-                )
+                try:
+                    process = subprocess.Popen(
+                        cmd,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        universal_newlines=True,
+                        bufsize=1,  # Line buffered
+                        env=env,
+                        cwd=os.getcwd()
+                    )
+                except KeyboardInterrupt:
+                    logger.info("\nReceived interrupt, shutting down gracefully...")
+                    return False
 
                 # Display output in real-time
                 import select
@@ -478,6 +482,15 @@ def _get_files_from_path(path: str, extensions: tuple = ('.py', '.js', '.ts', '.
 
 def main():
     import argparse
+    import signal
+
+    def signal_handler(signum, frame):
+        print("\nAborted!")
+        sys.exit(1)
+
+    # Set up signal handlers
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
     parser = argparse.ArgumentParser(description='Run fix cycle with direct message passing to aider')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose output')
     parser.add_argument('--path', nargs='+', help='Files or directories to fix')
