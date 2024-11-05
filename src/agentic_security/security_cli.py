@@ -61,28 +61,6 @@ CYBER_HELP = """
 
 \033[35m--help\033[0m
     Show this cyberpunk-styled help message
-
-\033[36m╔══════════════════════════════════════════════════════════════╗
-║                         Options                             ║
-╚══════════════════════════════════════════════════════════════╝\033[0m
-
-\033[35m--config, -c\033[0m
-    Path to configuration file (default: config.yml)
-
-\033[35m--path, -p\033[0m
-    Paths to scan or review (can be specified multiple times)
-
-\033[35m--output, -o\033[0m
-    Output markdown report path
-
-\033[35m--verbose, -v\033[0m
-    Enable verbose output
-
-\033[35m--auto-fix\033[0m
-    Automatically apply fixes without prompting
-
-\033[35m--help\033[0m
-    Show this cyberpunk-styled help message
 """
 
 def print_cyber_status(message: str, status: str = "info") -> None:
