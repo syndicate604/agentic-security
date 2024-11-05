@@ -2,21 +2,61 @@ import bcrypt
 import jwt
 import re
 import secrets
+import hmac
 from datetime import datetime, timedelta
 from typing import Dict, Optional, Tuple, Union
+from functools import wraps
+from time import time
 
 class TokenError(Exception):
     """Custom exception for token-related errors"""
     pass
 
+class AuthenticationError(Exception):
+    """Custom exception for authentication-related errors"""
+    pass
+
+# Rate limiting storage
+_auth_attempts = {}
+_MAX_ATTEMPTS = 5
+_LOCKOUT_TIME = 300  # 5 minutes in seconds
+
+def _check_rate_limit(username: str) -> None:
+    """Check if authentication attempts are within allowed limits"""
+    current_time = time()
+    if username in _auth_attempts:
+        attempts, lockout_time = _auth_attempts[username]
+        if current_time < lockout_time:
+            raise AuthenticationError("Too many attempts. Please try again later.")
+        if current_time - lockout_time > _LOCKOUT_TIME:
+            _auth_attempts[username] = (1, current_time)
+        else:
+            if attempts >= _MAX_ATTEMPTS:
+                _auth_attempts[username] = (attempts, current_time)
+                raise AuthenticationError("Too many attempts. Please try again later.")
+            _auth_attempts[username] = (attempts + 1, current_time)
+    else:
+        _auth_attempts[username] = (1, current_time)
+
 def authenticate_user(username: str, password: str, stored_hash: bytes) -> bool:
-    """Secure authentication with bcrypt"""
+    """Secure authentication with bcrypt and rate limiting"""
     if not isinstance(password, str) or not isinstance(stored_hash, bytes):
-        return False
+        raise AuthenticationError("Invalid input format")
+        
     try:
-        return bcrypt.checkpw(password.encode(), stored_hash)
-    except Exception:
-        return False
+        _check_rate_limit(username)
+        # Use constant-time comparison
+        is_valid = hmac.compare_digest(
+            bcrypt.hashpw(password.encode(), stored_hash),
+            stored_hash
+        )
+        if not is_valid:
+            raise AuthenticationError("Invalid credentials")
+        return True
+    except AuthenticationError:
+        raise
+    except Exception as e:
+        raise AuthenticationError("Authentication failed")
 
 def hash_password(password: str) -> bytes:
     """Secure password hashing with bcrypt and validation"""
@@ -64,14 +104,17 @@ def generate_token(user_data: Dict, expiry_hours: int = 24) -> Tuple[str, str]:
     # Use stronger secret generation
     secret = secrets.token_bytes(64)  # 512-bit secret
     
-    # Use more secure JWT options
+    # Use more secure JWT options with additional headers
     token = jwt.encode(
         safe_data,
         secret,
         algorithm='HS512',
         headers={
             'kid': secrets.token_hex(8),
-            'typ': 'JWT'
+            'typ': 'JWT',
+            'cty': 'JWT',
+            'alg': 'HS512',
+            'enc': 'none'
         }
     )
     return token, secret
@@ -95,7 +138,19 @@ def verify_token(token: str, secret: str) -> Optional[Dict]:
         
     try:
         # Decode with explicit type verification
-        data = jwt.decode(token, secret, algorithms=['HS256'])
+        data = jwt.decode(
+            token, 
+            secret, 
+            algorithms=['HS512'],
+            options={
+                'verify_signature': True,
+                'verify_exp': True,
+                'verify_nbf': True,
+                'verify_iat': True,
+                'verify_aud': True,
+                'require': ['exp', 'iat', 'nbf']
+            }
+        )
         
         # Validate expected data structure
         if not isinstance(data, dict):
