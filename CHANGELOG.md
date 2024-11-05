@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.2] - 2024-11-05
+
+### Security
+- Enhanced file path validation and sanitization
+- Added atomic file operations for changelog updates
+- Improved subprocess security controls
+- Added file permission checks
+
 ## [1.1.1] - 2024-03-22
 
 ### Security
@@ -135,11 +143,8 @@ Removed:
   - SELECT {}
   - """.format(cols_str)
 
-## Security Fix
-- Applied security fixes to: tests/samples/vulnerable_query.py
-- Changes made based on provided instructions
-
-Changes in tests/samples/vulnerable_query.py:
+### Security Fixes
+- Applied security fixes to vulnerable_query.py:
 Added:
   - # Use query template as cache key...
   - cache_key = hash(sql)...
