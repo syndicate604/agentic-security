@@ -9,6 +9,7 @@ import sys
 import time
 from dotenv import load_dotenv
 from .security_pipeline import SecurityPipeline
+from .fix_cycle import FixCycle
 from typing import Optional
 
 CYBER_BANNER = """
@@ -40,6 +41,14 @@ CYBER_HELP = """
     Analyze security issues and optionally implement fixes
     Usage: agentic-security analyze [--config CONFIG] [--auto-fix]
 
+\033[35m[>] fix\033[0m
+    Apply security fixes to specified files
+    Usage: agentic-security fix [FILES] [--message MESSAGE] [--template TEMPLATE]
+
+\033[35m[>] fix-from-report\033[0m
+    Apply fixes based on a security report
+    Usage: agentic-security fix-from-report REPORT_PATH [--min-severity LEVEL]
+
 \033[36m╔══════════════════════════════════════════════════════════════╗
 ║                         Options                             ║
 ╚══════════════════════════════════════════════════════════════╝\033[0m
@@ -58,6 +67,15 @@ CYBER_HELP = """
 
 \033[35m--auto-fix\033[0m
     Automatically apply fixes without prompting
+
+\033[35m--template, -t\033[0m
+    Use predefined fix template (sql|xss|injection|general)
+
+\033[35m--min-severity\033[0m
+    Minimum severity level to process (low|medium|high)
+
+\033[35m--max-attempts\033[0m
+    Maximum number of fix attempts (default: 3)
 
 \033[35m--help\033[0m
     Show this cyberpunk-styled help message
@@ -166,6 +184,82 @@ def analyze(path: tuple, config: str, auto_fix: bool, verbose: bool):
         print_cyber_status(f"Error during analysis: {str(e)}", "error")
         sys.exit(1)
 
+
+@cli.command()
+@click.argument('files', nargs=-1, type=click.Path(exists=True))
+@click.option('--message', '-m', help='Custom security fix instructions')
+@click.option('--max-attempts', default=3, type=int, help='Maximum fix attempts')
+@click.option('--template', '-t', type=click.Choice(['sql', 'xss', 'injection', 'general']), 
+              help='Use predefined fix template')
+def fix(files, message, max_attempts, template):
+    """Apply security fixes to specified files"""
+    try:
+        if not files:
+            print_cyber_status("No files specified", "error")
+            sys.exit(1)
+
+        # Template messages
+        templates = {
+            'sql': "Review and fix any SQL injection vulnerabilities. Ensure all database queries are properly parameterized.",
+            'xss': "Fix cross-site scripting (XSS) vulnerabilities. Ensure all user input is properly escaped before output.",
+            'injection': "Fix command injection vulnerabilities. Validate and sanitize all inputs used in system commands.",
+            'general': "Review this code for security issues and propose fixes following security best practices."
+        }
+
+        # Use template message if specified, otherwise use custom message
+        fix_message = templates.get(template) if template else message
+        if not fix_message:
+            fix_message = templates['general']
+
+        print_cyber_status(f"Initiating fix cycle for {len(files)} files...", "info")
+        print_cyber_status(f"Using fix message: {fix_message}", "info")
+
+        fixer = FixCycle(
+            files=files,
+            message=fix_message,
+            max_attempts=max_attempts
+        )
+
+        success = fixer.run_fix_cycle()
+        
+        if success:
+            print_cyber_status("Fix cycle completed successfully", "success")
+            sys.exit(0)
+        else:
+            print_cyber_status("Fix cycle failed", "error")
+            sys.exit(1)
+
+    except Exception as e:
+        print_cyber_status(f"Error during fix cycle: {str(e)}", "error")
+        sys.exit(1)
+
+@cli.command()
+@click.argument('report_path', type=click.Path(exists=True))
+@click.option('--min-severity', type=click.Choice(['low', 'medium', 'high']), 
+              help='Minimum severity level to process')
+@click.option('--max-attempts', default=3, type=int, help='Maximum fix attempts')
+def fix_from_report(report_path, min_severity, max_attempts):
+    """Apply fixes based on a security report"""
+    try:
+        print_cyber_status(f"Processing security report: {report_path}", "info")
+        
+        fixer = FixCycle(
+            report_path=report_path,
+            max_attempts=max_attempts
+        )
+
+        success = fixer.run_fix_cycle(min_severity=min_severity)
+        
+        if success:
+            print_cyber_status("Successfully applied fixes from report", "success")
+            sys.exit(0)
+        else:
+            print_cyber_status("Failed to apply some fixes from report", "error")
+            sys.exit(1)
+
+    except Exception as e:
+        print_cyber_status(f"Error processing security report: {str(e)}", "error")
+        sys.exit(1)
 
 if __name__ == '__main__':
     cli()
