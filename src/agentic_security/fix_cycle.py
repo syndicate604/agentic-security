@@ -315,6 +315,10 @@ class FixCycle:
                     return False
 
                 
+                # Set up environment with error handling for summarization
+                env = os.environ.copy()
+                env['PYTHONEXITFUNC'] = '0'  # Prevent interpreter shutdown issues
+                
                 # Run aider with real-time output display
                 process = subprocess.Popen(
                     cmd,
@@ -323,7 +327,7 @@ class FixCycle:
                     text=True,
                     universal_newlines=True,
                     bufsize=1,  # Line buffered
-                    env=os.environ.copy(),
+                    env=env,
                     cwd=os.getcwd()
                 )
 
@@ -361,16 +365,22 @@ class FixCycle:
                     
                     # Check if process has finished
                     if process.poll() is not None:
-                        # Get any remaining output
-                        remaining_out = process.stdout.read()
-                        if remaining_out:
-                            print(remaining_out.rstrip(), flush=True)
-                            logger.info(remaining_out.rstrip())
+                        try:
+                            # Get any remaining output
+                            remaining_out = process.stdout.read()
+                            if remaining_out:
+                                print(remaining_out.rstrip(), flush=True)
+                                logger.info(remaining_out.rstrip())
                             
-                        remaining_err = process.stderr.read()
-                        if remaining_err:
-                            print(f"{COLORS['neon_red']}{remaining_err.rstrip()}{COLORS['reset']}", flush=True)
-                            logger.error(remaining_err.rstrip())
+                            remaining_err = process.stderr.read()
+                            if remaining_err:
+                                # Filter out known summarization errors
+                                if "summarizer unexpectedly failed" not in remaining_err and \
+                                   "can't create new thread at interpreter shutdown" not in remaining_err:
+                                    print(f"{COLORS['neon_red']}{remaining_err.rstrip()}{COLORS['reset']}", flush=True)
+                                    logger.error(remaining_err.rstrip())
+                        except Exception as e:
+                            logger.error(f"Error processing remaining output: {e}")
                         break
 
                 result = process.wait()
