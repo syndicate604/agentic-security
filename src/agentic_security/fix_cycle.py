@@ -218,7 +218,9 @@ class FixCycle:
                     cwd=os.getcwd(),
                     bufsize=1,
                     universal_newlines=True,
-                    start_new_session=True  # Isolate the process group
+                    start_new_session=True,  # Isolate the process group
+                    preexec_fn=os.setsid,  # Ensure process group isolation
+                    umask=0o077  # Restrictive file creation mask
                 )
 
                 logger.info("🚀 Aider process started - waiting for output...")
@@ -381,10 +383,22 @@ class FixCycle:
             # Write with exclusive creation for atomic operation
             temp_path = changelog_path.with_suffix('.tmp')
             try:
+                # Validate temp file location
+                if not temp_path.parent.samefile(changelog_path.parent):
+                    raise ValueError("Temporary file must be in same directory as changelog")
+                
                 # Open with strict permissions
-                fd = os.open(temp_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+                fd = os.open(temp_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
                 with os.fdopen(fd, 'w') as f:
                     f.write(safe_entry)
+                
+                # Verify content was written correctly
+                with open(temp_path, 'r') as f:
+                    if f.read() != safe_entry:
+                        raise ValueError("File content verification failed")
+                
+                # Set final permissions before atomic rename
+                os.chmod(temp_path, 0o644)
                 # Atomic rename
                 os.replace(temp_path, changelog_path)
             finally:
