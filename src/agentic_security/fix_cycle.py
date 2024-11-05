@@ -134,10 +134,15 @@ class FixCycle:
             try:
                 # Apply fixes using aider with direct message passing
                 logger.info("Applying fixes with aider")
+                logger.info(f"Files to process: {', '.join(self.files)}")
+                logger.info(f"Message to aider: {self.message}")
+                
                 # Construct command with proper escaping
                 cmd = ["aider", "--yes-always"]
                 cmd.extend(self.files)
                 cmd.extend(["--message", self.message])
+                
+                logger.info(f"Executing command: {' '.join(cmd)}")
                 
                 # Use a more secure subprocess configuration
                 # Check if aider is installed
@@ -161,6 +166,9 @@ class FixCycle:
                 
                 if result.returncode == 0:
                     logger.info("Aider completed successfully")
+                    logger.info("Aider output:")
+                    if result.stdout:
+                        logger.info(result.stdout)
                     
                     # Generate and log summary of changes
                     logger.info("\nSummary of changes made:")
