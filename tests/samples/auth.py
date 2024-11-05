@@ -36,9 +36,11 @@ from redis.retry import Retry
 from redis.backoff import ExponentialBackoff
 from redis.exceptions import ConnectionError, TimeoutError
 
-# Redis connection pool for rate limiting
+# Redis connection pool for rate limiting with strict limits
 _redis_pool: Optional[ConnectionPool] = None
 _redis_client: Optional[Redis] = None
+_MAX_POOL_SIZE = 10
+_MAX_POOL_TIMEOUT = 5
 
 def _get_redis() -> Redis:
     """Get Redis connection with enhanced security and monitoring"""
@@ -58,7 +60,7 @@ def _get_redis() -> Redis:
             'ssl_ca_certs': os.getenv('REDIS_CA_CERTS', '/etc/ssl/certs/ca-certificates.crt'),
             'ssl_certfile': os.getenv('REDIS_CERT_FILE'),
             'ssl_keyfile': os.getenv('REDIS_KEY_FILE'),
-            'max_connections': int(os.getenv('REDIS_MAX_CONNECTIONS', '20')),
+            'max_connections': int(os.getenv('REDIS_MAX_CONNECTIONS', str(_MAX_POOL_SIZE))),
             'socket_timeout': float(os.getenv('REDIS_TIMEOUT', '3.0')),
             'socket_connect_timeout': float(os.getenv('REDIS_CONNECT_TIMEOUT', '2.0')),
             'socket_keepalive': True,
@@ -190,8 +192,8 @@ def hash_password(password: str) -> bytes:
     # Add pepper before hashing
     salted_pass = f"{password}{pepper}".encode('utf-8')
     
-    # Use work factor 15 for increased security
-    salt = bcrypt.gensalt(rounds=15)
+    # Use work factor 16 for increased security (industry recommended minimum)
+    salt = bcrypt.gensalt(rounds=16)
     hashed = bcrypt.hashpw(salted_pass, salt)
     
     # Verify the hash can be validated
@@ -205,7 +207,7 @@ def hash_password(password: str) -> bytes:
 
 def generate_token(
     user_data: Dict,
-    expiry_hours: int = 12,  # Reduced default expiry
+    expiry_hours: int = 1,  # Reduced token lifetime for security
     audience: str = None,
     device_info: Optional[Dict] = None
 ) -> Tuple[str, str]:
@@ -463,3 +465,49 @@ REDIS_CONFIG = {
     'socket_keepalive': True,
     'health_check_interval': 30
 }
+"""Security configuration constants"""
+
+from typing import Dict, Final
+
+# Rate limiting windows and attempts
+RATE_LIMIT_WINDOWS: Final[Dict[str, int]] = {
+    'minute': 60,
+    'hour': 3600,
+    'day': 86400,
+    'week': 604800
+}
+
+RATE_LIMIT_ATTEMPTS: Final[Dict[str, int]] = {
+    'minute': 3,
+    'hour': 10,
+    'day': 20,
+    'week': 50
+}
+
+# Redis security settings
+REDIS_MAX_POOL_SIZE: Final[int] = 10
+REDIS_POOL_TIMEOUT: Final[int] = 5
+REDIS_CONNECT_TIMEOUT: Final[float] = 2.0
+REDIS_SOCKET_TIMEOUT: Final[float] = 3.0
+
+# Password security
+MIN_PASSWORD_LENGTH: Final[int] = 16
+BCRYPT_ROUNDS: Final[int] = 16
+PASSWORD_COMPLEXITY: Final[Dict[str, str]] = {
+    'uppercase': r'[A-Z]',
+    'lowercase': r'[a-z]', 
+    'numbers': r'\d',
+    'special': r'[!@#$%^&*(),.?":{}|<>]'
+}
+
+# Token security
+TOKEN_EXPIRY_HOURS: Final[int] = 1
+TOKEN_ALGORITHM: Final[str] = 'HS512'
+REQUIRED_TOKEN_CLAIMS: Final[tuple] = (
+    'exp', 'iat', 'nbf', 'aud', 'sub', 'jti',
+    'auth_time', 'nonce', 'sid'
+)
+
+# Key rotation
+KEY_ROTATION_HOURS: Final[int] = 24
+KEY_LENGTH_BYTES: Final[int] = 64  # 512 bits
