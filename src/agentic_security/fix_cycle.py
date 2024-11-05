@@ -4,6 +4,7 @@ import subprocess
 import os
 import sys
 from pathlib import Path
+import re
 import logging
 import difflib
 import shlex
@@ -36,12 +37,27 @@ except Exception as e:
 class FixCycle:
     def __init__(self, files, message, max_attempts=3):
         # Sanitize and validate file paths
-        self.files = [str(Path(f).resolve()) for f in files]
-        for file in self.files:
-            if not os.path.exists(file):
-                raise ValueError(f"File not found: {file}")
-            if not os.access(file, os.R_OK | os.W_OK):
-                raise PermissionError(f"Insufficient permissions for file: {file}")
+        self.files = []
+        base_dir = Path.cwd()
+        for f in files:
+            try:
+                path = Path(f).resolve()
+                # Prevent path traversal by checking if path is within base directory
+                if not str(path).startswith(str(base_dir)):
+                    raise ValueError(f"File path {f} must be within the current directory")
+                if not path.exists():
+                    raise ValueError(f"File not found: {f}")
+                if not path.is_file():
+                    raise ValueError(f"Path is not a file: {f}")
+                if not os.access(path, os.R_OK | os.W_OK):
+                    raise PermissionError(f"Insufficient permissions for file: {f}")
+                # Validate file extension
+                if path.suffix not in {'.py', '.js', '.cpp', '.c', '.h', '.hpp', '.java'}:
+                    raise ValueError(f"Unsupported file type: {path.suffix}")
+                self.files.append(str(path))
+            except Exception as e:
+                logger.error(f"Failed to validate file {f}: {e}")
+                raise
             
         self.message = message
         self.max_attempts = max_attempts
@@ -138,9 +154,18 @@ class FixCycle:
                 logger.info(f"Message to aider: {self.message}")
                 
                 # Construct command with proper escaping
+                # Sanitize command arguments
+                if not re.match(r'^[a-zA-Z0-9\s\-_.,]+$', self.message):
+                    raise ValueError("Message contains invalid characters")
+                    
                 cmd = ["aider", "--yes-always"]
                 cmd.extend(self.files)
                 cmd.extend(["--message", self.message])
+                
+                # Validate each argument
+                for arg in cmd:
+                    if not isinstance(arg, str) or ';' in arg or '&' in arg or '|' in arg:
+                        raise ValueError(f"Invalid command argument: {arg}")
                 
                 logger.info(f"Executing command: {' '.join(cmd)}")
                 
@@ -205,7 +230,9 @@ class FixCycle:
 
     def _update_changelog(self):
         """Update CHANGELOG.md with fix details"""
-        files_str = ", ".join(self.files)
+        # Sanitize file paths for display
+        safe_files = [os.path.basename(f) for f in self.files]
+        files_str = ", ".join(safe_files)
         
         # Generate summary of changes for changelog
         changelog_details = []
@@ -235,10 +262,20 @@ class FixCycle:
                 logger.warning("Insecure CHANGELOG.md permissions detected")
                 os.chmod(changelog_path, 0o644)
             
-            with open(changelog_path, "a") as f:
-                # Sanitize entry before writing
-                safe_entry = changelog_entry.encode('utf-8', errors='replace').decode('utf-8')
+            # Validate file size before writing
+            if changelog_path.exists() and changelog_path.stat().st_size > 10 * 1024 * 1024:  # 10MB limit
+                raise ValueError("Changelog file too large")
+                
+            # Validate content before writing
+            safe_entry = changelog_entry.encode('utf-8', errors='replace').decode('utf-8')
+            if len(safe_entry) > 100000:  # Reasonable entry size limit
+                raise ValueError("Changelog entry too large")
+                
+            # Write with exclusive creation for atomic operation
+            temp_path = changelog_path.with_suffix('.tmp')
+            with open(temp_path, "w") as f:
                 f.write(safe_entry)
+            temp_path.replace(changelog_path)
         except Exception as e:
             logger.error(f"Failed to update changelog: {e}")
 
