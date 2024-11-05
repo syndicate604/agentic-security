@@ -25,6 +25,7 @@ import base64
 from .cache import SecurityCache
 from .prompts import PromptManager
 from .progress import ProgressReporter
+from .fix_cycle import FixCycle
 
 logger = logging.getLogger(__name__)
 
