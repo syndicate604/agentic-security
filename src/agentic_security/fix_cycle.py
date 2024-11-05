@@ -320,6 +320,22 @@ class FixCycle:
                 env = os.environ.copy()
                 env['PYTHONEXITFUNC'] = '0'  # Prevent interpreter shutdown issues
                 
+                # Load environment variables from .env file if it exists
+                env_path = Path('.env')
+                if env_path.exists():
+                    with open(env_path) as f:
+                        for line in f:
+                            if line.strip() and not line.startswith('#'):
+                                key, value = line.strip().split('=', 1)
+                                env[key.strip()] = value.strip()
+                
+                # Filter known error messages
+                known_errors = [
+                    "can't create new thread at interpreter shutdown",
+                    "summarizer unexpectedly failed",
+                    "Summarization failed for model"
+                ]
+                
                 # Run aider with real-time output display
                 try:
                     process = subprocess.Popen(
@@ -382,8 +398,13 @@ class FixCycle:
                             remaining_err = process.stderr.read()
                             if remaining_err:
                                 # Filter out known summarization errors
-                                if "summarizer unexpectedly failed" not in remaining_err and \
-                                   "can't create new thread at interpreter shutdown" not in remaining_err:
+                                show_error = True
+                                for known_error in known_errors:
+                                    if known_error in remaining_err:
+                                        show_error = False
+                                        break
+                                
+                                if show_error:
                                     print(f"{COLORS['neon_red']}{remaining_err.rstrip()}{COLORS['reset']}", flush=True)
                                     logger.error(remaining_err.rstrip())
                         except Exception as e:
