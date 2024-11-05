@@ -32,14 +32,20 @@ logger.setLevel(logging.INFO)
 from redis.connection import ConnectionPool
 from typing import Dict, Optional
 
+from redis.retry import Retry
+from redis.backoff import ExponentialBackoff
+from redis.exceptions import ConnectionError, TimeoutError
+
 # Redis connection pool for rate limiting
 _redis_pool: Optional[ConnectionPool] = None
 _redis_client: Optional[Redis] = None
 
 def _get_redis() -> Redis:
-    """Get Redis connection with connection pooling and SSL verification"""
+    """Get Redis connection with connection pooling, SSL verification and retries"""
     global _redis_pool, _redis_client
+    
     if _redis_pool is None:
+        retry = Retry(ExponentialBackoff(), 3)
         _redis_pool = ConnectionPool(
             host='localhost',
             port=6379,
@@ -49,11 +55,21 @@ def _get_redis() -> Redis:
             ssl_ca_certs='/etc/ssl/certs/ca-certificates.crt',
             max_connections=10,
             socket_timeout=5.0,
-            retry_on_timeout=True
+            socket_keepalive=True,
+            retry_on_timeout=True,
+            retry=retry,
+            health_check_interval=30
         )
-    if _redis_client is None:
-        _redis_client = Redis(connection_pool=_redis_pool)
-    return _redis_client
+    
+    try:
+        if _redis_client is None:
+            _redis_client = Redis(connection_pool=_redis_pool)
+            # Test connection
+            _redis_client.ping()
+        return _redis_client
+    except (ConnectionError, TimeoutError) as e:
+        logger.error(f"Redis connection failed: {str(e)}")
+        raise AuthenticationError("Authentication service temporarily unavailable")
 
 def _check_rate_limit(username: str, ip_address: str) -> None:
     """Check if authentication attempts are within allowed limits using Redis"""
@@ -61,10 +77,24 @@ def _check_rate_limit(username: str, ip_address: str) -> None:
         raise AuthenticationError("Invalid username format")
     if not isinstance(ip_address, str) or not ip_address.strip():
         raise AuthenticationError("Invalid IP address format")
-        
-    # Rate limit both by username and IP
-    user_key = f"{_REDIS_KEY_PREFIX}user:{username}"
-    ip_key = f"{_REDIS_KEY_PREFIX}ip:{ip_address}"
+    
+    # Sanitize inputs
+    username = username.lower().strip()
+    ip_address = ip_address.strip()
+    
+    # Use multiple time windows for rate limiting
+    windows = {
+        'minute': 60,
+        'hour': 3600,
+        'day': 86400
+    }
+    limits = {
+        'minute': 3,
+        'hour': 10,
+        'day': 20
+    }
+    
+    current_time = int(time())
     redis = _get_redis()
     
     try:
@@ -137,9 +167,13 @@ def hash_password(password: str) -> bytes:
     if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
         raise ValueError("Password must contain special characters")
         
-    # Use stronger work factor for bcrypt
-    salt = bcrypt.gensalt(rounds=12)
-    return bcrypt.hashpw(password.encode(), salt)
+    # Use stronger work factor for bcrypt and add pepper
+    pepper = os.getenv('PASSWORD_PEPPER', secrets.token_hex(32))
+    salted_pass = f"{password}{pepper}".encode()
+    
+    # Increased work factor (14 is stronger but slower)
+    salt = bcrypt.gensalt(rounds=14)
+    return bcrypt.hashpw(salted_pass, salt)
 
 def generate_token(user_data: Dict, expiry_hours: int = 24, audience: str = None) -> Tuple[str, str]:
     """
@@ -200,13 +234,14 @@ def generate_token(user_data: Dict, expiry_hours: int = 24, audience: str = None
     )
     return token, secret
 
-def verify_token(token: str, secret: str) -> Optional[Dict]:
+def verify_token(token: str, secret: str, audience: str = None) -> Optional[Dict]:
     """
     Secure token verification with expiration check and safe deserialization
     
     Args:
         token: JWT token string
         secret: Secret key used for token verification
+        audience: Expected token audience to validate against
         
     Returns:
         Dict containing verified token data or None if verification fails
@@ -339,3 +374,43 @@ _key_manager = KeyManager()
 def _get_or_generate_secret() -> bytes:
     """Get the current secret key or generate a new one"""
     return _key_manager.get_current_key()
+"""Security configuration settings"""
+
+import os
+from datetime import timedelta
+
+# Redis rate limiting settings
+RATE_LIMIT_WINDOWS = {
+    'minute': 60,
+    'hour': 3600,
+    'day': 86400
+}
+
+RATE_LIMIT_ATTEMPTS = {
+    'minute': 3,
+    'hour': 10,
+    'day': 20
+}
+
+# Password security
+MIN_PASSWORD_LENGTH = 12
+PASSWORD_ROUNDS = 14
+PASSWORD_PEPPER = os.getenv('PASSWORD_PEPPER', None)
+
+# Token settings
+TOKEN_EXPIRY = timedelta(hours=24)
+TOKEN_ALGORITHM = 'HS512'
+REQUIRED_CLAIMS = ['exp', 'iat', 'nbf', 'aud', 'sub']
+
+# Redis connection
+REDIS_CONFIG = {
+    'host': os.getenv('REDIS_HOST', 'localhost'),
+    'port': int(os.getenv('REDIS_PORT', 6379)),
+    'db': int(os.getenv('REDIS_DB', 0)),
+    'ssl': True,
+    'ssl_cert_reqs': 'required',
+    'ssl_ca_certs': '/etc/ssl/certs/ca-certificates.crt',
+    'socket_timeout': 5.0,
+    'socket_keepalive': True,
+    'health_check_interval': 30
+}
