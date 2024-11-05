@@ -276,9 +276,14 @@ class FixCycle:
                 logger.info(f"Message to aider: {message}")
                 
                 # Construct command with proper escaping
-                cmd = ["aider", "--yes-always"]
+                cmd = ["aider", "--yes-always", "--verbose"]  # Add verbose flag
                 cmd.extend(files)
                 cmd.extend(["--message", message])
+                
+                # Add --no-pretty for better raw output in verbose mode
+                if 'VSCODE_PID' in os.environ:
+                    logger.info("VSCode terminal detected - adding --no-pretty")
+                    cmd.append('--no-pretty')
                 
                 logger.info(f"Executing command: {' '.join(cmd)}")
                 
