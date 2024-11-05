@@ -133,14 +133,28 @@ class FixCycle:
         except Exception as e:
             return f"Failed to generate diff summary: {e}"
 
-    def parse_security_report(self, report_path: str) -> List[Dict]:
-        """Parse a security report markdown file and extract findings"""
+    def parse_security_report(self, report_path: str, min_severity: str = None) -> List[Dict]:
+        """Parse a security report markdown file and extract findings
+        
+        Args:
+            report_path: Path to the markdown report file
+            min_severity: Minimum severity to include ('low', 'medium', 'high')
+            
+        Returns:
+            List of finding dictionaries
+        """
         findings = []
         current_file = None
+        severity_levels = {'low': 0, 'medium': 1, 'high': 2}
+        min_severity_level = severity_levels.get(min_severity, 0) if min_severity else 0
         
         try:
             with open(report_path, 'r') as f:
                 lines = f.readlines()
+                
+            # Validate report format
+            if not any('# Security Review Report' in line for line in lines):
+                raise ValueError("Invalid report format - missing header")
                 
             for line in lines:
                 line = line.strip()
@@ -156,9 +170,15 @@ class FixCycle:
                     finding['severity'] = line.replace('- Severity:', '').strip()
                 elif line.startswith('- Details:'):
                     finding['details'] = line.replace('- Details:', '').strip()
-                    findings.append(finding.copy())
-                    
-            return findings
+                    # Only add findings that meet minimum severity
+                    finding_severity = finding.get('severity', 'low')
+                    if severity_levels.get(finding_severity, 0) >= min_severity_level:
+                        findings.append(finding.copy())
+            
+            # Sort findings by severity
+            return sorted(findings, 
+                        key=lambda x: severity_levels.get(x.get('severity'), 0),
+                        reverse=True)
         except Exception as e:
             logger.error(f"Failed to parse security report {report_path}: {e}")
             return []
@@ -170,8 +190,12 @@ class FixCycle:
             message += f"- {finding['type']} ({finding['severity']}): {finding['details']}\n"
         return message
 
-    def run_fix_cycle(self):
-        """Run fix cycle using aider with direct message passing"""
+    def run_fix_cycle(self, min_severity: str = None):
+        """Run fix cycle using aider with direct message passing
+        
+        Args:
+            min_severity: Minimum severity level to process ('low', 'medium', 'high')
+        """
         if self.findings:
             # Group findings by file
             file_findings = {}
@@ -333,6 +357,8 @@ def main():
     parser.add_argument('--path', nargs='+', help='Files or directories to fix')
     parser.add_argument('--message', help='Message to pass directly to aider')
     parser.add_argument('--report', help='Path to security report markdown file')
+    parser.add_argument('--min-severity', choices=['low', 'medium', 'high'],
+                      help='Minimum severity level to process')
     parser.add_argument('--max-attempts', type=int, default=3, help='Maximum fix attempts')
     parser.add_argument('--extensions', nargs='+', default=['.py', '.js', '.ts', '.jsx', '.tsx'],
                       help='File extensions to process (default: .py .js .ts .jsx .tsx)')
@@ -344,6 +370,7 @@ def main():
             report_path=args.report,
             max_attempts=args.max_attempts
         )
+        success = fixer.run_fix_cycle(min_severity=args.min_severity)
     else:
         # Default values if not provided
         if not args.path:
