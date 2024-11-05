@@ -179,14 +179,54 @@ class FixCycle:
                     logger.error("aider is not installed. Please install it with: pip install aider-chat")
                     return False
 
-                result = subprocess.run(
+                # Run aider with real-time output processing
+                process = subprocess.Popen(
                     cmd,
-                    capture_output=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
                     text=True,
-                    timeout=300,  # Increased timeout to 5 minutes
-                    shell=False,  # Prevent shell injection
-                    env=os.environ.copy(),  # Use clean environment
-                    cwd=os.getcwd()  # Explicitly set working directory
+                    shell=False,
+                    env=os.environ.copy(),
+                    cwd=os.getcwd(),
+                    bufsize=1,
+                    universal_newlines=True
+                )
+
+                logger.info("Aider process started - waiting for output...")
+                
+                stdout_chunks = []
+                stderr_chunks = []
+                
+                while True:
+                    # Read output and error streams
+                    stdout_data = process.stdout.readline()
+                    stderr_data = process.stderr.readline()
+                    
+                    if stdout_data:
+                        logger.info(f"Aider output: {stdout_data.strip()}")
+                        stdout_chunks.append(stdout_data)
+                    if stderr_data:
+                        logger.warning(f"Aider error: {stderr_data.strip()}")
+                        stderr_chunks.append(stderr_data)
+                        
+                    # Check if process has finished
+                    if process.poll() is not None:
+                        break
+                        
+                # Get any remaining output
+                remaining_stdout, remaining_stderr = process.communicate(timeout=30)
+                if remaining_stdout:
+                    logger.info(f"Final output: {remaining_stdout}")
+                    stdout_chunks.append(remaining_stdout)
+                if remaining_stderr:
+                    logger.warning(f"Final error: {remaining_stderr}")
+                    stderr_chunks.append(remaining_stderr)
+                    
+                result = subprocess.CompletedProcess(
+                    args=cmd,
+                    returncode=process.returncode,
+                    stdout=''.join(stdout_chunks),
+                    stderr=''.join(stderr_chunks)
                 )
                 
                 if result.returncode == 0:
