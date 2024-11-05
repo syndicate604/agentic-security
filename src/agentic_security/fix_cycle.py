@@ -33,8 +33,9 @@ except Exception as e:
     logger.warning(f"Failed to set up file logging: {e}")
 
 class FixCycle:
-    def __init__(self, files=None, message=None, max_attempts=3, report_path=None):
+    def __init__(self, files=None, message=None, max_attempts=3, report_path=None, verbose=False):
         self.max_attempts = max_attempts
+        self.verbose = verbose
         self.original_contents = {}
         
         if report_path:
@@ -276,7 +277,9 @@ class FixCycle:
                 logger.info(f"Message to aider: {message}")
                 
                 # Construct command with proper escaping
-                cmd = ["aider", "--yes-always", "--verbose"]  # Add verbose flag
+                cmd = ["aider", "--yes-always"]
+                if self.verbose:
+                    cmd.append("--verbose")
                 cmd.extend(files)
                 cmd.extend(["--message", message])
                 
@@ -458,6 +461,7 @@ def _get_files_from_path(path: str, extensions: tuple = ('.py', '.js', '.ts', '.
 def main():
     import argparse
     parser = argparse.ArgumentParser(description='Run fix cycle with direct message passing to aider')
+    parser.add_argument('--verbose', action='store_true', help='Enable verbose output')
     parser.add_argument('--path', nargs='+', help='Files or directories to fix')
     parser.add_argument('--message', help='Message to pass directly to aider')
     parser.add_argument('--report', help='Path to security report markdown file')
@@ -472,7 +476,8 @@ def main():
     if args.report:
         fixer = FixCycle(
             report_path=args.report,
-            max_attempts=args.max_attempts
+            max_attempts=args.max_attempts,
+            verbose=args.verbose
         )
         success = fixer.run_fix_cycle(min_severity=args.min_severity)
     else:
@@ -502,7 +507,8 @@ def main():
         fixer = FixCycle(
             files=all_files,
             message=args.message,
-            max_attempts=args.max_attempts
+            max_attempts=args.max_attempts,
+            verbose=args.verbose
         )
     
     success = fixer.run_fix_cycle()
