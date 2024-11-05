@@ -3,10 +3,8 @@
 import subprocess
 import os
 import sys
-import sys
 from pathlib import Path
 import logging
-import re
 import difflib
 import shlex
 from typing import Dict, List, Optional, Union
@@ -17,7 +15,7 @@ from .security_cli import COLORS, DECORATORS
 
 # Configure logging with more detailed format
 logging.basicConfig(
-    level=logging.WARNING,  # Default to WARNING level
+    level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
@@ -34,16 +32,8 @@ except Exception as e:
     logger.warning(f"Failed to set up file logging: {e}")
 
 class FixCycle:
-    def __init__(self, files=None, message=None, max_attempts=3, report_path=None, verbose=False):
+    def __init__(self, files=None, message=None, max_attempts=3, report_path=None):
         self.max_attempts = max_attempts
-        self.verbose = verbose
-        
-        # Set logging level based on verbose flag
-        if self.verbose:
-            logger.setLevel(logging.INFO)
-        else:
-            logger.setLevel(logging.WARNING)
-            
         self.original_contents = {}
         
         if report_path:
@@ -269,43 +259,29 @@ class FixCycle:
             logger.info(f"\nAttempt {attempts + 1}/{self.max_attempts}")
             
             try:
-                if self.verbose:
-                    print(f"\n{DECORATORS['box_top']}")
-                    print(f"{DECORATORS['box_line']} {COLORS['neon_purple']}ATTEMPT {attempts + 1}/{self.max_attempts}{COLORS['reset']}")
-                    print(f"{DECORATORS['box_bottom']}\n")
+                print(f"\n{DECORATORS['box_top']}")
+                print(f"{DECORATORS['box_line']} {COLORS['neon_purple']}ATTEMPT {attempts + 1}/{self.max_attempts}{COLORS['reset']}")
+                print(f"{DECORATORS['box_bottom']}\n")
                 
                 # Apply fixes using aider with direct message passing
                 logger.info("Applying fixes with aider")
                 
-                if self.verbose:
-                    print(f"\n{DECORATORS['box_top']}")
-                    print(f"{DECORATORS['box_line']} {COLORS['neon_blue']}FILES TO PROCESS:{COLORS['reset']}")
-                    for file in files:
-                        print(f"{DECORATORS['box_line']} {COLORS['neon_green']}• {file}{COLORS['reset']}")
-                    print(f"{DECORATORS['box_bottom']}\n")
+                print(f"\n{DECORATORS['box_top']}")
+                print(f"{DECORATORS['box_line']} {COLORS['neon_blue']}FILES TO PROCESS:{COLORS['reset']}")
+                for file in files:
+                    print(f"{DECORATORS['box_line']} {COLORS['neon_green']}• {file}{COLORS['reset']}")
+                print(f"{DECORATORS['box_bottom']}\n")
                 
                 logger.info(f"Message to aider: {message}")
                 
-                # Construct base command
+                # Construct command with proper escaping
                 cmd = ["aider", "--yes-always"]
                 cmd.extend(files)
                 cmd.extend(["--message", message])
                 
-                # Handle verbose mode
-                if self.verbose:
-                    cmd.append("--verbose")
-                    # Always use --no-pretty with verbose for consistent output
-                    cmd.append("--no-pretty")
-                    
-                # Detect VSCode terminal
-                in_vscode = 'VSCODE_PID' in os.environ
-                if in_vscode:
-                    logger.info("VSCode terminal detected - using raw output mode")
-                    if '--no-pretty' not in cmd:
-                        cmd.append('--no-pretty')
-                
                 logger.info(f"Executing command: {' '.join(cmd)}")
                 
+                # Use a more secure subprocess configuration
                 # Check if aider is installed
                 try:
                     subprocess.run(["aider", "--version"], 
@@ -315,100 +291,30 @@ class FixCycle:
                     logger.error("aider is not installed. Please install it with: pip install aider-chat")
                     return False
 
-                
-                # Set up environment with error handling for summarization
-                env = os.environ.copy()
-                env['PYTHONEXITFUNC'] = '0'  # Prevent interpreter shutdown issues
-                
-                # Load environment variables from .env file if it exists
-                env_path = Path('.env')
-                if env_path.exists():
-                    with open(env_path) as f:
-                        for line in f:
-                            if line.strip() and not line.startswith('#'):
-                                key, value = line.strip().split('=', 1)
-                                env[key.strip()] = value.strip()
-                
-                # Filter known error messages
-                known_errors = [
-                    "can't create new thread at interpreter shutdown",
-                    "summarizer unexpectedly failed",
-                    "Summarization failed for model"
-                ]
-                
                 # Run aider with real-time output display
-                try:
-                    process = subprocess.Popen(
-                        cmd,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        text=True,
-                        universal_newlines=True,
-                        bufsize=1,  # Line buffered
-                        env=env,
-                        cwd=os.getcwd()
-                    )
-                except KeyboardInterrupt:
-                    logger.info("\nReceived interrupt, shutting down gracefully...")
-                    return False
+                process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    bufsize=1,  # Line buffered
+                    env=os.environ.copy(),
+                    cwd=os.getcwd()
+                )
 
                 # Display output in real-time
-                import select
-                
-                # Set up polling for both stdout and stderr
-                poller = select.poll()
-                poller.register(process.stdout, select.POLLIN)
-                poller.register(process.stderr, select.POLLIN)
-                
-                # Track file descriptors
-                fd_map = {
-                    process.stdout.fileno(): process.stdout,
-                    process.stderr.fileno(): process.stderr
-                }
-                
                 while True:
-                    # Poll for new output
-                    events = poller.poll(100)  # 100ms timeout
-                    
-                    for fd, event in events:
-                        if event & select.POLLIN:
-                            output = fd_map[fd].readline()
-                            if output:
-                                if fd == process.stdout.fileno():
-                                    # Regular output - always show in verbose mode
-                                    if self.verbose:
-                                        sys.stdout.write(output)
-                                        sys.stdout.flush()
-                                    logger.info(output.rstrip())
-                                else:
-                                    # Error output - always show
-                                    sys.stderr.write(f"{COLORS['neon_red']}{output}{COLORS['reset']}")
-                                    sys.stderr.flush()
-                                    logger.error(output.rstrip())
+                    output = process.stdout.readline()
+                    if output:
+                        print(output.rstrip())
+                        logger.info(output.rstrip())
+                    error = process.stderr.readline()
+                    if error:
+                        print(f"{COLORS['neon_red']}{error.rstrip()}{COLORS['reset']}")
+                        logger.error(error.rstrip())
                     
                     # Check if process has finished
-                    if process.poll() is not None:
-                        try:
-                            # Get any remaining output
-                            remaining_out = process.stdout.read()
-                            if remaining_out:
-                                print(remaining_out.rstrip(), flush=True)
-                                logger.info(remaining_out.rstrip())
-                            
-                            remaining_err = process.stderr.read()
-                            if remaining_err:
-                                # Filter out known summarization errors
-                                show_error = True
-                                for known_error in known_errors:
-                                    if known_error in remaining_err:
-                                        show_error = False
-                                        break
-                                
-                                if show_error:
-                                    print(f"{COLORS['neon_red']}{remaining_err.rstrip()}{COLORS['reset']}", flush=True)
-                                    logger.error(remaining_err.rstrip())
-                        except Exception as e:
-                            logger.error(f"Error processing remaining output: {e}")
+                    if output == '' and error == '' and process.poll() is not None:
                         break
 
                 result = process.wait()
@@ -506,17 +412,7 @@ def _get_files_from_path(path: str, extensions: tuple = ('.py', '.js', '.ts', '.
 
 def main():
     import argparse
-    import signal
-
-    def signal_handler(signum, frame):
-        print("\nAborted!")
-        sys.exit(1)
-
-    # Set up signal handlers
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
     parser = argparse.ArgumentParser(description='Run fix cycle with direct message passing to aider')
-    parser.add_argument('--verbose', action='store_true', help='Enable verbose output')
     parser.add_argument('--path', nargs='+', help='Files or directories to fix')
     parser.add_argument('--message', help='Message to pass directly to aider')
     parser.add_argument('--report', help='Path to security report markdown file')
@@ -531,8 +427,7 @@ def main():
     if args.report:
         fixer = FixCycle(
             report_path=args.report,
-            max_attempts=args.max_attempts,
-            verbose=args.verbose
+            max_attempts=args.max_attempts
         )
         success = fixer.run_fix_cycle(min_severity=args.min_severity)
     else:
@@ -562,8 +457,7 @@ def main():
         fixer = FixCycle(
             files=all_files,
             message=args.message,
-            max_attempts=args.max_attempts,
-            verbose=args.verbose
+            max_attempts=args.max_attempts
         )
     
     success = fixer.run_fix_cycle()
