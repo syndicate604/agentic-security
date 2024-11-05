@@ -1,5 +1,6 @@
 import json
 import requests
+from typing import Union, Dict, List
 
 def fetch_user_data(user_id):
     """Secure API endpoint"""
