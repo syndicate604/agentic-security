@@ -1,4 +1,5 @@
 import bcrypt
+import ipaddress
 import jwt
 import re
 import secrets
@@ -94,6 +95,12 @@ def _check_rate_limit(username: str, ip_address: str) -> None:
     # Sanitize inputs
     username = username.lower().strip()
     ip_address = ip_address.strip()
+    
+    # Validate IP address format
+    try:
+        ipaddress.ip_address(ip_address)
+    except ValueError:
+        raise AuthenticationError("Invalid IP address format")
     
     # Use multiple time windows for rate limiting
     windows = {
@@ -207,10 +214,21 @@ def hash_password(password: str) -> bytes:
 
 def generate_token(
     user_data: Dict,
-    expiry_hours: int = 1,  # Reduced token lifetime for security
+    expiry_hours: int = 1,
     audience: str = None,
-    device_info: Optional[Dict] = None
+    device_info: Optional[Dict] = None,
+    ip_address: str = None
 ) -> Tuple[str, str]:
+    
+    # Rate limit token generation by IP
+    if ip_address:
+        redis = _get_redis()
+        token_key = f"token_gen:{ip_address}"
+        token_count = redis.incr(token_key)
+        if token_count == 1:
+            redis.expire(token_key, 3600)  # 1 hour window
+        if token_count > 10:  # Max 10 tokens per hour per IP
+            raise TokenError("Token generation rate limit exceeded")
     """
     Secure token generation with enhanced security measures and claims
     
@@ -304,7 +322,13 @@ def verify_token(token: str, secret: str, audience: str = None) -> Optional[Dict
         raise TokenError("Invalid token or secret format")
         
     try:
-        # Decode with explicit type verification
+        # First verify signature in constant time
+        try:
+            jwt.get_unverified_header(token)
+        except jwt.InvalidTokenError:
+            return None
+            
+        # Then decode with explicit verification
         data = jwt.decode(
             token, 
             secret, 
@@ -416,8 +440,22 @@ class KeyManager:
         return self._current_key
     
     def rotate_key(self) -> None:
-        """Rotate the secret key"""
-        self._generate_new_key()
+        """Rotate the secret key with safety checks"""
+        from auth_config import KEY_ROTATION_INTERVAL, MINIMUM_KEY_AGE, MAX_KEY_AGE
+        
+        # Check if key is too new to rotate
+        key_age = time.time() - os.path.getmtime(self._key_path)
+        if key_age < MINIMUM_KEY_AGE:
+            return
+            
+        # Force rotation if key is too old
+        if key_age > MAX_KEY_AGE:
+            self._generate_new_key()
+            return
+            
+        # Normal rotation after interval
+        if key_age > KEY_ROTATION_INTERVAL:
+            self._generate_new_key()
 
 # Global key manager instance
 _key_manager = KeyManager()
@@ -511,3 +549,38 @@ REQUIRED_TOKEN_CLAIMS: Final[tuple] = (
 # Key rotation
 KEY_ROTATION_HOURS: Final[int] = 24
 KEY_LENGTH_BYTES: Final[int] = 64  # 512 bits
+"""Security configuration constants"""
+
+from typing import Dict, Final
+import os
+
+# Token generation rate limits
+TOKEN_RATE_LIMIT_WINDOW: Final[int] = 3600  # 1 hour
+TOKEN_RATE_LIMIT_MAX: Final[int] = 10  # tokens per window
+
+# Key rotation settings
+KEY_ROTATION_INTERVAL: Final[int] = 3600  # 1 hour
+MINIMUM_KEY_AGE: Final[int] = 300  # 5 minutes
+MAX_KEY_AGE: Final[int] = 7200  # 2 hours
+
+# Redis security settings
+REDIS_SECURITY_CONFIG: Final[Dict] = {
+    'ssl': True,
+    'ssl_cert_reqs': 'required',
+    'ssl_ca_certs': os.getenv('REDIS_CA_CERTS', '/etc/ssl/certs/ca-certificates.crt'),
+    'socket_timeout': 3.0,
+    'socket_connect_timeout': 2.0,
+    'health_check_interval': 30,
+    'retry_on_timeout': True
+}
+
+# Token security settings
+TOKEN_SECURITY_CONFIG: Final[Dict] = {
+    'algorithms': ['HS512'],
+    'verify_signature': True,
+    'verify_exp': True,
+    'verify_nbf': True,
+    'verify_iat': True,
+    'verify_aud': True,
+    'require': ['exp', 'iat', 'nbf', 'aud', 'sub', 'jti']
+}
