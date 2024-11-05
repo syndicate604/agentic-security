@@ -290,17 +290,21 @@ class FixCycle:
                 cmd.extend(files)
                 cmd.extend(["--message", message])
                 
-                # Handle verbose mode and VSCode terminal
+                # Handle verbose mode
                 if self.verbose:
                     cmd.append("--verbose")
-                    # Add --no-pretty for raw output in verbose mode
-                    if 'VSCODE_PID' in os.environ:
-                        logger.info("VSCode terminal detected - adding --no-pretty")
+                    # Always use --no-pretty with verbose for consistent output
+                    cmd.append("--no-pretty")
+                    
+                # Detect VSCode terminal
+                in_vscode = 'VSCODE_PID' in os.environ
+                if in_vscode:
+                    logger.info("VSCode terminal detected - using raw output mode")
+                    if '--no-pretty' not in cmd:
                         cmd.append('--no-pretty')
                 
                 logger.info(f"Executing command: {' '.join(cmd)}")
                 
-                # Use a more secure subprocess configuration
                 # Check if aider is installed
                 try:
                     subprocess.run(["aider", "--version"], 
@@ -310,13 +314,6 @@ class FixCycle:
                     logger.error("aider is not installed. Please install it with: pip install aider-chat")
                     return False
 
-                # Modify command for better verbose output
-                if '--verbose' in cmd:
-                    # Add --no-pretty when verbose is enabled for raw output
-                    cmd.append('--no-pretty')
-                    # Check if running in VSCode terminal
-                    if 'VSCODE_PID' in os.environ:
-                        logger.info("VSCode terminal detected - disabling pretty output")
                 
                 # Run aider with real-time output display
                 process = subprocess.Popen(
