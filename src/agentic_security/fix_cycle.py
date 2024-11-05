@@ -242,23 +242,58 @@ class FixCycle:
         except Exception as e:
             logger.error(f"Failed to update changelog: {e}")
 
+def _get_files_from_path(path: str, extensions: tuple = ('.py', '.js', '.ts', '.jsx', '.tsx')) -> List[str]:
+    """Recursively get all files with specified extensions from a path"""
+    path = Path(path).resolve()
+    if path.is_file():
+        return [str(path)] if path.suffix in extensions else []
+    
+    files = []
+    try:
+        for item in path.rglob('*'):
+            if item.is_file() and item.suffix in extensions:
+                files.append(str(item))
+    except Exception as e:
+        logger.error(f"Error scanning directory {path}: {e}")
+    
+    return files
+
 def main():
     import argparse
     parser = argparse.ArgumentParser(description='Run fix cycle with direct message passing to aider')
-    parser.add_argument('files', nargs='*', help='Files to fix')
+    parser.add_argument('--path', nargs='+', help='Files or directories to fix')
     parser.add_argument('--message', help='Message to pass directly to aider')
     parser.add_argument('--max-attempts', type=int, default=3, help='Maximum fix attempts')
+    parser.add_argument('--extensions', nargs='+', default=['.py', '.js', '.ts', '.jsx', '.tsx'],
+                      help='File extensions to process (default: .py .js .ts .jsx .tsx)')
     
     args = parser.parse_args()
     
     # Default values if not provided
-    if not args.files:
-        args.files = ['src/agentic_security/fix_cycle.py']  # Default to self
+    if not args.path:
+        args.path = ['src/agentic_security/fix_cycle.py']  # Default to self
     if not args.message:
         args.message = "Review this code for security issues and propose fixes"
     
+    # Collect all files from provided paths
+    all_files = []
+    for path in args.path:
+        files = _get_files_from_path(path, tuple(args.extensions))
+        if files:
+            all_files.extend(files)
+        else:
+            logger.warning(f"No matching files found in {path}")
+    
+    if not all_files:
+        logger.error("No files found to process")
+        return 1
+    
+    logger.info(f"Found {len(all_files)} files to process:")
+    for file in all_files:
+        logger.info(f"  - {file}")
+    
     fixer = FixCycle(
-        files=args.files,
+        files=all_files,
         message=args.message,
         max_attempts=args.max_attempts
     )
