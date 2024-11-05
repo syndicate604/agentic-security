@@ -268,18 +268,20 @@ class FixCycle:
             logger.info(f"\nAttempt {attempts + 1}/{self.max_attempts}")
             
             try:
-                print(f"\n{DECORATORS['box_top']}")
-                print(f"{DECORATORS['box_line']} {COLORS['neon_purple']}ATTEMPT {attempts + 1}/{self.max_attempts}{COLORS['reset']}")
-                print(f"{DECORATORS['box_bottom']}\n")
+                if self.verbose:
+                    print(f"\n{DECORATORS['box_top']}")
+                    print(f"{DECORATORS['box_line']} {COLORS['neon_purple']}ATTEMPT {attempts + 1}/{self.max_attempts}{COLORS['reset']}")
+                    print(f"{DECORATORS['box_bottom']}\n")
                 
                 # Apply fixes using aider with direct message passing
                 logger.info("Applying fixes with aider")
                 
-                print(f"\n{DECORATORS['box_top']}")
-                print(f"{DECORATORS['box_line']} {COLORS['neon_blue']}FILES TO PROCESS:{COLORS['reset']}")
-                for file in files:
-                    print(f"{DECORATORS['box_line']} {COLORS['neon_green']}• {file}{COLORS['reset']}")
-                print(f"{DECORATORS['box_bottom']}\n")
+                if self.verbose:
+                    print(f"\n{DECORATORS['box_top']}")
+                    print(f"{DECORATORS['box_line']} {COLORS['neon_blue']}FILES TO PROCESS:{COLORS['reset']}")
+                    for file in files:
+                        print(f"{DECORATORS['box_line']} {COLORS['neon_green']}• {file}{COLORS['reset']}")
+                    print(f"{DECORATORS['box_bottom']}\n")
                 
                 logger.info(f"Message to aider: {message}")
                 
@@ -351,11 +353,12 @@ class FixCycle:
                             output = fd_map[fd].readline()
                             if output:
                                 if fd == process.stdout.fileno():
-                                    # Regular output
-                                    print(output.rstrip(), flush=True)
+                                    # Regular output - only show if verbose
+                                    if self.verbose:
+                                        print(output.rstrip(), flush=True)
                                     logger.info(output.rstrip())
                                 else:
-                                    # Error output
+                                    # Error output - always show
                                     print(f"{COLORS['neon_red']}{output.rstrip()}{COLORS['reset']}", flush=True)
                                     logger.error(output.rstrip())
                     
