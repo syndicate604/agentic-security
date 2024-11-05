@@ -275,11 +275,11 @@ def fix(paths, message, max_attempts, template, extensions):
         if not fix_message:
             fix_message = templates['general']
 
-        print_cyber_status(f"Initiating fix cycle for {len(files)} files...", "info")
+        print_cyber_status(f"Initiating fix cycle for {len(all_files)} files...", "info")
         print_cyber_status(f"Using fix message: {fix_message}", "info")
 
         fixer = FixCycle(
-            files=files,
+            files=all_files,
             message=fix_message,
             max_attempts=max_attempts
         )
