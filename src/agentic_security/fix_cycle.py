@@ -3,6 +3,7 @@
 import subprocess
 import os
 import sys
+import sys
 from pathlib import Path
 import logging
 import re
@@ -358,13 +359,15 @@ class FixCycle:
                             output = fd_map[fd].readline()
                             if output:
                                 if fd == process.stdout.fileno():
-                                    # Regular output - only show if verbose
+                                    # Regular output - always show in verbose mode
                                     if self.verbose:
-                                        print(output.rstrip(), flush=True)
+                                        sys.stdout.write(output)
+                                        sys.stdout.flush()
                                     logger.info(output.rstrip())
                                 else:
                                     # Error output - always show
-                                    print(f"{COLORS['neon_red']}{output.rstrip()}{COLORS['reset']}", flush=True)
+                                    sys.stderr.write(f"{COLORS['neon_red']}{output}{COLORS['reset']}")
+                                    sys.stderr.flush()
                                     logger.error(output.rstrip())
                     
                     # Check if process has finished
