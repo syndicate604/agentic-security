@@ -29,51 +29,84 @@ _REDIS_KEY_PREFIX = "auth_attempt:"
 logger = logging.getLogger('security')
 logger.setLevel(logging.INFO)
 
-# Redis connection for rate limiting
+from redis.connection import ConnectionPool
+from typing import Dict, Optional
+
+# Redis connection pool for rate limiting
+_redis_pool: Optional[ConnectionPool] = None
 _redis_client: Optional[Redis] = None
 
 def _get_redis() -> Redis:
-    """Get Redis connection with lazy initialization"""
-    global _redis_client
+    """Get Redis connection with connection pooling and SSL verification"""
+    global _redis_pool, _redis_client
+    if _redis_pool is None:
+        _redis_pool = ConnectionPool(
+            host='localhost',
+            port=6379,
+            db=0,
+            ssl=True,
+            ssl_cert_reqs='required',
+            ssl_ca_certs='/etc/ssl/certs/ca-certificates.crt',
+            max_connections=10,
+            socket_timeout=5.0,
+            retry_on_timeout=True
+        )
     if _redis_client is None:
-        _redis_client = Redis(host='localhost', port=6379, db=0, ssl=True)
+        _redis_client = Redis(connection_pool=_redis_pool)
     return _redis_client
 
-def _check_rate_limit(username: str) -> None:
+def _check_rate_limit(username: str, ip_address: str) -> None:
     """Check if authentication attempts are within allowed limits using Redis"""
     if not isinstance(username, str) or not username.strip():
         raise AuthenticationError("Invalid username format")
+    if not isinstance(ip_address, str) or not ip_address.strip():
+        raise AuthenticationError("Invalid IP address format")
         
-    redis_key = f"{_REDIS_KEY_PREFIX}{username}"
+    # Rate limit both by username and IP
+    user_key = f"{_REDIS_KEY_PREFIX}user:{username}"
+    ip_key = f"{_REDIS_KEY_PREFIX}ip:{ip_address}"
     redis = _get_redis()
     
     try:
-        attempts = int(redis.get(redis_key) or 0)
-        current_time = time()
+        redis = _get_redis()
+        pipe = redis.pipeline()
         
-        if attempts >= _MAX_ATTEMPTS:
-            lockout_remaining = redis.ttl(redis_key)
+        # Check both user and IP limits
+        user_attempts = int(redis.get(user_key) or 0)
+        ip_attempts = int(redis.get(ip_key) or 0)
+        
+        if user_attempts >= _MAX_ATTEMPTS:
+            lockout_remaining = redis.ttl(user_key)
             if lockout_remaining > 0:
-                logger.warning(f"Rate limit exceeded for user: {username}")
+                logger.warning(f"User rate limit exceeded: {username}")
                 raise AuthenticationError(
                     f"Account temporarily locked. Try again in {lockout_remaining} seconds."
                 )
+                
+        if ip_attempts >= _MAX_ATTEMPTS * 2:  # Higher limit for IPs
+            lockout_remaining = redis.ttl(ip_key)
+            if lockout_remaining > 0:
+                logger.warning(f"IP rate limit exceeded: {ip_address}")
+                raise AuthenticationError("Too many attempts from this IP address")
         
-        # Increment attempts and set expiry
-        redis.incr(redis_key)
-        redis.expire(redis_key, _LOCKOUT_TIME)
+        # Increment both counters atomically
+        pipe.incr(user_key)
+        pipe.expire(user_key, _LOCKOUT_TIME)
+        pipe.incr(ip_key)
+        pipe.expire(ip_key, _LOCKOUT_TIME)
+        pipe.execute()
         
     except (ValueError, ConnectionError) as e:
         logger.error(f"Rate limiting error: {str(e)}")
         raise AuthenticationError("Service temporarily unavailable")
 
-def authenticate_user(username: str, password: str, stored_hash: bytes) -> bool:
+def authenticate_user(username: str, password: str, stored_hash: bytes, ip_address: str) -> bool:
     """Secure authentication with bcrypt and rate limiting"""
     if not isinstance(password, str) or not isinstance(stored_hash, bytes):
         raise AuthenticationError("Invalid input format")
         
     try:
-        _check_rate_limit(username)
+        _check_rate_limit(username, ip_address)
         # Use constant-time comparison
         is_valid = hmac.compare_digest(
             bcrypt.hashpw(password.encode(), stored_hash),
@@ -148,17 +181,21 @@ def generate_token(user_data: Dict, expiry_hours: int = 24, audience: str = None
     # Use secure key management
     secret = _get_or_generate_secret()
     
-    # Use more secure JWT options with additional headers
+    # Use more secure JWT options with enhanced headers
     token = jwt.encode(
         safe_data,
         secret,
         algorithm='HS512',
         headers={
-            'kid': secrets.token_hex(8),
+            'kid': secrets.token_hex(16),  # Increased key ID length
             'typ': 'JWT',
             'cty': 'JWT',
             'alg': 'HS512',
-            'enc': 'none'
+            'enc': 'none',
+            'zip': 'none',  # Explicitly disable compression
+            'x5t': secrets.token_urlsafe(32),  # Add thumbprint for key tracking
+            'jku': None,  # Explicitly disable JWK URL
+            'x5u': None   # Explicitly disable x509 URL
         }
     )
     return token, secret
