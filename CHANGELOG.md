@@ -1,489 +1,1100 @@
-# Changelog
-
-## [1.1.2] - 2024-11-05
-
-### Security
-- Enhanced file path validation and sanitization
-- Added atomic file operations for changelog updates
-- Improved subprocess security controls
-- Added file permission checks
-
-## [1.1.1] - 2024-03-22
-
-### Security
-- Enhanced input validation and SQL injection protection
-- Improved file path handling and permissions checks
-- Added secure subprocess execution controls
-- Implemented constant-time string comparison
-- Enhanced CHANGELOG.md file permission handling
-
-## [1.1.0] - 2024-03-21
-
-### Added
-- New FixCycle class for automated code fixing with test generation
-  - Implements iterative fix strategies with test validation
-  - Supports multiple fix attempts and strategies
-  - Includes automatic unit test generation and validation
-  - CLI interface for easy integration
-
-### Changed
-- Updated __init__.py to expose FixCycle class
-- Added comprehensive unit tests for FixCycle functionality
-
-## [1.0.0] - Initial Release
-
-### Added
-- Initial implementation of SecurityPipeline
-- Basic CLI interface
-- Security scanning and fixing capabilities
-  - if any(char in table_name for char in "\"';-/\\"):...
-  - # Prevent SQL injection attempts...
-  - if any(keyword.lower() in table_name.lower()...
-  - for keyword in ['select', 'insert', 'update', 'delete', 'drop', 'union']):...
-  - # Whitelist check...
-  - # Additional security checks...
-  - if any(char in col for char in "\"';-/\\"):...
-  - if any(keyword.lower() in col.lower()...
-  - for keyword in ['select', 'insert', 'update', 'delete', 'drop', 'union']):...
-  - cols = validate_columns(table_name, columns)...
-  - SELECT """ + cols_str + """...
-  - FROM """ + table_name + """...
-  - """...
-  - cols = validate_columns('users', columns)...
-  - SELECT """ + cols_str + """...
-  - """...
-  - # More robust LIKE pattern escaping...
-  - New function: escape_like_pattern
-  - return f"%{s}%"...
-
-Modified:
-  - Changed: # Check against whitelist first → # Strict whitelist validation
-  - Changed: raise DatabaseError(f"Table '{table_name}' not in allowed tables list") → raise DatabaseError("Invalid characters in table name")
-  - Changed: raise DatabaseError(f"Table '{table_name}' not in allowed tables list") → raise DatabaseError("Invalid table name - contains SQL keywords")
-  - Changed: raise DatabaseError(f"Table '{table_name}' not in allowed tables list") → raise DatabaseError("Invalid characters in column name")
-  - Changed: raise DatabaseError(f"Table '{table_name}' not in allowed tables list") → raise DatabaseError("Invalid column name - contains SQL keywords")
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed: # Additional format validation for defense in depth → # Enhanced format validation
-  - Changed: # Additional format validation for defense in depth → # Enhanced format validation
-  - Changed: # Build query safely with proper parameter binding → # Build query with proper column and table validation
-  - Changed: # Build query safely with proper parameter binding → # Build query with validated columns
-  - Changed: cols_str = ', '.join('?' for _ in columns) → cols_str = ', '.join(cols)  # Safe since validated
-  - Changed: cols_str = ', '.join('?' for _ in columns) → cols_str = ', '.join(cols)  # Safe since validated
-  - Changed: WHERE id = ? → WHERE id = ?
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed: # Prepare parameters including column names → raise DatabaseError("Invalid characters in column name")
-  - Changed: # Prepare parameters including column names → # Prevent SQL injection via column names
-  - Changed: # Prepare parameters including column names → # Only user_id needs parameterization since table/columns are validated
-  - Changed: params = tuple(columns) + (user_id,) → params = (user_id,)
-  - Changed: params = tuple(columns) + (user_id,) → params = (search_pattern,)
-  - Changed: # Build query safely with proper parameter binding → # Build query with proper column and table validation
-  - Changed: # Build query safely with proper parameter binding → # Build query with validated columns
-  - Changed: cols_str = ', '.join('?' for _ in columns) → cols_str = ', '.join(cols)  # Safe since validated
-  - Changed: cols_str = ', '.join('?' for _ in columns) → cols_str = ', '.join(cols)  # Safe since validated
-  - Changed: WHERE name LIKE ? ESCAPE '^' → WHERE name LIKE ? ESCAPE '\'
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed: # Escape special characters in LIKE pattern → raise DatabaseError("Invalid characters in table name")
-  - Changed: # Escape special characters in LIKE pattern → raise DatabaseError("Invalid characters in column name")
-  - Changed: escaped_keyword = keyword.replace('^', '^^') → s = s.replace('\\', '\\\\')
-  - Changed: escaped_keyword = keyword.replace('^', '^^') → s = s.replace('%', '\\%')
-  - Changed: escaped_keyword = keyword.replace('^', '^^') → s = s.replace('_', '\\_')
-  - Changed: escaped_keyword = escaped_keyword.replace('%', '^%') → s = s.replace('\\', '\\\\')
-  - Changed: escaped_keyword = escaped_keyword.replace('%', '^%') → s = s.replace('%', '\\%')
-  - Changed: escaped_keyword = escaped_keyword.replace('%', '^%') → s = s.replace('_', '\\_')
-  - Changed: escaped_keyword = escaped_keyword.replace('_', '^_') → s = s.replace('\\', '\\\\')
-  - Changed: escaped_keyword = escaped_keyword.replace('_', '^_') → s = s.replace('%', '\\%')
-  - Changed: escaped_keyword = escaped_keyword.replace('_', '^_') → s = s.replace('_', '\\_')
-  - Changed: search_pattern = f"%{escaped_keyword}%" → search_pattern = escape_like_pattern(keyword)
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed: # Prepare parameters including column names → raise DatabaseError("Invalid characters in column name")
-  - Changed: # Prepare parameters including column names → # Prevent SQL injection via column names
-  - Changed: # Prepare parameters including column names → # Only user_id needs parameterization since table/columns are validated
-  - Changed: params = tuple(columns) + (search_pattern,) → params = (user_id,)
-  - Changed: params = tuple(columns) + (search_pattern,) → params = (search_pattern,)
-
-Removed:
-  - # Strict format validation - only allow exact matches from whitelist
-  - if table_name not in ALLOWED_TABLES:
-  - # Strict format validation - only allow lowercase alphanumeric and underscore
-  - SELECT {}
-  - FROM {}
-  - """.format(cols_str, table_name)
-  - SELECT {}
-  - """.format(cols_str)
-
-### Security Fixes
-- Applied security fixes to vulnerable_query.py:
-Added:
-  - # Use query template as cache key...
-  - cache_key = hash(sql)...
-  - try:...
-  - # Validate the SQL before caching...
-  - STMT_CACHE[cache_key] = sql...
-  - except sqlite3.Error as e:...
-  - try:...
-  - # Execute with parameters using proper binding...
-  - except sqlite3.Error as e:...
-  - New function: constant_time_compare
-  - if len(val1) != len(val2):...
-  - result = 0...
-  - for x, y in zip(val1, val2):...
-  - result |= ord(x) ^ ord(y)...
-  - return result == 0...
-  - if not any(constant_time_compare(table_name, allowed)...
-  - try:...
-  - conn.execute("BEGIN TRANSACTION")...
-  - # Use prepared statement...
-  - stmt = get_prepared_statement(...
-  - conn,...
-  - (table_name,)...
-  - except Exception:...
-  - conn.rollback()...
-  - # Build safe parameterized query...
-  - # Create dynamic column selection safely...
-  - column_list = ', '.join(f'"{col}"' for col in cols)...
-  - # Build safe parameterized query...
-  - column_list = ', '.join(f'"{col}"' for col in cols)...
-  - # Split search terms and escape LIKE patterns...
-  - search_terms = [term.strip() for term in keyword.split()]...
-  - escaped_terms = []...
-  - escaped_term = term.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')...
-  - escaped_terms.append(f"%{escaped_term}%")...
-  - # Build WHERE clause for each search term...
-  - where_clauses = []...
-  - for _ in escaped_terms:...
-  - params.append(_)...
-  - WHERE {' AND '.join(where_clauses)}...
-
-Modified:
-  - Changed: Get or create a prepared statement with proper parameter binding → Get or create a prepared statement with proper parameter binding and caching
-  - Changed: if params: → if params:
-  - Changed: if params: → params = []
-  - Changed: cursor.execute(sql, params) → cursor.execute("EXPLAIN QUERY PLAN " + sql)
-  - Changed: cursor.execute(sql, params) → cursor.execute(STMT_CACHE[cache_key], tuple(params))
-  - Changed: cursor.execute(sql, params) → cursor.execute(STMT_CACHE[cache_key])
-  - Changed: else: → else:
-  - Changed: cursor.execute(sql) → cursor.execute("EXPLAIN QUERY PLAN " + sql)
-  - Changed: cursor.execute(sql) → cursor.execute(STMT_CACHE[cache_key])
-  - Changed: cursor.execute(sql) → cursor = conn.cursor()
-  - Changed: # Strict whitelist validation → # Strict whitelist validation using constant time comparison
-  - Changed: if table_name not in ALLOWED_TABLES: → if cache_key not in STMT_CACHE:
-  - Changed: if table_name not in ALLOWED_TABLES: → for allowed in ALLOWED_TABLES):
-  - Changed: raise DatabaseError(f"Table '{table_name}' not in allowed tables list") → raise DatabaseError(f"Invalid SQL statement: {str(e)}")
-  - Changed: raise DatabaseError(f"Table '{table_name}' not in allowed tables list") → raise DatabaseError(f"Error executing statement: {str(e)}")
-  - Changed: raise DatabaseError(f"Table '{table_name}' not in allowed tables list") → raise DatabaseError("Table not in allowed list")
-  - Changed: raise DatabaseError(f"Table '{table_name}' not in allowed tables list") → raise DatabaseError(f"Table '{table_name}' does not exist in database")
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed: # Enhanced format validation → # Enhanced format validation with strict pattern
-  - Changed: if not re.match(r'^[a-z][a-z0-9_]{0,62}[a-z0-9]$', table_name): → if not re.match(r'^[a-z][a-z0-9_]{1,62}[a-z0-9]$', table_name, re.ASCII):
-  - Changed: # Verify table exists in database → # Verify table exists in database with transaction
-  - Changed: # Verify table exists in database → raise DatabaseError(f"Table '{table_name}' does not exist in database")
-  - Changed: cursor = conn.cursor() → cursor = conn.cursor()
-  - Changed: cursor = conn.cursor() → conn.commit()
-  - Changed: cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,)) → "SELECT 1 FROM sqlite_master WHERE type='table' AND name=? AND sql NOT LIKE '%--'",
-  - Changed: if not cursor.fetchone(): → if not stmt.fetchone():
-  - Changed: raise DatabaseError(f"Table '{table_name}' does not exist in database") → raise DatabaseError(f"Invalid SQL statement: {str(e)}")
-  - Changed: raise DatabaseError(f"Table '{table_name}' does not exist in database") → raise DatabaseError(f"Error executing statement: {str(e)}")
-  - Changed: raise DatabaseError(f"Table '{table_name}' does not exist in database") → raise DatabaseError("Table not in allowed list")
-  - Changed: raise DatabaseError(f"Table '{table_name}' does not exist in database") → raise DatabaseError(f"Table '{table_name}' does not exist in database")
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed: query = """ → query = f"""
-  - Changed: query = """ → query = f"""
-  - Changed: SELECT """ + cols_str + """ → SELECT {column_list}
-  - Changed: SELECT """ + cols_str + """ → SELECT {column_list}
-  - Changed: FROM """ + table_name + """ → FROM "{table_name}"
-  - Changed: # Only user_id needs parameterization since table/columns are validated → # Only user_id needs to be parameterized
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed: query = """ → query = f"""
-  - Changed: query = """ → query = f"""
-  - Changed: SELECT """ + cols_str + """ → SELECT {column_list}
-  - Changed: SELECT """ + cols_str + """ → SELECT {column_list}
-  - Changed: WHERE name LIKE ? ESCAPE '\' → where_clauses.append('name LIKE ? ESCAPE "\\"')
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed: return f"%{s}%" → return False
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed:  → 
-  - Changed: params = (search_pattern,) → for term in search_terms:
-
-Removed:
-  - # Build query with proper column and table validation
-  - cols_str = ', '.join(cols)  # Safe since validated
-  - # Build query with validated columns
-  - cols_str = ', '.join(cols)  # Safe since validated
-  - # More robust LIKE pattern escaping
-  - def escape_like_pattern(s: str) -> str:
-  - s = s.replace('\\', '\\\\')
-  - s = s.replace('%', '\\%')
-  - s = s.replace('_', '\\_')
-  - search_pattern = escape_like_pattern(keyword)
 
 ## Security Fix
-- Applied security fixes to: tests/samples/vulnerable_query.py
+- Applied security fixes to: fix_cycle.py
 - Changes made based on provided instructions
 
-Changes in tests/samples/vulnerable_query.py:
+Changes in /workspaces/agentic-security/src/agentic_security/fix_cycle.py:
 Added:
-  - # Direct whitelist check...
-  - New function: build_secure_column_query
-  - """...
+  - path = Path(f).resolve(strict=True)  # strict=True ensures all parts exist...
+  - try:...
+  - path.relative_to(base_dir)...
+  - except ValueError:...
+  - preexec_fn=os.setsid,  # Ensure process group isolation...
+  - umask=0o077  # Restrictive file creation mask...
+  - # Validate temp file location...
+  - if not temp_path.parent.samefile(changelog_path.parent):...
+  - raise ValueError("Temporary file must be in same directory as changelog")...
+  - # Verify content was written correctly...
+  - with open(temp_path, 'r') as f:...
+  - if f.read() != safe_entry:...
+  - # Set final permissions before atomic rename...
+  - os.chmod(temp_path, 0o644)...
+
+Modified:
+  - Changed: raise ValueError(f"File not found: {f}") → raise ValueError("File content verification failed")
+  - Changed: start_new_session=True  # Isolate the process group → start_new_session=True,  # Isolate the process group
+  - Changed: fd = os.open(temp_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644) → fd = os.open(temp_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+
+Removed:
+  - path = Path(f).resolve()
+  - if not str(path).startswith(str(base_dir)):
+  - if not path.exists():
+
+## Security Fix
+- Applied security fixes to: /workspaces/agentic-security/tests/test_features.py
+- Changes made based on provided instructions
+
+Changes in /workspaces/agentic-security/tests/test_features.py:Failed to generate diff summary: list index out of range
+
+## Security Fix
+- Applied security fixes to: /workspaces/agentic-security/tests/samples/app.py, /workspaces/agentic-security/tests/samples/auth.py, /workspaces/agentic-security/tests/samples/api.py
+- Changes made based on provided instructions
+
+Changes in /workspaces/agentic-security/tests/samples/api.py:
+Added:
+  - r'<!ENTITY',...
+  - r'<!DOCTYPE',...
+  - r'<!ELEMENT',...
+  - r'<!ATTLIST',...
+  - r'<\?xml-stylesheet',...
+  - r'data:',...
+  - r'file:',...
+  - r'gopher:',...
+  - r'http:',...
+  - r'ftp:'...
+  - ]...
+  - if not isinstance(response_data, str):...
+  - parse_float=decimal.Decimal,  # Use Decimal for precise floating point...
+  - parse_constant=lambda x: ValueError(f'Invalid constant {x}')  # Reject inf/nan...
+  - if not isinstance(parsed_data, (dict, list)):...
+  - New import: from typing import Union, Dict, List, Any
+  - # Whitelist of allowed commands...
+  - ALLOWED_COMMANDS = {'ls', 'dir', 'echo', 'pwd'}...
+  - # Safely split command...
+  - # Validate base command...
+  - base_cmd = cmd_args[0].lower()...
+  - if base_cmd not in ALLOWED_COMMANDS:...
+  - for arg in cmd_args[1:]:...
+  - if arg.startswith('-'):...
+  - if any(c in arg for c in ';&|$()`'):...
+  - # Execute with restricted permissions...
+  - cmd_args,...
+  - text=True,...
+  - shell=False,  # Prevent shell injection...
+  - timeout=10,   # Prevent hanging...
+  - check=True    # Raise on non-zero exit...
+
+Modified:
+  - Changed: """Secure XML parsing with XXE protection""" → """Secure XML parsing with XXE protection and strict validation"""
+  - Changed: """Secure XML parsing with XXE protection""" → """Secure response handling with validation"""
+  - Changed: """Secure XML parsing with XXE protection""" → """Secure command execution with strict validation"""
+  - Changed: # Additional input validation → # Comprehensive input validation
+  - Changed: # Additional input validation → # Additional argument validation
+  - Changed: # Reject XML strings with potential malicious patterns → """Secure XML parsing with XXE protection and strict validation"""
+  - Changed: # Reject XML strings with potential malicious patterns → raise ValueError(f"Invalid XML string: Potentially malicious content detected: {pattern}")
+  - Changed: malicious_patterns = [r'<!ENTITY', r'<!DOCTYPE'] → malicious_patterns = [
+  - Changed: raise ValueError("Invalid XML string: Potential XXE attack detected") → raise ValueError(f"Invalid XML string: Potentially malicious content detected: {pattern}")
+  - Changed: raise ValueError("Invalid XML string: Potential XXE attack detected") → raise ValueError(f"Invalid character in argument: {arg}")
+  - Changed: # Handle invalid input with proper error logging → logging.error("Invalid input type for XML parsing")
+  - Changed: logging.error(f"Error: {e}") → logging.error("Invalid input type for XML parsing")
+  - Changed: logging.error(f"Error: {e}") → logging.error(f"XML Validation Error: {str(e)}")
+  - Changed: logging.error(f"Error: {e}") → logging.error("Invalid response data type")
+  - Changed: logging.error(f"Error: {e}") → logging.error(f"JSON Processing Error: {str(e)}")
+  - Changed: logging.error(f"Error: {e}") → logging.error("Invalid command type")
+  - Changed: logging.error(f"Error: {e}") → logging.error(f"Command Execution Error: {str(e)}")
+  - Changed: return None → return parsed_data
+  - Changed: return None → return result.stdout
+  - Changed: """Secure response handling""" → """Secure response handling with validation"""
+  - Changed: return json.loads(response_data) → parsed_data = json.loads(
+  - Changed: return json.loads(response_data) → response_data,
+  - Changed: return json.loads(response_data) → return parsed_data
+  - Changed: except json.JSONDecodeError: → except (json.JSONDecodeError, ValueError) as e:
+  - Changed: return None → return parsed_data
+  - Changed: return None → return result.stdout
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed: def parse_xml(xml_string): → if not isinstance(xml_string, str):
+  - Changed: # Secure XML parsing → # Set strict parsing options
+  - Changed: return ET.fromstring(xml_string, parser=parser) → if not isinstance(xml_string, str):
+  - Changed: import requests → import json
+  - Changed: import requests → import decimal
+  - Changed: import requests → import subprocess
+  - Changed: import requests → import shlex
+  - Changed: import requests → import re
+  - Changed: import subprocess → import json
+  - Changed: import subprocess → import decimal
+  - Changed: import subprocess → import logging
+  - Changed: import subprocess → import subprocess
+  - Changed: import subprocess → import shlex
+  - Changed: import subprocess → import re
+  - Changed: import subprocess → result = subprocess.run(
+  - Changed: import subprocess → stdout=subprocess.PIPE,
+  - Changed: import subprocess → stderr=subprocess.PIPE,
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed: def parse_xml(xml_string): → if not isinstance(xml_string, str):
+  - Changed: """Secure XML parsing with XXE protection""" → """Secure XML parsing with XXE protection and strict validation"""
+  - Changed: """Secure XML parsing with XXE protection""" → """Secure response handling with validation"""
+  - Changed: """Secure XML parsing with XXE protection""" → """Secure command execution with strict validation"""
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed: # Validate and sanitize input XML string → # Validate parsed data structure
+  - Changed: try: → try:
+  - Changed: if not xml_string: → if not isinstance(xml_string, str):
+  - Changed: if not xml_string: → if not isinstance(cmd, str):
+  - Changed: if not xml_string: → if not cmd_args:
+  - Changed: raise ValueError("Empty XML string") → logging.error("Invalid input type for XML parsing")
+  - Changed: raise ValueError("Empty XML string") → raise TypeError("XML input must be a string")
+  - Changed: raise ValueError("Empty XML string") → raise TypeError("Response data must be a string")
+  - Changed: raise ValueError("Empty XML string") → raise ValueError("Response must be a JSON object or array")
+  - Changed: raise ValueError("Empty XML string") → raise TypeError("Command must be a string")
+  - Changed: raise ValueError("Empty XML string") → raise ValueError("Empty command")
+  - Changed: raise ValueError("Empty XML string") → raise ValueError(f"Command not allowed: {base_cmd}")
+  - Changed: raise ValueError("Empty XML string") → raise ValueError(f"Command flags not allowed: {arg}")
+  - Changed: raise ValueError("Empty XML string") → raise ValueError(f"Invalid character in argument: {arg}")
+  - Changed: except ValueError as e: → except (json.JSONDecodeError, ValueError) as e:
+  - Changed: except ValueError as e: → except (ValueError, subprocess.SubprocessError) as e:
+  - Changed: return None → return parsed_data
+  - Changed: return None → return result.stdout
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed: # Parse XML string securely → # Validate parsed data structure
+  - Changed: try: → try:
+  - Changed: tree = ET.fromstring(xml_string, parser=parser) → if not isinstance(xml_string, str):
+  - Changed: except ET.ParseError as e: → except (json.JSONDecodeError, ValueError) as e:
+  - Changed: except ET.ParseError as e: → except (ValueError, subprocess.SubprocessError) as e:
+  - Changed: # Handle XML parsing errors → # Set strict parsing options
+  - Changed: return None → return parsed_data
+  - Changed: return None → return result.stdout
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed: return tree → return parsed_data
+  - Changed: return tree → return result.stdout
+  - Changed: # Secure command execution → """Secure command execution with strict validation"""
+  - Changed: cmd_args = shlex.split(cmd) → cmd_args = shlex.split(cmd)
+  - Changed: return result.stdout → return parsed_data
+  - Changed: return result.stdout → return result.stdout
+
+Removed:
+  - # Handle invalid JSON data
+  - # Sample vulnerable API code
+  - def make_request(url):
+  - # SSL verification disabled
+  - return requests.get(url, verify=False)
+  - import defusedxml.ElementTree as ET
+  - parser = ET.XMLParser(resolve_entities=False)
+  - import defusedxml.ElementTree as ET
+  - def make_request(url):
+  - # Insecure request
+  - return requests.get(url, verify=False)
+  - # Disable external entity resolution to prevent XXE attacks
+  - parser = ET.XMLParser(resolve_entities=False)
+  - xml_string = xml_string.strip()
+  - print(f"Error: {e}")
+  - print(f"Error: {e}")
+  - result = subprocess.run(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+## Security Fix
+- Applied security fixes to: /workspaces/agentic-security/tests/samples/app.py, /workspaces/agentic-security/tests/samples/auth.py, /workspaces/agentic-security/tests/samples/api.py
+- Changes made based on provided instructions
+
+Changes in /workspaces/agentic-security/tests/samples/app.py:
+Added:
+  - subprocess.run(['echo', user_input], shell=False, check=True)...
+  - subprocess.run(['echo', user_input], shell=False, check=True)...
+  - # Safe HTML output with proper escaping...
+
+Modified:
+  - Changed: import os → import subprocess
+  - Changed: import os → import shlex
+  - Changed: # Security Issue 2: Command Injection → # Use subprocess with shell=False for safe command execution
+  - Changed: # Command injection vulnerability → # Safe command execution using subprocess
+  - Changed: return f"<div>{comment}</div>" → return f"<div>{escape(comment)}</div>"
+
+Removed:
+  - os.system(f"echo {user_input}")
+  - os.system(f"echo {user_input}")
+  - # XSS vulnerability
+Changes in /workspaces/agentic-security/tests/samples/api.py:
+Added:
+  - r'<!ENTITY',...
+  - r'<!DOCTYPE',...
+  - r'<!ELEMENT',...
+  - r'<!ATTLIST',...
+  - r'<\?xml-stylesheet',...
+  - r'data:',...
+  - r'file:',...
+  - r'gopher:',...
+  - r'http:',...
+  - r'ftp:'...
+  - ]...
+  - if not isinstance(response_data, str):...
+  - parse_float=decimal.Decimal,  # Use Decimal for precise floating point...
+  - parse_constant=lambda x: ValueError(f'Invalid constant {x}')  # Reject inf/nan...
+  - if not isinstance(parsed_data, (dict, list)):...
+  - New import: from typing import Union, Dict, List, Any
+  - # Whitelist of allowed commands...
+  - ALLOWED_COMMANDS = {'ls', 'dir', 'echo', 'pwd'}...
+  - # Safely split command...
+  - # Validate base command...
+  - base_cmd = cmd_args[0].lower()...
+  - if base_cmd not in ALLOWED_COMMANDS:...
+  - for arg in cmd_args[1:]:...
+  - if arg.startswith('-'):...
+  - if any(c in arg for c in ';&|$()`'):...
+  - # Execute with restricted permissions...
+  - cmd_args,...
+  - text=True,...
+  - shell=False,  # Prevent shell injection...
+  - timeout=10,   # Prevent hanging...
+  - check=True    # Raise on non-zero exit...
+
+Modified:
+  - Changed: """Secure XML parsing with XXE protection""" → """Secure XML parsing with XXE protection and strict validation"""
+  - Changed: """Secure XML parsing with XXE protection""" → """Secure response handling with validation"""
+  - Changed: """Secure XML parsing with XXE protection""" → """Secure command execution with strict validation"""
+  - Changed: # Additional input validation → # Comprehensive input validation
+  - Changed: # Additional input validation → # Additional argument validation
+  - Changed: # Reject XML strings with potential malicious patterns → """Secure XML parsing with XXE protection and strict validation"""
+  - Changed: # Reject XML strings with potential malicious patterns → raise ValueError(f"Invalid XML string: Potentially malicious content detected: {pattern}")
+  - Changed: malicious_patterns = [r'<!ENTITY', r'<!DOCTYPE'] → malicious_patterns = [
+  - Changed: raise ValueError("Invalid XML string: Potential XXE attack detected") → raise ValueError(f"Invalid XML string: Potentially malicious content detected: {pattern}")
+  - Changed: raise ValueError("Invalid XML string: Potential XXE attack detected") → raise ValueError(f"Invalid character in argument: {arg}")
+  - Changed: # Handle invalid input with proper error logging → logging.error("Invalid input type for XML parsing")
+  - Changed: logging.error(f"Error: {e}") → logging.error("Invalid input type for XML parsing")
+  - Changed: logging.error(f"Error: {e}") → logging.error(f"XML Validation Error: {str(e)}")
+  - Changed: logging.error(f"Error: {e}") → logging.error("Invalid response data type")
+  - Changed: logging.error(f"Error: {e}") → logging.error(f"JSON Processing Error: {str(e)}")
+  - Changed: logging.error(f"Error: {e}") → logging.error("Invalid command type")
+  - Changed: logging.error(f"Error: {e}") → logging.error(f"Command Execution Error: {str(e)}")
+  - Changed: return None → return parsed_data
+  - Changed: return None → return result.stdout
+  - Changed: """Secure response handling""" → """Secure response handling with validation"""
+  - Changed: return json.loads(response_data) → parsed_data = json.loads(
+  - Changed: return json.loads(response_data) → response_data,
+  - Changed: return json.loads(response_data) → return parsed_data
+  - Changed: except json.JSONDecodeError: → except (json.JSONDecodeError, ValueError) as e:
+  - Changed: return None → return parsed_data
+  - Changed: return None → return result.stdout
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed: def parse_xml(xml_string): → if not isinstance(xml_string, str):
+  - Changed: # Secure XML parsing → # Set strict parsing options
+  - Changed: return ET.fromstring(xml_string, parser=parser) → if not isinstance(xml_string, str):
+  - Changed: import requests → import json
+  - Changed: import requests → import decimal
+  - Changed: import requests → import subprocess
+  - Changed: import requests → import shlex
+  - Changed: import requests → import re
+  - Changed: import subprocess → import json
+  - Changed: import subprocess → import decimal
+  - Changed: import subprocess → import logging
+  - Changed: import subprocess → import subprocess
+  - Changed: import subprocess → import shlex
+  - Changed: import subprocess → import re
+  - Changed: import subprocess → result = subprocess.run(
+  - Changed: import subprocess → stdout=subprocess.PIPE,
+  - Changed: import subprocess → stderr=subprocess.PIPE,
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed: def parse_xml(xml_string): → if not isinstance(xml_string, str):
+  - Changed: """Secure XML parsing with XXE protection""" → """Secure XML parsing with XXE protection and strict validation"""
+  - Changed: """Secure XML parsing with XXE protection""" → """Secure response handling with validation"""
+  - Changed: """Secure XML parsing with XXE protection""" → """Secure command execution with strict validation"""
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed: # Validate and sanitize input XML string → # Validate parsed data structure
+  - Changed: try: → try:
+  - Changed: if not xml_string: → if not isinstance(xml_string, str):
+  - Changed: if not xml_string: → if not isinstance(cmd, str):
+  - Changed: if not xml_string: → if not cmd_args:
+  - Changed: raise ValueError("Empty XML string") → logging.error("Invalid input type for XML parsing")
+  - Changed: raise ValueError("Empty XML string") → raise TypeError("XML input must be a string")
+  - Changed: raise ValueError("Empty XML string") → raise TypeError("Response data must be a string")
+  - Changed: raise ValueError("Empty XML string") → raise ValueError("Response must be a JSON object or array")
+  - Changed: raise ValueError("Empty XML string") → raise TypeError("Command must be a string")
+  - Changed: raise ValueError("Empty XML string") → raise ValueError("Empty command")
+  - Changed: raise ValueError("Empty XML string") → raise ValueError(f"Command not allowed: {base_cmd}")
+  - Changed: raise ValueError("Empty XML string") → raise ValueError(f"Command flags not allowed: {arg}")
+  - Changed: raise ValueError("Empty XML string") → raise ValueError(f"Invalid character in argument: {arg}")
+  - Changed: except ValueError as e: → except (json.JSONDecodeError, ValueError) as e:
+  - Changed: except ValueError as e: → except (ValueError, subprocess.SubprocessError) as e:
+  - Changed: return None → return parsed_data
+  - Changed: return None → return result.stdout
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed: # Parse XML string securely → # Validate parsed data structure
+  - Changed: try: → try:
+  - Changed: tree = ET.fromstring(xml_string, parser=parser) → if not isinstance(xml_string, str):
+  - Changed: except ET.ParseError as e: → except (json.JSONDecodeError, ValueError) as e:
+  - Changed: except ET.ParseError as e: → except (ValueError, subprocess.SubprocessError) as e:
+  - Changed: # Handle XML parsing errors → # Set strict parsing options
+  - Changed: return None → return parsed_data
+  - Changed: return None → return result.stdout
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed: return tree → return parsed_data
+  - Changed: return tree → return result.stdout
+  - Changed: # Secure command execution → """Secure command execution with strict validation"""
+  - Changed: cmd_args = shlex.split(cmd) → cmd_args = shlex.split(cmd)
+  - Changed: return result.stdout → return parsed_data
+  - Changed: return result.stdout → return result.stdout
+
+Removed:
+  - # Handle invalid JSON data
+  - # Sample vulnerable API code
+  - def make_request(url):
+  - # SSL verification disabled
+  - return requests.get(url, verify=False)
+  - import defusedxml.ElementTree as ET
+  - parser = ET.XMLParser(resolve_entities=False)
+  - import defusedxml.ElementTree as ET
+  - def make_request(url):
+  - # Insecure request
+  - return requests.get(url, verify=False)
+  - # Disable external entity resolution to prevent XXE attacks
+  - parser = ET.XMLParser(resolve_entities=False)
+  - xml_string = xml_string.strip()
+  - print(f"Error: {e}")
+  - print(f"Error: {e}")
+  - result = subprocess.run(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+## Security Fix
+- Applied security fixes to: /workspaces/agentic-security/tests/samples/app.py, /workspaces/agentic-security/tests/samples/auth.py, /workspaces/agentic-security/tests/samples/api.py
+- Changes made based on provided instructions
+
+Changes in /workspaces/agentic-security/tests/samples/app.py:
+Added:
+  - subprocess.run(['echo', user_input], shell=False, check=True)...
+  - subprocess.run(['echo', user_input], shell=False, check=True)...
+  - # Safe HTML output with proper escaping...
+
+Modified:
+  - Changed: import os → import subprocess
+  - Changed: import os → import shlex
+  - Changed: # Security Issue 2: Command Injection → # Use subprocess with shell=False for safe command execution
+  - Changed: # Command injection vulnerability → # Safe command execution using subprocess
+  - Changed: return f"<div>{comment}</div>" → return f"<div>{escape(comment)}</div>"
+
+Removed:
+  - os.system(f"echo {user_input}")
+  - os.system(f"echo {user_input}")
+  - # XSS vulnerability
+Changes in /workspaces/agentic-security/tests/samples/auth.py:
+Added:
+  - New class: TokenError
+  - """Custom exception for token-related errors"""...
+  - if not isinstance(password, str) or not isinstance(stored_hash, bytes):...
+  - if not isinstance(password, str):...
+  - raise ValueError("Password must be a string")...
+  - if not isinstance(user_data, dict):...
+  - raise ValueError("User data must be a dictionary")...
+  - # Create a safe copy of user data...
+  - safe_data = {...
+  - 'user_id': str(user_data.get('user_id', '')),...
+  - 'username': str(user_data.get('username', '')),...
+  - 'role': str(user_data.get('role', 'user'))...
+  - }...
   - Args:...
-  - table_name: Table name...
-  - Tuple of (query_string, parameters)...
-  - """...
-  - validated_cols = validate_columns(table_name, columns)...
-  - placeholders = ','.join(['?'] * len(validated_cols))...
-  - query = f"SELECT {placeholders} FROM ?"...
-  - return query, validated_cols + [table_name]...
-  - SELECT * FROM (...
-  - UNION ALL...
-  - ) cols...
-  - INNER JOIN (...
-  - SELECT * FROM ?...
-  - ) data...
-  - # Build the column list safely...
-  - WITH RECURSIVE split(word, str) AS (...
-  - SELECT '', ? || ' '...
-  - UNION ALL...
-  - SELECT substr(str, 0, instr(str, ' ')),...
-  - substr(str, instr(str, ' ')+1)...
-  - FROM split WHERE str!=''...
-  - SELECT DISTINCT u.*...
-  - FROM users u...
-  - SELECT 1 FROM split...
-  - AND u.name LIKE '%' || replace(replace(replace(word,...
-  - '\\', '\\\\'),...
-  - '%', '\\%'),...
-  - '_', '\\_') || '%' ESCAPE '\\'...
-  - # Pass the keyword directly as parameter...
+  - secret: Secret key used for token verification...
+  - Dict containing verified token data or None if verification fails...
+  - Raises:...
+  - TokenError: If token format or content is invalid...
+  - if not isinstance(token, str) or not isinstance(secret, str):...
+  - raise TokenError("Invalid token or secret format")...
+  - # Decode with explicit type verification...
+  - # Validate expected data structure...
+  - if not isinstance(data, dict):...
+  - raise TokenError("Invalid token payload structure")...
+  - # Verify required fields and types...
+  - required_fields = {...
+  - 'user_id': str,...
+  - 'username': str,...
+  - 'role': str,...
+  - 'exp': (int, float)  # exp can be int or float timestamp...
+  - }...
+  - for field, expected_type in required_fields.items():...
+  - if field not in data:...
+  - raise TokenError(f"Missing required field: {field}")...
+  - if not isinstance(data[field], expected_type):...
+  - raise TokenError(f"Invalid type for field: {field}")...
+  - except Exception as e:...
+  - raise TokenError(f"Token verification failed: {str(e)}")...
 
 Modified:
-  - Updated function: get_prepared_statement
-  - Changed: def get_prepared_statement(conn: sqlite3.Connection, sql: str, params: tuple = None, → stmt = get_prepared_statement(conn, query, params)
-  - Changed: identifiers: Dict[str, str] = None) -> sqlite3.Cursor: → def get_prepared_statement(conn: sqlite3.Connection, sql: str, params: tuple = None) -> sqlite3.Cursor:
+  - Updated function: authenticate_user
+  - Updated function: generate_token
+  - Changed: """Secure token generation with proper secret and expiration""" → """Secure token generation with proper secret and expiration"""
+  - Changed: """Secure token generation with proper secret and expiration""" → Secure token verification with expiration check and safe deserialization
+  - Changed: secret = secrets.token_hex(32)  # Generate secure secret key → secret = secrets.token_hex(32)
+  - Changed: user_data['exp'] = datetime.utcnow() + timedelta(hours=expiry_hours) → safe_data['exp'] = datetime.utcnow() + timedelta(hours=expiry_hours)
+  - Changed: token = jwt.encode(user_data, secret, algorithm='HS256') → token = jwt.encode(safe_data, secret, algorithm='HS256')
+  - Changed: return token, secret → return False
+  - Changed: return token, secret → return token, secret
+  - Changed: return token, secret → token: JWT token string
   - Changed:  → 
   - Changed:  → 
   - Changed:  → 
   - Changed:  → 
   - Changed:  → 
   - Changed:  → 
-  - Changed: cursor.execute("EXPLAIN QUERY PLAN " + sql, ()) → cursor.execute("EXPLAIN QUERY PLAN " + sql, params or ())
-  - Changed: return False → Returns:
   - Changed:  → 
   - Changed:  → 
   - Changed:  → 
   - Changed:  → 
   - Changed:  → 
   - Changed:  → 
-  - Changed: for allowed in ALLOWED_TABLES): → if table_name not in ALLOWED_TABLES:
-  - Changed: SELECT {columns} → SELECT ? as col_name
-  - Changed: WHERE id = ? → WHERE id = ?
-  - Changed: WHERE id = ? → WHERE EXISTS (
-  - Changed: WHERE id = ? → WHERE word != ''
-  - Changed: AND active = 1 → AND active = 1
-  - Changed: AND active = 1 → AND u.active = 1
-  - Changed: AND deleted_at IS NULL → AND deleted_at IS NULL
-  - Changed: # Get prepared statement with parameters and safe identifiers → # Get prepared statement with parameters
-  - Changed: # Get prepared statement with parameters and safe identifiers → stmt = get_prepared_statement(conn, query, params)
-  - Changed: # Get prepared statement with parameters and safe identifiers → # Get prepared statement with parameters
-  - Changed: stmt = get_prepared_statement( → # Get prepared statement with parameters
-  - Changed: stmt = get_prepared_statement( → stmt = get_prepared_statement(conn, query, params)
-  - Changed: stmt = get_prepared_statement( → # Get prepared statement with parameters
-  - Changed: params=(user_id,), → params = cols + [table_name, user_id]
-  - Changed: params=(user_id,), → params = (keyword,)
-  - Changed: params=(user_id,), → params=params
-  - Changed: 'columns': ', '.join(cols), → columns: List of column names
-  - Changed: 'columns': ', '.join(cols), → placeholders = ','.join(['?'] * len(cols))
-  - Changed: 'columns': ', '.join(cols), → column_list = ', '.join(f'"{col}"' for col in cols)
-  - Changed: ) → )
-  - Changed: ) → )
-  - Changed: # Build parameterized query → Build a secure parameterized query for column selection
-  - Changed: # Build parameterized query → # Build query using proper parameterization
-  - Changed: # Build parameterized query → # Use a safer parameterized query approach
-  - Changed: SELECT {columns} → SELECT ? as col_name
-  - Changed: AND active = 1 → AND active = 1
-  - Changed: AND active = 1 → AND u.active = 1
-  - Changed: ORDER BY id ASC → ORDER BY u.id ASC
+  - Changed:  → 
+  - Updated function: hash_password
+  - Changed: def verify_token(token, secret): → return token, secret
+  - Updated function: verify_token
+  - Changed: """Secure token verification with expiration check""" → """Secure token generation with proper secret and expiration"""
+  - Changed: """Secure token verification with expiration check""" → Secure token verification with expiration check and safe deserialization
   - Changed:  → 
   - Changed:  → 
   - Changed:  → 
   - Changed:  → 
   - Changed:  → 
   - Changed:  → 
-  - Changed: # Prepare parameters with escaped LIKE pattern → # Prepare parameters including column names and table
   - Changed:  → 
   - Changed:  → 
   - Changed:  → 
   - Changed:  → 
   - Changed:  → 
   - Changed:  → 
-  - Changed: # Get prepared statement with parameters and safe identifiers → # Get prepared statement with parameters
-  - Changed: # Get prepared statement with parameters and safe identifiers → stmt = get_prepared_statement(conn, query, params)
-  - Changed: # Get prepared statement with parameters and safe identifiers → # Get prepared statement with parameters
-  - Changed: params=(search_pattern,), → params = (keyword,)
-  - Changed: params=(search_pattern,), → params=params
-  - Changed: 'columns': ', '.join(cols), → columns: List of column names
-  - Changed: 'columns': ', '.join(cols), → placeholders = ','.join(['?'] * len(cols))
-  - Changed: 'columns': ', '.join(cols), → column_list = ', '.join(f'"{col}"' for col in cols)
+  - Changed:  → 
+  - Updated function: hash_password
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed: from datetime import datetime, timedelta → from typing import Dict, Optional, Tuple, Union
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Updated function: generate_token
+  - Changed: """Secure token generation with proper secret and expiration""" → """Secure token generation with proper secret and expiration"""
+  - Changed: """Secure token generation with proper secret and expiration""" → Secure token verification with expiration check and safe deserialization
+  - Changed: secret = secrets.token_hex(32)  # Generate secure secret key → secret = secrets.token_hex(32)
+  - Changed: user_data['exp'] = datetime.utcnow() + timedelta(hours=expiry_hours) → safe_data['exp'] = datetime.utcnow() + timedelta(hours=expiry_hours)
+  - Changed: token = jwt.encode(user_data, secret, algorithm='HS256') → token = jwt.encode(safe_data, secret, algorithm='HS256')
+  - Changed: return token, secret → return False
+  - Changed: return token, secret → return token, secret
+  - Changed: return token, secret → token: JWT token string
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed: def verify_token(token, secret): → return token, secret
+  - Updated function: verify_token
+  - Changed: """Secure token verification with expiration check""" → """Secure token generation with proper secret and expiration"""
+  - Changed: """Secure token verification with expiration check""" → Secure token verification with expiration check and safe deserialization
+  - Changed: data = jwt.decode(token, secret, algorithms=['HS256']) → token = jwt.encode(safe_data, secret, algorithm='HS256')
+  - Changed: return data → return False
+  - Changed: return data → return token, secret
+  - Changed: return data → Returns:
+  - Changed: return None → return False
+  - Changed: return None → return token, secret
+  - Changed: return None → Returns:
+  - Changed: return None → return False
+  - Changed: return None → return token, secret
+  - Changed: return None → Returns:
 
 Removed:
-  - identifiers: Dict of table/column identifiers to safely insert into query
-  - # Safely insert any table/column identifiers
-  - if identifiers:
-  - # Validate all identifiers
-  - for key, value in identifiers.items():
-  - if not re.match(r'^[a-zA-Z][a-zA-Z0-9_]*$', value):
-  - raise DatabaseError(f"Invalid identifier format: {value}")
-  - # Format the SQL with validated identifiers
+  - # Expiration is automatically checked by jwt.decode
+  - import bcrypt
+  - """Secure password hashing with bcrypt"""
+  - salt = bcrypt.gensalt()
+  - return bcrypt.hashpw(password.encode(), salt)
+  - import secrets
   - try:
-  - sql = sql.format(**{k: f'"{v}"' for k, v in identifiers.items()})
-  - except (KeyError, ValueError) as e:
-  - raise DatabaseError(f"Error formatting SQL with identifiers: {str(e)}")
-  - # Strict whitelist validation using constant time comparison
-  - def constant_time_compare(val1: str, val2: str) -> bool:
-  - if len(val1) != len(val2):
-  - result = 0
-  - for x, y in zip(val1, val2):
-  - result |= ord(x) ^ ord(y)
-  - return result == 0
-  - if not any(constant_time_compare(table_name, allowed)
-  - FROM {table}
-  - conn,
-  - query,
-  - identifiers={
-  - 'table': table_name
-  - FROM {table}
-  - WHERE name LIKE ? ESCAPE '\'
-  - # Properly escape LIKE pattern
-  - def escape_like_pattern(pattern: str) -> str:
-  - escape_chars = ['\\', '%', '_']
-  - for char in escape_chars:
-  - pattern = pattern.replace(char, '\\' + char)
-  - return f"%{pattern}%"
-  - search_pattern = escape_like_pattern(keyword)
-  - identifiers={
-  - 'table': 'users'
+  - # Expiration is automatically checked by jwt.decode
+  - except jwt.ExpiredSignatureError:
+  - except jwt.InvalidTokenError:
+Changes in /workspaces/agentic-security/tests/samples/api.py:
+Added:
+  - r'<!ENTITY',...
+  - r'<!DOCTYPE',...
+  - r'<!ELEMENT',...
+  - r'<!ATTLIST',...
+  - r'<\?xml-stylesheet',...
+  - r'data:',...
+  - r'file:',...
+  - r'gopher:',...
+  - r'http:',...
+  - r'ftp:'...
+  - ]...
+  - if not isinstance(response_data, str):...
+  - parse_float=decimal.Decimal,  # Use Decimal for precise floating point...
+  - parse_constant=lambda x: ValueError(f'Invalid constant {x}')  # Reject inf/nan...
+  - if not isinstance(parsed_data, (dict, list)):...
+  - New import: from typing import Union, Dict, List, Any
+  - # Whitelist of allowed commands...
+  - ALLOWED_COMMANDS = {'ls', 'dir', 'echo', 'pwd'}...
+  - # Safely split command...
+  - # Validate base command...
+  - base_cmd = cmd_args[0].lower()...
+  - if base_cmd not in ALLOWED_COMMANDS:...
+  - for arg in cmd_args[1:]:...
+  - if arg.startswith('-'):...
+  - if any(c in arg for c in ';&|$()`'):...
+  - # Execute with restricted permissions...
+  - cmd_args,...
+  - text=True,...
+  - shell=False,  # Prevent shell injection...
+  - timeout=10,   # Prevent hanging...
+  - check=True    # Raise on non-zero exit...
+
+Modified:
+  - Changed: """Secure XML parsing with XXE protection""" → """Secure XML parsing with XXE protection and strict validation"""
+  - Changed: """Secure XML parsing with XXE protection""" → """Secure response handling with validation"""
+  - Changed: """Secure XML parsing with XXE protection""" → """Secure command execution with strict validation"""
+  - Changed: # Additional input validation → # Comprehensive input validation
+  - Changed: # Additional input validation → # Additional argument validation
+  - Changed: # Reject XML strings with potential malicious patterns → """Secure XML parsing with XXE protection and strict validation"""
+  - Changed: # Reject XML strings with potential malicious patterns → raise ValueError(f"Invalid XML string: Potentially malicious content detected: {pattern}")
+  - Changed: malicious_patterns = [r'<!ENTITY', r'<!DOCTYPE'] → malicious_patterns = [
+  - Changed: raise ValueError("Invalid XML string: Potential XXE attack detected") → raise ValueError(f"Invalid XML string: Potentially malicious content detected: {pattern}")
+  - Changed: raise ValueError("Invalid XML string: Potential XXE attack detected") → raise ValueError(f"Invalid character in argument: {arg}")
+  - Changed: # Handle invalid input with proper error logging → logging.error("Invalid input type for XML parsing")
+  - Changed: logging.error(f"Error: {e}") → logging.error("Invalid input type for XML parsing")
+  - Changed: logging.error(f"Error: {e}") → logging.error(f"XML Validation Error: {str(e)}")
+  - Changed: logging.error(f"Error: {e}") → logging.error("Invalid response data type")
+  - Changed: logging.error(f"Error: {e}") → logging.error(f"JSON Processing Error: {str(e)}")
+  - Changed: logging.error(f"Error: {e}") → logging.error("Invalid command type")
+  - Changed: logging.error(f"Error: {e}") → logging.error(f"Command Execution Error: {str(e)}")
+  - Changed: return None → return parsed_data
+  - Changed: return None → return result.stdout
+  - Changed: """Secure response handling""" → """Secure response handling with validation"""
+  - Changed: return json.loads(response_data) → parsed_data = json.loads(
+  - Changed: return json.loads(response_data) → response_data,
+  - Changed: return json.loads(response_data) → return parsed_data
+  - Changed: except json.JSONDecodeError: → except (json.JSONDecodeError, ValueError) as e:
+  - Changed: return None → return parsed_data
+  - Changed: return None → return result.stdout
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed: def parse_xml(xml_string): → if not isinstance(xml_string, str):
+  - Changed: # Secure XML parsing → # Set strict parsing options
+  - Changed: return ET.fromstring(xml_string, parser=parser) → if not isinstance(xml_string, str):
+  - Changed: import requests → import json
+  - Changed: import requests → import decimal
+  - Changed: import requests → import subprocess
+  - Changed: import requests → import shlex
+  - Changed: import requests → import re
+  - Changed: import subprocess → import json
+  - Changed: import subprocess → import decimal
+  - Changed: import subprocess → import logging
+  - Changed: import subprocess → import subprocess
+  - Changed: import subprocess → import shlex
+  - Changed: import subprocess → import re
+  - Changed: import subprocess → result = subprocess.run(
+  - Changed: import subprocess → stdout=subprocess.PIPE,
+  - Changed: import subprocess → stderr=subprocess.PIPE,
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed: def parse_xml(xml_string): → if not isinstance(xml_string, str):
+  - Changed: """Secure XML parsing with XXE protection""" → """Secure XML parsing with XXE protection and strict validation"""
+  - Changed: """Secure XML parsing with XXE protection""" → """Secure response handling with validation"""
+  - Changed: """Secure XML parsing with XXE protection""" → """Secure command execution with strict validation"""
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed: # Validate and sanitize input XML string → # Validate parsed data structure
+  - Changed: try: → try:
+  - Changed: if not xml_string: → if not isinstance(xml_string, str):
+  - Changed: if not xml_string: → if not isinstance(cmd, str):
+  - Changed: if not xml_string: → if not cmd_args:
+  - Changed: raise ValueError("Empty XML string") → logging.error("Invalid input type for XML parsing")
+  - Changed: raise ValueError("Empty XML string") → raise TypeError("XML input must be a string")
+  - Changed: raise ValueError("Empty XML string") → raise TypeError("Response data must be a string")
+  - Changed: raise ValueError("Empty XML string") → raise ValueError("Response must be a JSON object or array")
+  - Changed: raise ValueError("Empty XML string") → raise TypeError("Command must be a string")
+  - Changed: raise ValueError("Empty XML string") → raise ValueError("Empty command")
+  - Changed: raise ValueError("Empty XML string") → raise ValueError(f"Command not allowed: {base_cmd}")
+  - Changed: raise ValueError("Empty XML string") → raise ValueError(f"Command flags not allowed: {arg}")
+  - Changed: raise ValueError("Empty XML string") → raise ValueError(f"Invalid character in argument: {arg}")
+  - Changed: except ValueError as e: → except (json.JSONDecodeError, ValueError) as e:
+  - Changed: except ValueError as e: → except (ValueError, subprocess.SubprocessError) as e:
+  - Changed: return None → return parsed_data
+  - Changed: return None → return result.stdout
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed: # Parse XML string securely → # Validate parsed data structure
+  - Changed: try: → try:
+  - Changed: tree = ET.fromstring(xml_string, parser=parser) → if not isinstance(xml_string, str):
+  - Changed: except ET.ParseError as e: → except (json.JSONDecodeError, ValueError) as e:
+  - Changed: except ET.ParseError as e: → except (ValueError, subprocess.SubprocessError) as e:
+  - Changed: # Handle XML parsing errors → # Set strict parsing options
+  - Changed: return None → return parsed_data
+  - Changed: return None → return result.stdout
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed: return tree → return parsed_data
+  - Changed: return tree → return result.stdout
+  - Changed: # Secure command execution → """Secure command execution with strict validation"""
+  - Changed: cmd_args = shlex.split(cmd) → cmd_args = shlex.split(cmd)
+  - Changed: return result.stdout → return parsed_data
+  - Changed: return result.stdout → return result.stdout
+
+Removed:
+  - # Handle invalid JSON data
+  - # Sample vulnerable API code
+  - def make_request(url):
+  - # SSL verification disabled
+  - return requests.get(url, verify=False)
+  - import defusedxml.ElementTree as ET
+  - parser = ET.XMLParser(resolve_entities=False)
+  - import defusedxml.ElementTree as ET
+  - def make_request(url):
+  - # Insecure request
+  - return requests.get(url, verify=False)
+  - # Disable external entity resolution to prevent XXE attacks
+  - parser = ET.XMLParser(resolve_entities=False)
+  - xml_string = xml_string.strip()
+  - print(f"Error: {e}")
+  - print(f"Error: {e}")
+  - result = subprocess.run(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
 ## Security Fix
-- Applied security fixes to: tests/samples/vulnerable_query.py
+- Applied security fixes to: /workspaces/agentic-security/tests/samples
 - Changes made based on provided instructions
 
-Changes in tests/samples/vulnerable_query.py:
+Changes in /workspaces/agentic-security/tests/samples:Failed to generate diff summary: [Errno 21] Is a directory: '/workspaces/agentic-security/tests/samples'
+
+## Security Fix
+- Applied security fixes to: /workspaces/agentic-security/tests/samples/auth.py
+- Changes made based on provided instructions
+
+Changes in /workspaces/agentic-security/tests/samples/auth.py:
 Added:
-  - 'timeout': max(min(float(5.0), 30.0), 1.0),  # Clamp between 1-30 seconds...
-  - New function: validate_db_config
-  - if not isinstance(config.get('timeout'), (int, float)):...
-  - raise DatabaseError("Invalid timeout value")...
-  - if config.get('isolation_level') not in ('DEFERRED', 'IMMEDIATE', 'EXCLUSIVE'):...
-  - raise DatabaseError("Invalid isolation level")...
-  - if not isinstance(config.get('check_same_thread'), bool):...
-  - raise DatabaseError("Invalid check_same_thread value")...
-  - validated_table = validate_table_name(table_name)...
-  - # Build column list with proper quoting...
-  - # Use a fixed query structure without string interpolation...
-  - query = f"""...
-  - SELECT {column_list}...
-  - FROM "{validated_table}"...
-  - WHERE active = 1...
-  - AND deleted_at IS NULL...
-  - return query, []  # No parameters needed since we validated and quoted everything...
-  - if not keyword:...
-  - if len(keyword) < 3 or len(keyword) > 50:...
-  - # Only allow letters, numbers, spaces and hyphens...
-  - # Prevent common SQL injection patterns...
-  - if any(pattern in keyword.lower() for pattern in ['union', 'select', '--', ';', '/*', '*/']):...
+  - New import: import hmac
+  - New import: from functools import wraps
+  - New import: from time import time
+  - New class: AuthenticationError
+  - # Rate limiting storage...
+  - _auth_attempts = {}...
+  - _MAX_ATTEMPTS = 5...
+  - _LOCKOUT_TIME = 300  # 5 minutes in seconds...
+  - New function: _check_rate_limit
+  - current_time = time()...
+  - if username in _auth_attempts:...
+  - attempts, lockout_time = _auth_attempts[username]...
+  - if current_time < lockout_time:...
+  - raise AuthenticationError("Too many attempts. Please try again later.")...
+  - if current_time - lockout_time > _LOCKOUT_TIME:...
+  - _auth_attempts[username] = (1, current_time)...
+  - else:...
+  - if attempts >= _MAX_ATTEMPTS:...
+  - _auth_attempts[username] = (attempts, current_time)...
+  - raise AuthenticationError("Too many attempts. Please try again later.")...
+  - _auth_attempts[username] = (attempts + 1, current_time)...
+  - else:...
+  - _auth_attempts[username] = (1, current_time)...
+  - _check_rate_limit(username)...
+  - # Use constant-time comparison...
+  - is_valid = hmac.compare_digest(...
+  - if not is_valid:...
+  - raise AuthenticationError("Invalid credentials")...
+  - raise AuthenticationError("Authentication failed")...
+  - 'alg': 'HS512',...
+  - 'enc': 'none'...
+  - data = jwt.decode(...
+  - token,...
+  - secret,...
+  - algorithms=['HS512'],...
+  - options={...
+  - 'verify_signature': True,...
+  - 'verify_exp': True,...
+  - 'verify_nbf': True,...
+  - 'verify_iat': True,...
+  - 'verify_aud': True,...
+  - 'require': ['exp', 'iat', 'nbf']...
+  - }...
 
 Modified:
-  - Changed: # Database configuration → # Database configuration with validation
-  - Changed: # Database configuration → """Validate database configuration parameters"""
-  - Changed: placeholders = ','.join(['?'] * len(validated_cols)) → column_list = ', '.join(f'"{col}"' for col in validated_cols)
-  - Changed: # Enhanced keyword validation → # Stricter keyword validation
-  - Changed: if not re.match(r'^[a-zA-Z0-9\s-]{3,50}$', keyword): → if not re.match(r'^[a-zA-Z0-9\s-]+$', keyword):
-  - Modified long line containing: raise DatabaseError("Invalid search keyword format...
-  - Modified long line containing: raise DatabaseError("Invalid search keyword format...
-  - Modified long line containing: raise DatabaseError("Invalid search keyword format...
-  - Modified long line containing: raise DatabaseError("Invalid search keyword format...
+  - Changed: """Secure authentication with bcrypt""" → """Custom exception for authentication-related errors"""
+  - Changed: """Secure authentication with bcrypt""" → """Check if authentication attempts are within allowed limits"""
+  - Changed: """Secure authentication with bcrypt""" → """Secure authentication with bcrypt and rate limiting"""
+  - Changed: """Secure authentication with bcrypt""" → raise AuthenticationError("Invalid input format")
+  - Changed: """Secure authentication with bcrypt""" → except AuthenticationError:
+  - Changed: return False → return True
+  - Changed: return bcrypt.checkpw(password.encode(), stored_hash) → bcrypt.hashpw(password.encode(), stored_hash),
+  - Changed: except Exception: → except AuthenticationError:
+  - Changed: except Exception: → except Exception as e:
+  - Changed: return False → return True
+  - Changed: # Use more secure JWT options → # Use more secure JWT options with additional headers
+  - Changed: 'typ': 'JWT' → 'typ': 'JWT',
+  - Changed: 'typ': 'JWT' → 'cty': 'JWT',
 
 Removed:
-  - 'timeout': 5.0,
-  - query = f"SELECT {placeholders} FROM ?"
-  - return query, validated_cols + [table_name]
+  - data = jwt.decode(token, secret, algorithms=['HS256'])
+
+## Security Fix
+- Applied security fixes to: /workspaces/agentic-security/tests/samples/auth.py
+- Changes made based on provided instructions
+
+Changes in /workspaces/agentic-security/tests/samples/auth.py:Failed to generate diff summary: list index out of range
+
+## Security Fix
+- Applied security fixes to: /workspaces/agentic-security/tests/samples/auth.py
+- Changes made based on provided instructions
+
+Changes in /workspaces/agentic-security/tests/samples/auth.py:
+Added:
+  - New import: from typing import Dict, Optional
+  - _redis_pool: Optional[ConnectionPool] = None...
+  - _redis_pool = ConnectionPool(...
+  - host='localhost',...
+  - port=6379,...
+  - db=0,...
+  - ssl=True,...
+  - ssl_cert_reqs='required',...
+  - ssl_ca_certs='/etc/ssl/certs/ca-certificates.crt',...
+  - max_connections=10,...
+  - socket_timeout=5.0,...
+  - retry_on_timeout=True...
+  - if not isinstance(ip_address, str) or not ip_address.strip():...
+  - raise AuthenticationError("Invalid IP address format")...
+  - pipe = redis.pipeline()...
+  - # Check both user and IP limits...
+  - raise AuthenticationError("Too many attempts from this IP address")...
+  - pipe.execute()...
+  - 'zip': 'none',  # Explicitly disable compression...
+  - 'x5t': secrets.token_urlsafe(32),  # Add thumbprint for key tracking...
+  - 'jku': None,  # Explicitly disable JWK URL...
+  - 'x5u': None   # Explicitly disable x509 URL...
+
+Modified:
+  - Changed: # Redis connection for rate limiting → from redis.connection import ConnectionPool
+  - Changed: # Redis connection for rate limiting → # Redis connection pool for rate limiting
+  - Changed: """Get Redis connection with lazy initialization""" → from redis.connection import ConnectionPool
+  - Changed: """Get Redis connection with lazy initialization""" → # Redis connection pool for rate limiting
+  - Changed: """Get Redis connection with lazy initialization""" → """Get Redis connection with connection pooling and SSL verification"""
+  - Changed: global _redis_client → global _redis_pool, _redis_client
+  - Changed: global _redis_client → if _redis_pool is None:
+  - Changed: _redis_client = Redis(host='localhost', port=6379, db=0, ssl=True) → _redis_client = Redis(connection_pool=_redis_pool)
+  - Updated function: _check_rate_limit
+  - Changed: def _check_rate_limit(username: str) -> None: → _check_rate_limit(username, ip_address)
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed: redis_key = f"{_REDIS_KEY_PREFIX}{username}" → user_key = f"{_REDIS_KEY_PREFIX}user:{username}"
+  - Changed: redis_key = f"{_REDIS_KEY_PREFIX}{username}" → ip_key = f"{_REDIS_KEY_PREFIX}ip:{ip_address}"
+  - Changed: attempts = int(redis.get(redis_key) or 0) → user_attempts = int(redis.get(user_key) or 0)
+  - Changed: attempts = int(redis.get(redis_key) or 0) → ip_attempts = int(redis.get(ip_key) or 0)
+  - Changed: attempts = int(redis.get(redis_key) or 0) → lockout_remaining = redis.ttl(ip_key)
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed: if attempts >= _MAX_ATTEMPTS: → if user_attempts >= _MAX_ATTEMPTS:
+  - Changed: if attempts >= _MAX_ATTEMPTS: → if ip_attempts >= _MAX_ATTEMPTS * 2:  # Higher limit for IPs
+  - Changed: lockout_remaining = redis.ttl(redis_key) → lockout_remaining = redis.ttl(user_key)
+  - Changed: lockout_remaining = redis.ttl(redis_key) → lockout_remaining = redis.ttl(ip_key)
+  - Changed: lockout_remaining = redis.ttl(redis_key) → if lockout_remaining > 0:
+  - Changed: logger.warning(f"Rate limit exceeded for user: {username}") → logger.warning(f"User rate limit exceeded: {username}")
+  - Changed: logger.warning(f"Rate limit exceeded for user: {username}") → logger.warning(f"IP rate limit exceeded: {ip_address}")
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed:  → 
+  - Changed: # Increment attempts and set expiry → # Increment both counters atomically
+  - Changed: redis.incr(redis_key) → redis = _get_redis()
+  - Changed: redis.incr(redis_key) → pipe.incr(user_key)
+  - Changed: redis.incr(redis_key) → pipe.incr(ip_key)
+  - Changed: redis.expire(redis_key, _LOCKOUT_TIME) → pipe.expire(user_key, _LOCKOUT_TIME)
+  - Changed: redis.expire(redis_key, _LOCKOUT_TIME) → pipe.expire(ip_key, _LOCKOUT_TIME)
+  - Updated function: authenticate_user
+  - Updated function: authenticate_user
+  - Changed: _check_rate_limit(username) → def _check_rate_limit(username: str, ip_address: str) -> None:
+  - Changed: _check_rate_limit(username) → # Rate limit both by username and IP
+  - Changed: _check_rate_limit(username) → _check_rate_limit(username, ip_address)
+  - Changed: # Use more secure JWT options with additional headers → # Use more secure JWT options with enhanced headers
+  - Changed: 'kid': secrets.token_hex(8), → 'kid': secrets.token_hex(16),  # Increased key ID length
+  - Changed: 'enc': 'none' → 'enc': 'none',
+
+Removed:
+  - current_time = time()
