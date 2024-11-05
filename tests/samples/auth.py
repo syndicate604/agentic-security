@@ -16,27 +16,56 @@ class AuthenticationError(Exception):
     """Custom exception for authentication-related errors"""
     pass
 
-# Rate limiting storage
-_auth_attempts = {}
+import logging
+from redis import Redis
+from typing import Optional
+
+# Secure configuration
 _MAX_ATTEMPTS = 5
 _LOCKOUT_TIME = 300  # 5 minutes in seconds
+_REDIS_KEY_PREFIX = "auth_attempt:"
+
+# Setup secure logging
+logger = logging.getLogger('security')
+logger.setLevel(logging.INFO)
+
+# Redis connection for rate limiting
+_redis_client: Optional[Redis] = None
+
+def _get_redis() -> Redis:
+    """Get Redis connection with lazy initialization"""
+    global _redis_client
+    if _redis_client is None:
+        _redis_client = Redis(host='localhost', port=6379, db=0, ssl=True)
+    return _redis_client
 
 def _check_rate_limit(username: str) -> None:
-    """Check if authentication attempts are within allowed limits"""
-    current_time = time()
-    if username in _auth_attempts:
-        attempts, lockout_time = _auth_attempts[username]
-        if current_time < lockout_time:
-            raise AuthenticationError("Too many attempts. Please try again later.")
-        if current_time - lockout_time > _LOCKOUT_TIME:
-            _auth_attempts[username] = (1, current_time)
-        else:
-            if attempts >= _MAX_ATTEMPTS:
-                _auth_attempts[username] = (attempts, current_time)
-                raise AuthenticationError("Too many attempts. Please try again later.")
-            _auth_attempts[username] = (attempts + 1, current_time)
-    else:
-        _auth_attempts[username] = (1, current_time)
+    """Check if authentication attempts are within allowed limits using Redis"""
+    if not isinstance(username, str) or not username.strip():
+        raise AuthenticationError("Invalid username format")
+        
+    redis_key = f"{_REDIS_KEY_PREFIX}{username}"
+    redis = _get_redis()
+    
+    try:
+        attempts = int(redis.get(redis_key) or 0)
+        current_time = time()
+        
+        if attempts >= _MAX_ATTEMPTS:
+            lockout_remaining = redis.ttl(redis_key)
+            if lockout_remaining > 0:
+                logger.warning(f"Rate limit exceeded for user: {username}")
+                raise AuthenticationError(
+                    f"Account temporarily locked. Try again in {lockout_remaining} seconds."
+                )
+        
+        # Increment attempts and set expiry
+        redis.incr(redis_key)
+        redis.expire(redis_key, _LOCKOUT_TIME)
+        
+    except (ValueError, ConnectionError) as e:
+        logger.error(f"Rate limiting error: {str(e)}")
+        raise AuthenticationError("Service temporarily unavailable")
 
 def authenticate_user(username: str, password: str, stored_hash: bytes) -> bool:
     """Secure authentication with bcrypt and rate limiting"""
@@ -79,30 +108,45 @@ def hash_password(password: str) -> bytes:
     salt = bcrypt.gensalt(rounds=12)
     return bcrypt.hashpw(password.encode(), salt)
 
-def generate_token(user_data: Dict, expiry_hours: int = 24) -> Tuple[str, str]:
-    """Secure token generation with enhanced security measures"""
+def generate_token(user_data: Dict, expiry_hours: int = 24, audience: str = None) -> Tuple[str, str]:
+    """
+    Secure token generation with enhanced security measures and claims
+    
+    Args:
+        user_data: User information dictionary
+        expiry_hours: Token validity period in hours
+        audience: Expected token audience (e.g., 'web', 'mobile')
+    """
     if not isinstance(user_data, dict):
         raise ValueError("User data must be a dictionary")
     if not isinstance(expiry_hours, int) or expiry_hours <= 0:
         raise ValueError("Expiry hours must be a positive integer")
+    if audience and not isinstance(audience, str):
+        raise ValueError("Audience must be a string")
         
     # Create a safe copy of user data with strict validation
     required_fields = {'user_id', 'username', 'role'}
     if not all(field in user_data for field in required_fields):
         raise ValueError("Missing required user data fields")
-        
+    
+    current_time = datetime.utcnow()
     safe_data = {
         'user_id': str(user_data['user_id']),
         'username': str(user_data['username']),
         'role': str(user_data['role']),
-        'jti': secrets.token_hex(16),  # Add unique token ID
-        'iat': datetime.utcnow(),
-        'exp': datetime.utcnow() + timedelta(hours=expiry_hours),
-        'nbf': datetime.utcnow()  # Not valid before current time
+        'jti': secrets.token_hex(32),  # Increased to 256-bit unique ID
+        'iat': current_time,
+        'exp': current_time + timedelta(hours=expiry_hours),
+        'nbf': current_time,
+        'iss': 'auth_service',  # Token issuer
+        'aud': audience or 'default',  # Token audience
+        'sub': str(user_data['user_id']),  # Token subject
+        'ip': user_data.get('ip_address'),  # Client IP if available
+        'device': user_data.get('device_info'),  # Device information
     }
     
-    # Use stronger secret generation
-    secret = secrets.token_bytes(64)  # 512-bit secret
+    # Use secure key management
+    secret = _get_or_generate_secret()
     
     # Use more secure JWT options with additional headers
     token = jwt.encode(
@@ -178,3 +222,83 @@ def verify_token(token: str, secret: str) -> Optional[Dict]:
         return None
     except Exception as e:
         raise TokenError(f"Token verification failed: {str(e)}")
+import os
+import secrets
+from cryptography.fernet import Fernet
+from pathlib import Path
+
+class KeyManager:
+    """Secure key management for authentication tokens"""
+    
+    _instance = None
+    _KEY_FILE = "secret.key"
+    _KEY_DIR = Path("/opt/secure/keys")
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+    
+    def __init__(self):
+        self._key_path = self._KEY_DIR / self._KEY_FILE
+        self._current_key = None
+        self._fernet = None
+        self._initialize()
+    
+    def _initialize(self):
+        """Initialize key storage with secure permissions"""
+        if not self._KEY_DIR.exists():
+            self._KEY_DIR.mkdir(parents=True, mode=0o700)
+        
+        if not self._key_path.exists():
+            self._generate_new_key()
+        else:
+            self._load_key()
+    
+    def _generate_new_key(self):
+        """Generate and store a new secret key"""
+        key = secrets.token_bytes(64)  # 512-bit key
+        
+        # Encrypt the key before storing
+        if not self._fernet:
+            self._fernet = Fernet(Fernet.generate_key())
+        
+        encrypted_key = self._fernet.encrypt(key)
+        
+        # Secure file permissions
+        with open(self._key_path, 'wb') as f:
+            f.write(encrypted_key)
+        os.chmod(self._key_path, 0o600)
+        
+        self._current_key = key
+    
+    def _load_key(self):
+        """Load the existing secret key"""
+        try:
+            with open(self._key_path, 'rb') as f:
+                encrypted_key = f.read()
+            
+            if not self._fernet:
+                self._fernet = Fernet(Fernet.generate_key())
+                
+            self._current_key = self._fernet.decrypt(encrypted_key)
+            
+        except Exception as e:
+            raise RuntimeError(f"Failed to load secret key: {str(e)}")
+    
+    def get_current_key(self) -> bytes:
+        """Get the current secret key"""
+        if not self._current_key:
+            self._load_key()
+        return self._current_key
+    
+    def rotate_key(self) -> None:
+        """Rotate the secret key"""
+        self._generate_new_key()
+
+# Global key manager instance
+_key_manager = KeyManager()
+
+def _get_or_generate_secret() -> bytes:
+    """Get the current secret key or generate a new one"""
+    return _key_manager.get_current_key()
