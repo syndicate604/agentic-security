@@ -186,17 +186,39 @@ def analyze(path: tuple, config: str, auto_fix: bool, verbose: bool):
 
 
 @cli.command()
-@click.argument('files', nargs=-1, type=click.Path(exists=True))
+@click.argument('paths', nargs=-1, type=click.Path(exists=True))
 @click.option('--message', '-m', help='Custom security fix instructions')
 @click.option('--max-attempts', default=3, type=int, help='Maximum fix attempts')
 @click.option('--template', '-t', type=click.Choice(['sql', 'xss', 'injection', 'general']), 
               help='Use predefined fix template')
-def fix(files, message, max_attempts, template):
-    """Apply security fixes to specified files"""
+@click.option('--extensions', '-e', multiple=True, default=['.py'],
+              help='File extensions to process (default: .py)')
+def fix(paths, message, max_attempts, template, extensions):
+    """Apply security fixes to specified files or directories"""
     try:
-        if not files:
-            print_cyber_status("No files specified", "error")
+        if not paths:
+            print_cyber_status("No paths specified", "error")
             sys.exit(1)
+
+        # Collect all files from provided paths
+        all_files = []
+        for path in paths:
+            if os.path.isfile(path):
+                if os.path.splitext(path)[1] in extensions:
+                    all_files.append(path)
+            else:  # Directory
+                for root, _, files in os.walk(path):
+                    for file in files:
+                        if os.path.splitext(file)[1] in extensions:
+                            all_files.append(os.path.join(root, file))
+
+        if not all_files:
+            print_cyber_status(f"No matching files found in specified paths. Looking for extensions: {', '.join(extensions)}", "error")
+            sys.exit(1)
+
+        print_cyber_status(f"Found {len(all_files)} files to process:", "info")
+        for file in all_files:
+            print_cyber_status(f"  - {file}", "info")
 
         # Template messages
         templates = {
