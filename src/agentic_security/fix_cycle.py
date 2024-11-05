@@ -35,10 +35,23 @@ except Exception as e:
     logger.warning(f"Failed to set up file logging: {e}")
 
 class FixCycle:
-    def __init__(self, files, message, max_attempts=3):
+    def __init__(self, files, message, max_attempts=3, timeout=300):
+        if not message or not isinstance(message, str):
+            raise ValueError("Message must be a non-empty string")
+        
+        # Validate and sanitize message
+        if len(message) > 1000:  # Reasonable limit for message length
+            raise ValueError("Message too long")
+        if not re.match(r'^[\w\s\-_.,!?()]+$', message):
+            raise ValueError("Message contains invalid characters")
+            
+        self.message = message
+        self.timeout = timeout
+        self.max_attempts = max_attempts
+        
         # Sanitize and validate file paths
         self.files = []
-        base_dir = Path.cwd()
+        base_dir = Path.cwd().resolve()
         for f in files:
             try:
                 path = Path(f).resolve()
@@ -180,16 +193,25 @@ class FixCycle:
                     return False
 
                 # Run aider with real-time output processing
+                # Create a restricted environment for subprocess
+                restricted_env = {
+                    'PATH': os.environ.get('PATH', ''),
+                    'PYTHONPATH': os.environ.get('PYTHONPATH', ''),
+                    'HOME': os.environ.get('HOME', ''),
+                    'LANG': os.environ.get('LANG', 'en_US.UTF-8')
+                }
+                
                 process = subprocess.Popen(
                     cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
                     shell=False,
-                    env=os.environ.copy(),
+                    env=restricted_env,
                     cwd=os.getcwd(),
                     bufsize=1,
-                    universal_newlines=True
+                    universal_newlines=True,
+                    start_new_session=True  # Isolate the process group
                 )
 
                 logger.info("Aider process started - waiting for output...")
@@ -328,9 +350,17 @@ class FixCycle:
                 
             # Write with exclusive creation for atomic operation
             temp_path = changelog_path.with_suffix('.tmp')
-            with open(temp_path, "w") as f:
-                f.write(safe_entry)
-            temp_path.replace(changelog_path)
+            try:
+                # Open with strict permissions
+                fd = os.open(temp_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+                with os.fdopen(fd, 'w') as f:
+                    f.write(safe_entry)
+                # Atomic rename
+                os.replace(temp_path, changelog_path)
+            finally:
+                # Cleanup temp file if something went wrong
+                if temp_path.exists():
+                    temp_path.unlink()
         except Exception as e:
             logger.error(f"Failed to update changelog: {e}")
 
