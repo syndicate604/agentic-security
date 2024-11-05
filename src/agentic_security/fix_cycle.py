@@ -247,7 +247,12 @@ class FixCycle:
                             raise
                     
                     # Get any remaining output with timeout
-                    remaining_stdout, remaining_stderr = process.communicate(timeout=30)
+                    try:
+                        remaining_stdout, remaining_stderr = process.communicate(timeout=30)
+                    except subprocess.TimeoutExpired:
+                        logger.error("Process communication timed out, terminating...")
+                        process.kill()
+                        remaining_stdout, remaining_stderr = process.communicate()
                 except subprocess.TimeoutExpired:
                     logger.error("Timeout while reading aider output")
                     process.kill()
@@ -259,6 +264,11 @@ class FixCycle:
                     logger.warning(f"Final error: {remaining_stderr}")
                     stderr_chunks.append(remaining_stderr)
                     
+                # Check if process was killed
+                if process.returncode == -9:  # SIGKILL
+                    logger.error("Process was killed due to timeout")
+                    return False
+
                 result = subprocess.CompletedProcess(
                     args=cmd,
                     returncode=process.returncode,
