@@ -1,6 +1,7 @@
-import os
 import sqlite3
 from html import escape
+import subprocess
+import shlex
 
 def process_user_input(user_input):
     """Process user input with multiple security vulnerabilities"""
@@ -11,8 +12,8 @@ def process_user_input(user_input):
     query = f"SELECT * FROM users WHERE id = {user_input}"
     cursor.execute(query)
     
-    # Security Issue 2: Command Injection
-    os.system(f"echo {user_input}")
+    # Use subprocess with shell=False for safe command execution
+    subprocess.run(['echo', user_input], shell=False, check=True)
     
     # Security Issue 3: XSS
     html = f"<div>{escape(user_input)}</div>"
@@ -43,12 +44,12 @@ def get_user(user_id):
     return cursor.fetchone()
 
 def echo_input(user_input):
-    # Command injection vulnerability
-    os.system(f"echo {user_input}")
+    # Safe command execution using subprocess
+    subprocess.run(['echo', user_input], shell=False, check=True)
 
 def display_comment(comment):
-    # XSS vulnerability
-    return f"<div>{comment}</div>"
+    # Safe HTML output with proper escaping
+    return f"<div>{escape(comment)}</div>"
 from flask import Flask, request
 import sqlite3
 
