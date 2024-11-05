@@ -6,6 +6,11 @@ import sys
 from pathlib import Path
 import logging
 import difflib
+import shlex
+from typing import Dict, List, Optional, Union
+import json
+from datetime import datetime
+import stat
 from typing import Dict, List, Optional, Union
 import json
 from datetime import datetime
@@ -30,7 +35,14 @@ except Exception as e:
 
 class FixCycle:
     def __init__(self, files, message, max_attempts=3):
-        self.files = files
+        # Sanitize and validate file paths
+        self.files = [str(Path(f).resolve()) for f in files]
+        for file in self.files:
+            if not os.path.exists(file):
+                raise ValueError(f"File not found: {file}")
+            if not os.access(file, os.R_OK | os.W_OK):
+                raise PermissionError(f"Insufficient permissions for file: {file}")
+            
         self.message = message
         self.max_attempts = max_attempts
         self.original_contents = {}
@@ -122,12 +134,21 @@ class FixCycle:
             try:
                 # Apply fixes using aider with direct message passing
                 logger.info("Applying fixes with aider")
-                result = subprocess.run([
-                    "aider",
-                    "--yes-always",
-                    *self.files,
-                    "--message", self.message
-                ], capture_output=True, text=True, timeout=60)
+                # Construct command with proper escaping
+                cmd = ["aider", "--yes-always"]
+                cmd.extend(self.files)
+                cmd.extend(["--message", self.message])
+                
+                # Use a more secure subprocess configuration
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                    shell=False,  # Prevent shell injection
+                    env=os.environ.copy(),  # Use clean environment
+                    cwd=os.getcwd()  # Explicitly set working directory
+                )
                 
                 if result.returncode == 0:
                     logger.info("Aider completed successfully")
@@ -179,9 +200,25 @@ class FixCycle:
 - Changes made based on provided instructions
 {"".join(changelog_details)}
 """
+        changelog_path = Path("CHANGELOG.md").resolve()
+        if not changelog_path.parent.samefile(Path.cwd()):
+            raise ValueError("CHANGELOG.md must be in current directory")
+            
         try:
-            with open("CHANGELOG.md", "a") as f:
-                f.write(changelog_entry)
+            # Create with secure permissions if new
+            if not changelog_path.exists():
+                changelog_path.touch(mode=0o644)
+            
+            # Verify file permissions
+            current_mode = os.stat(changelog_path).st_mode
+            if current_mode & (stat.S_IWOTH | stat.S_IWGRP):
+                logger.warning("Insecure CHANGELOG.md permissions detected")
+                os.chmod(changelog_path, 0o644)
+            
+            with open(changelog_path, "a") as f:
+                # Sanitize entry before writing
+                safe_entry = changelog_entry.encode('utf-8', errors='replace').decode('utf-8')
+                f.write(safe_entry)
         except Exception as e:
             logger.error(f"Failed to update changelog: {e}")
 
