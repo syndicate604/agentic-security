@@ -41,25 +41,36 @@ _redis_pool: Optional[ConnectionPool] = None
 _redis_client: Optional[Redis] = None
 
 def _get_redis() -> Redis:
-    """Get Redis connection with connection pooling, SSL verification and retries"""
+    """Get Redis connection with enhanced security and monitoring"""
     global _redis_pool, _redis_client
     
     if _redis_pool is None:
-        retry = Retry(ExponentialBackoff(), 3)
-        _redis_pool = ConnectionPool(
-            host='localhost',
-            port=6379,
-            db=0,
-            ssl=True,
-            ssl_cert_reqs='required',
-            ssl_ca_certs='/etc/ssl/certs/ca-certificates.crt',
-            max_connections=10,
-            socket_timeout=5.0,
-            socket_keepalive=True,
-            retry_on_timeout=True,
-            retry=retry,
-            health_check_interval=30
-        )
+        retry = Retry(ExponentialBackoff(cap=10.0, base=1.5), 5)
+        
+        # Load config from environment with secure defaults
+        redis_config = {
+            'host': os.getenv('REDIS_HOST', 'localhost'),
+            'port': int(os.getenv('REDIS_PORT', '6379')),
+            'db': int(os.getenv('REDIS_DB', '0')),
+            'password': os.getenv('REDIS_PASSWORD'),  # Required password
+            'ssl': True,
+            'ssl_cert_reqs': 'required',
+            'ssl_ca_certs': os.getenv('REDIS_CA_CERTS', '/etc/ssl/certs/ca-certificates.crt'),
+            'ssl_certfile': os.getenv('REDIS_CERT_FILE'),
+            'ssl_keyfile': os.getenv('REDIS_KEY_FILE'),
+            'max_connections': int(os.getenv('REDIS_MAX_CONNECTIONS', '20')),
+            'socket_timeout': float(os.getenv('REDIS_TIMEOUT', '3.0')),
+            'socket_connect_timeout': float(os.getenv('REDIS_CONNECT_TIMEOUT', '2.0')),
+            'socket_keepalive': True,
+            'retry_on_timeout': True,
+            'retry': retry,
+            'health_check_interval': 15
+        }
+        
+        if not redis_config['password']:
+            raise AuthenticationError("Redis password not configured")
+            
+        _redis_pool = ConnectionPool(**redis_config)
     
     try:
         if _redis_client is None:
@@ -171,15 +182,33 @@ def hash_password(password: str) -> bytes:
     if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
         raise ValueError("Password must contain special characters")
         
-    # Use stronger work factor for bcrypt and add pepper
-    pepper = os.getenv('PASSWORD_PEPPER', secrets.token_hex(32))
-    salted_pass = f"{password}{pepper}".encode()
+    # Use stronger work factor for bcrypt and secure pepper handling
+    pepper = os.getenv('PASSWORD_PEPPER')
+    if not pepper:
+        raise RuntimeError("PASSWORD_PEPPER environment variable not set")
     
-    # Increased work factor (14 is stronger but slower)
-    salt = bcrypt.gensalt(rounds=14)
-    return bcrypt.hashpw(salted_pass, salt)
+    # Add pepper before hashing
+    salted_pass = f"{password}{pepper}".encode('utf-8')
+    
+    # Use work factor 15 for increased security
+    salt = bcrypt.gensalt(rounds=15)
+    hashed = bcrypt.hashpw(salted_pass, salt)
+    
+    # Verify the hash can be validated
+    try:
+        bcrypt.checkpw(salted_pass, hashed)
+    except Exception as e:
+        logger.error(f"Hash verification failed: {str(e)}")
+        raise ValueError("Generated hash failed verification")
+        
+    return hashed
 
-def generate_token(user_data: Dict, expiry_hours: int = 24, audience: str = None) -> Tuple[str, str]:
+def generate_token(
+    user_data: Dict,
+    expiry_hours: int = 12,  # Reduced default expiry
+    audience: str = None,
+    device_info: Optional[Dict] = None
+) -> Tuple[str, str]:
     """
     Secure token generation with enhanced security measures and claims
     
