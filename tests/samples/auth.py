@@ -248,22 +248,38 @@ def generate_token(
     # Use secure key management
     secret = _get_or_generate_secret()
     
-    # Use more secure JWT options with enhanced headers
+    # Generate secure nonce
+    nonce = secrets.token_urlsafe(32)
+    
+    # Enhanced headers with additional security measures
+    headers = {
+        'kid': secrets.token_hex(32),  # Increased key ID length
+        'typ': 'JWT',
+        'cty': 'JWT',
+        'alg': 'HS512',
+        'enc': 'none',
+        'zip': 'none',
+        'x5t': secrets.token_urlsafe(32),
+        'jku': None,
+        'x5u': None,
+        'nonce': nonce,  # Add nonce for replay protection
+        'crit': ['alg', 'typ', 'nonce']  # Critical headers that must be validated
+    }
+    
+    # Add security-relevant claims
+    safe_data.update({
+        'nonce': nonce,
+        'auth_time': int(time()),  # Add authentication time
+        'sid': secrets.token_urlsafe(32),  # Add session ID
+        'amr': ['pwd'],  # Authentication method reference
+        'azp': audience or 'default'  # Authorized party
+    })
+    
     token = jwt.encode(
         safe_data,
         secret,
         algorithm='HS512',
-        headers={
-            'kid': secrets.token_hex(16),  # Increased key ID length
-            'typ': 'JWT',
-            'cty': 'JWT',
-            'alg': 'HS512',
-            'enc': 'none',
-            'zip': 'none',  # Explicitly disable compression
-            'x5t': secrets.token_urlsafe(32),  # Add thumbprint for key tracking
-            'jku': None,  # Explicitly disable JWK URL
-            'x5u': None   # Explicitly disable x509 URL
-        }
+        headers=headers
     )
     return token, secret
 
