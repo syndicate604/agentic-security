@@ -311,35 +311,55 @@ class FixCycle:
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
+                    universal_newlines=True,
                     bufsize=1,  # Line buffered
                     env=os.environ.copy(),
                     cwd=os.getcwd()
                 )
 
-                # Display output in real-time with token tracking
-                token_pattern = re.compile(r'Tokens: (\d+)')
-                total_tokens = 0
+                # Display output in real-time
+                import select
+                
+                # Set up polling for both stdout and stderr
+                poller = select.poll()
+                poller.register(process.stdout, select.POLLIN)
+                poller.register(process.stderr, select.POLLIN)
+                
+                # Track file descriptors
+                fd_map = {
+                    process.stdout.fileno(): process.stdout,
+                    process.stderr.fileno(): process.stderr
+                }
                 
                 while True:
-                    output = process.stdout.readline()
-                    if output:
-                        print(output.rstrip())
-                        logger.info(output.rstrip())
-                        
-                        # Track token usage when reported
-                        if '--verbose' in cmd:
-                            token_match = token_pattern.search(output)
-                            if token_match:
-                                tokens = int(token_match.group(1))
-                                total_tokens += tokens
-                                logger.info(f"Accumulated tokens: {total_tokens}")
-                    error = process.stderr.readline()
-                    if error:
-                        print(f"{COLORS['neon_red']}{error.rstrip()}{COLORS['reset']}")
-                        logger.error(error.rstrip())
+                    # Poll for new output
+                    events = poller.poll(100)  # 100ms timeout
+                    
+                    for fd, event in events:
+                        if event & select.POLLIN:
+                            output = fd_map[fd].readline()
+                            if output:
+                                if fd == process.stdout.fileno():
+                                    # Regular output
+                                    print(output.rstrip(), flush=True)
+                                    logger.info(output.rstrip())
+                                else:
+                                    # Error output
+                                    print(f"{COLORS['neon_red']}{output.rstrip()}{COLORS['reset']}", flush=True)
+                                    logger.error(output.rstrip())
                     
                     # Check if process has finished
-                    if output == '' and error == '' and process.poll() is not None:
+                    if process.poll() is not None:
+                        # Get any remaining output
+                        remaining_out = process.stdout.read()
+                        if remaining_out:
+                            print(remaining_out.rstrip(), flush=True)
+                            logger.info(remaining_out.rstrip())
+                            
+                        remaining_err = process.stderr.read()
+                        if remaining_err:
+                            print(f"{COLORS['neon_red']}{remaining_err.rstrip()}{COLORS['reset']}", flush=True)
+                            logger.error(remaining_err.rstrip())
                         break
 
                 result = process.wait()
