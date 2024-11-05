@@ -18,27 +18,61 @@ def authenticate_user(username: str, password: str, stored_hash: bytes) -> bool:
         return False
 
 def hash_password(password: str) -> bytes:
-    """Secure password hashing with bcrypt"""
+    """Secure password hashing with bcrypt and validation"""
     if not isinstance(password, str):
         raise ValueError("Password must be a string")
-    salt = bcrypt.gensalt()
+        
+    # Validate password complexity
+    if len(password) < 12:
+        raise ValueError("Password must be at least 12 characters long")
+    if not re.search(r'[A-Z]', password):
+        raise ValueError("Password must contain uppercase letters")
+    if not re.search(r'[a-z]', password):
+        raise ValueError("Password must contain lowercase letters")
+    if not re.search(r'\d', password):
+        raise ValueError("Password must contain numbers")
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+        raise ValueError("Password must contain special characters")
+        
+    # Use stronger work factor for bcrypt
+    salt = bcrypt.gensalt(rounds=12)
     return bcrypt.hashpw(password.encode(), salt)
 
 def generate_token(user_data: Dict, expiry_hours: int = 24) -> Tuple[str, str]:
-    """Secure token generation with proper secret and expiration"""
+    """Secure token generation with enhanced security measures"""
     if not isinstance(user_data, dict):
         raise ValueError("User data must be a dictionary")
-    
-    # Create a safe copy of user data
+    if not isinstance(expiry_hours, int) or expiry_hours <= 0:
+        raise ValueError("Expiry hours must be a positive integer")
+        
+    # Create a safe copy of user data with strict validation
+    required_fields = {'user_id', 'username', 'role'}
+    if not all(field in user_data for field in required_fields):
+        raise ValueError("Missing required user data fields")
+        
     safe_data = {
-        'user_id': str(user_data.get('user_id', '')),
-        'username': str(user_data.get('username', '')),
-        'role': str(user_data.get('role', 'user'))
+        'user_id': str(user_data['user_id']),
+        'username': str(user_data['username']),
+        'role': str(user_data['role']),
+        'jti': secrets.token_hex(16),  # Add unique token ID
+        'iat': datetime.utcnow(),
+        'exp': datetime.utcnow() + timedelta(hours=expiry_hours),
+        'nbf': datetime.utcnow()  # Not valid before current time
     }
     
-    secret = secrets.token_hex(32)
-    safe_data['exp'] = datetime.utcnow() + timedelta(hours=expiry_hours)
-    token = jwt.encode(safe_data, secret, algorithm='HS256')
+    # Use stronger secret generation
+    secret = secrets.token_bytes(64)  # 512-bit secret
+    
+    # Use more secure JWT options
+    token = jwt.encode(
+        safe_data,
+        secret,
+        algorithm='HS512',
+        headers={
+            'kid': secrets.token_hex(8),
+            'typ': 'JWT'
+        }
+    )
     return token, secret
 
 def verify_token(token: str, secret: str) -> Optional[Dict]:

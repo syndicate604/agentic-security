@@ -66,25 +66,57 @@ def parse_xml_data(xml_string):
 
     return tree
 
-def sanitize_tree(tree):
+def sanitize_tree(tree: ET.Element) -> None:
     """Sanitize the parsed XML tree to remove potential malicious nodes"""
+    if not isinstance(tree, ET.Element):
+        raise TypeError("Expected ElementTree.Element")
+        
+    # Comprehensive list of potentially dangerous tags
+    malicious_tags = {
+        'ENTITY', 'DOCTYPE', 'ELEMENT', 'ATTLIST',
+        'NOTATION', 'CDATA', 'SYSTEM', 'PUBLIC'
+    }
+    
     # Remove nodes with potentially malicious content
-    malicious_tags = ['ENTITY', 'DOCTYPE'] 
     for elem in tree.iter():
         if elem.tag in malicious_tags:
-            elem.getparent().remove(elem)
+            parent = elem.getparent()
+            if parent is not None:
+                parent.remove(elem)
+                
+        # Check for suspicious attributes
+        for attr in list(elem.attrib.keys()):
+            if any(x in attr.lower() for x in ['script', 'on', 'xmlns']):
+                del elem.attrib[attr]
 
-def sanitize_tree(tree):
-    """Sanitize the parsed XML tree to remove potential malicious nodes"""
-    # Implementation details for sanitize_tree go here
-    pass
-
-def send_request(url, data):
-    """Insecure request handling"""
-    # Security Issue 4: No input sanitization
-    # Security Issue 5: Unverified SSL
-    response = requests.post(url, json=data, verify=False)
-    return response.text
+def send_request(url: str, data: Union[Dict, List]) -> str:
+    """Secure request handling with validation and proper SSL verification"""
+    if not isinstance(url, str):
+        raise ValueError("URL must be a string")
+    
+    # Validate URL format and scheme
+    if not re.match(r'^https?://[\w\-\.]+(:\d+)?(/[\w\-\./]*)?$', url):
+        raise ValueError("Invalid URL format")
+    if not url.startswith('https://'):
+        raise ValueError("Only HTTPS URLs are allowed")
+        
+    # Validate data
+    if not isinstance(data, (dict, list)):
+        raise ValueError("Data must be a dictionary or list")
+        
+    try:
+        response = requests.post(
+            url,
+            json=data,
+            verify=True,
+            timeout=30,
+            headers={'Content-Type': 'application/json'}
+        )
+        response.raise_for_status()
+        return response.text
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Request failed: {str(e)}")
+        raise
 
 def process_response(response_data):
     """Secure response handling with validation"""
