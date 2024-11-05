@@ -19,10 +19,17 @@ from datetime import datetime
 # Configure logging with more detailed format
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='\033[1m%(asctime)s\033[0m - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 logger = logging.getLogger(__name__)
+
+# Add console handler for immediate output
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(
+    logging.Formatter('\033[1m%(asctime)s\033[0m - %(levelname)s - %(message)s')
+)
+logger.addHandler(console_handler)
 
 # Add file handler to save logs
 try:
@@ -214,7 +221,11 @@ class FixCycle:
                     start_new_session=True  # Isolate the process group
                 )
 
-                logger.info("Aider process started - waiting for output...")
+                logger.info("🚀 Aider process started - waiting for output...")
+                logger.info("Press Ctrl+C to cancel at any time")
+                logger.info("\nProcessing files:")
+                for idx, file in enumerate(self.files, 1):
+                    logger.info(f"  [{idx}/{len(self.files)}] {file}")
                 
                 stdout_chunks = []
                 stderr_chunks = []
@@ -227,10 +238,19 @@ class FixCycle:
                             stderr_data = process.stderr.readline()
                             
                             if stdout_data:
-                                logger.info(f"Aider output: {stdout_data.strip()}")
+                                # Add progress indicators for key steps
+                                line = stdout_data.strip()
+                                if "Analyzing" in line:
+                                    logger.info("🔍 Analyzing code...")
+                                elif "Generating fixes" in line:
+                                    logger.info("🛠️  Generating fixes...")
+                                elif "Applying changes" in line:
+                                    logger.info("📝 Applying changes...")
+                                else:
+                                    logger.info(f"  {line}")
                                 stdout_chunks.append(stdout_data)
                             if stderr_data:
-                                logger.warning(f"Aider error: {stderr_data.strip()}")
+                                logger.warning(f"⚠️  Error: {stderr_data.strip()}")
                                 stderr_chunks.append(stderr_data)
                             
                             # Check if process has finished
