@@ -236,7 +236,8 @@ def analyze(path: tuple, config: str, auto_fix: bool, verbose: bool):
               help='Use predefined fix template')
 @click.option('--extensions', '-e', multiple=True, default=['.py'],
               help='File extensions to process (default: .py)')
-def fix(paths, message, max_attempts, template, extensions):
+@click.option('--verbose/--no-verbose', '-v/', default=False, help='Verbose output')
+def fix(paths, message, max_attempts, template, extensions, verbose):
     """Apply security fixes to specified files or directories"""
     try:
         if not paths:
@@ -282,7 +283,8 @@ def fix(paths, message, max_attempts, template, extensions):
         fixer = FixCycle(
             files=all_files,
             message=fix_message,
-            max_attempts=max_attempts
+            max_attempts=max_attempts,
+            verbose=verbose
         )
 
         success = fixer.run_fix_cycle()
