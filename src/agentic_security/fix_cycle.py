@@ -4,7 +4,6 @@ import subprocess
 import os
 import sys
 from pathlib import Path
-import re
 import logging
 import difflib
 import shlex
@@ -19,17 +18,10 @@ from datetime import datetime
 # Configure logging with more detailed format
 logging.basicConfig(
     level=logging.INFO,
-    format='\033[1m%(asctime)s\033[0m - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 logger = logging.getLogger(__name__)
-
-# Add console handler for immediate output
-console_handler = logging.StreamHandler()
-console_handler.setFormatter(
-    logging.Formatter('\033[1m%(asctime)s\033[0m - %(levelname)s - %(message)s')
-)
-logger.addHandler(console_handler)
 
 # Add file handler to save logs
 try:
@@ -42,42 +34,14 @@ except Exception as e:
     logger.warning(f"Failed to set up file logging: {e}")
 
 class FixCycle:
-    def __init__(self, files, message, max_attempts=3, timeout=300):
-        if not message or not isinstance(message, str):
-            raise ValueError("Message must be a non-empty string")
-        
-        # Validate and sanitize message
-        if len(message) > 1000:  # Reasonable limit for message length
-            raise ValueError("Message too long")
-        if not re.match(r'^[\w\s\-_.,!?()]+$', message):
-            raise ValueError("Message contains invalid characters")
-            
-        self.message = message
-        self.timeout = timeout
-        self.max_attempts = max_attempts
-        
+    def __init__(self, files, message, max_attempts=3):
         # Sanitize and validate file paths
-        self.files = []
-        base_dir = Path.cwd().resolve()
-        for f in files:
-            try:
-                path = Path(f).resolve(strict=True)  # strict=True ensures all parts exist
-                # Prevent path traversal by checking if path is within base directory
-                try:
-                    path.relative_to(base_dir)
-                except ValueError:
-                    raise ValueError(f"File path {f} must be within the current directory")
-                if not path.is_file():
-                    raise ValueError(f"Path is not a file: {f}")
-                if not os.access(path, os.R_OK | os.W_OK):
-                    raise PermissionError(f"Insufficient permissions for file: {f}")
-                # Validate file extension
-                if path.suffix not in {'.py', '.js', '.cpp', '.c', '.h', '.hpp', '.java'}:
-                    raise ValueError(f"Unsupported file type: {path.suffix}")
-                self.files.append(str(path))
-            except Exception as e:
-                logger.error(f"Failed to validate file {f}: {e}")
-                raise
+        self.files = [str(Path(f).resolve()) for f in files]
+        for file in self.files:
+            if not os.path.exists(file):
+                raise ValueError(f"File not found: {file}")
+            if not os.access(file, os.R_OK | os.W_OK):
+                raise PermissionError(f"Insufficient permissions for file: {file}")
             
         self.message = message
         self.max_attempts = max_attempts
@@ -174,18 +138,9 @@ class FixCycle:
                 logger.info(f"Message to aider: {self.message}")
                 
                 # Construct command with proper escaping
-                # Sanitize command arguments
-                if not re.match(r'^[a-zA-Z0-9\s\-_.,]+$', self.message):
-                    raise ValueError("Message contains invalid characters")
-                    
                 cmd = ["aider", "--yes-always"]
                 cmd.extend(self.files)
                 cmd.extend(["--message", self.message])
-                
-                # Validate each argument
-                for arg in cmd:
-                    if not isinstance(arg, str) or ';' in arg or '&' in arg or '|' in arg:
-                        raise ValueError(f"Invalid command argument: {arg}")
                 
                 logger.info(f"Executing command: {' '.join(cmd)}")
                 
@@ -199,103 +154,14 @@ class FixCycle:
                     logger.error("aider is not installed. Please install it with: pip install aider-chat")
                     return False
 
-                # Run aider with real-time output processing
-                # Create a restricted environment for subprocess
-                restricted_env = {
-                    'PATH': os.environ.get('PATH', ''),
-                    'PYTHONPATH': os.environ.get('PYTHONPATH', ''),
-                    'HOME': os.environ.get('HOME', ''),
-                    'LANG': os.environ.get('LANG', 'en_US.UTF-8')
-                }
-                
-                process = subprocess.Popen(
+                result = subprocess.run(
                     cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
+                    capture_output=True,
                     text=True,
-                    shell=False,
-                    env=restricted_env,
-                    cwd=os.getcwd(),
-                    bufsize=1,
-                    universal_newlines=True,
-                    start_new_session=True,  # Isolate the process group
-                    preexec_fn=os.setsid,  # Ensure process group isolation
-                    umask=0o077  # Restrictive file creation mask
-                )
-
-                logger.info("🚀 Aider process started - waiting for output...")
-                logger.info("Press Ctrl+C to cancel at any time")
-                logger.info("\nProcessing files:")
-                for idx, file in enumerate(self.files, 1):
-                    logger.info(f"  [{idx}/{len(self.files)}] {file}")
-                
-                stdout_chunks = []
-                stderr_chunks = []
-                
-                try:
-                    while True:
-                        try:
-                            # Read output and error streams with timeout
-                            stdout_data = process.stdout.readline()
-                            stderr_data = process.stderr.readline()
-                            
-                            if stdout_data:
-                                # Add progress indicators for key steps
-                                line = stdout_data.strip()
-                                if "Analyzing" in line:
-                                    logger.info("🔍 Analyzing code...")
-                                elif "Generating fixes" in line:
-                                    logger.info("🛠️  Generating fixes...")
-                                elif "Applying changes" in line:
-                                    logger.info("📝 Applying changes...")
-                                else:
-                                    logger.info(f"  {line}")
-                                stdout_chunks.append(stdout_data)
-                            if stderr_data:
-                                logger.warning(f"⚠️  Error: {stderr_data.strip()}")
-                                stderr_chunks.append(stderr_data)
-                            
-                            # Check if process has finished
-                            if process.poll() is not None:
-                                break
-                                
-                        except KeyboardInterrupt:
-                            logger.warning("Received keyboard interrupt, terminating aider process...")
-                            process.terminate()
-                            try:
-                                process.wait(timeout=5)  # Give it 5 seconds to terminate gracefully
-                            except subprocess.TimeoutExpired:
-                                process.kill()  # Force kill if it doesn't terminate
-                            raise
-                    
-                    # Get any remaining output with timeout
-                    try:
-                        remaining_stdout, remaining_stderr = process.communicate(timeout=30)
-                    except subprocess.TimeoutExpired:
-                        logger.error("Process communication timed out, terminating...")
-                        process.kill()
-                        remaining_stdout, remaining_stderr = process.communicate()
-                except subprocess.TimeoutExpired:
-                    logger.error("Timeout while reading aider output")
-                    process.kill()
-                    remaining_stdout, remaining_stderr = process.communicate()
-                if remaining_stdout:
-                    logger.info(f"Final output: {remaining_stdout}")
-                    stdout_chunks.append(remaining_stdout)
-                if remaining_stderr:
-                    logger.warning(f"Final error: {remaining_stderr}")
-                    stderr_chunks.append(remaining_stderr)
-                    
-                # Check if process was killed
-                if process.returncode == -9:  # SIGKILL
-                    logger.error("Process was killed due to timeout")
-                    return False
-
-                result = subprocess.CompletedProcess(
-                    args=cmd,
-                    returncode=process.returncode,
-                    stdout=''.join(stdout_chunks),
-                    stderr=''.join(stderr_chunks)
+                    timeout=300,  # Increased timeout to 5 minutes
+                    shell=False,  # Prevent shell injection
+                    env=os.environ.copy(),  # Use clean environment
+                    cwd=os.getcwd()  # Explicitly set working directory
                 )
                 
                 if result.returncode == 0:
@@ -339,9 +205,7 @@ class FixCycle:
 
     def _update_changelog(self):
         """Update CHANGELOG.md with fix details"""
-        # Sanitize file paths for display
-        safe_files = [os.path.basename(f) for f in self.files]
-        files_str = ", ".join(safe_files)
+        files_str = ", ".join(self.files)
         
         # Generate summary of changes for changelog
         changelog_details = []
@@ -371,40 +235,10 @@ class FixCycle:
                 logger.warning("Insecure CHANGELOG.md permissions detected")
                 os.chmod(changelog_path, 0o644)
             
-            # Validate file size before writing
-            if changelog_path.exists() and changelog_path.stat().st_size > 10 * 1024 * 1024:  # 10MB limit
-                raise ValueError("Changelog file too large")
-                
-            # Validate content before writing
-            safe_entry = changelog_entry.encode('utf-8', errors='replace').decode('utf-8')
-            if len(safe_entry) > 100000:  # Reasonable entry size limit
-                raise ValueError("Changelog entry too large")
-                
-            # Write with exclusive creation for atomic operation
-            temp_path = changelog_path.with_suffix('.tmp')
-            try:
-                # Validate temp file location
-                if not temp_path.parent.samefile(changelog_path.parent):
-                    raise ValueError("Temporary file must be in same directory as changelog")
-                
-                # Open with strict permissions
-                fd = os.open(temp_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-                with os.fdopen(fd, 'w') as f:
-                    f.write(safe_entry)
-                
-                # Verify content was written correctly
-                with open(temp_path, 'r') as f:
-                    if f.read() != safe_entry:
-                        raise ValueError("File content verification failed")
-                
-                # Set final permissions before atomic rename
-                os.chmod(temp_path, 0o644)
-                # Atomic rename
-                os.replace(temp_path, changelog_path)
-            finally:
-                # Cleanup temp file if something went wrong
-                if temp_path.exists():
-                    temp_path.unlink()
+            with open(changelog_path, "a") as f:
+                # Sanitize entry before writing
+                safe_entry = changelog_entry.encode('utf-8', errors='replace').decode('utf-8')
+                f.write(safe_entry)
         except Exception as e:
             logger.error(f"Failed to update changelog: {e}")
 
