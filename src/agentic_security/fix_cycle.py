@@ -188,11 +188,17 @@ class FixCycle:
 def main():
     import argparse
     parser = argparse.ArgumentParser(description='Run fix cycle with direct message passing to aider')
-    parser.add_argument('files', nargs='+', help='Files to fix')
-    parser.add_argument('--message', required=True, help='Message to pass directly to aider')
+    parser.add_argument('files', nargs='*', help='Files to fix')
+    parser.add_argument('--message', help='Message to pass directly to aider')
     parser.add_argument('--max-attempts', type=int, default=3, help='Maximum fix attempts')
     
     args = parser.parse_args()
+    
+    # Default values if not provided
+    if not args.files:
+        args.files = ['src/agentic_security/fix_cycle.py']  # Default to self
+    if not args.message:
+        args.message = "Review this code for security issues and propose fixes"
     
     fixer = FixCycle(
         files=args.files,
