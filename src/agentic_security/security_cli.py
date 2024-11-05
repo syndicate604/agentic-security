@@ -1,27 +1,7 @@
 #!/usr/bin/env python3
 
-# Cyberpunk color scheme
-COLORS = {
-    "neon_blue": "\033[38;5;51m",
-    "neon_pink": "\033[38;5;198m", 
-    "neon_green": "\033[38;5;46m",
-    "neon_yellow": "\033[38;5;226m",
-    "neon_red": "\033[38;5;196m",
-    "neon_purple": "\033[38;5;165m",
-    "reset": "\033[0m",
-    "bold": "\033[1m",
-    "blink": "\033[5m"
-}
-
-# Cyberpunk decorators
-DECORATORS = {
-    "box_top": f"{COLORS['neon_blue']}╔{'═'*60}╗{COLORS['reset']}",
-    "box_bottom": f"{COLORS['neon_blue']}╚{'═'*60}╝{COLORS['reset']}",
-    "box_line": f"{COLORS['neon_blue']}║{COLORS['reset']}",
-    "arrow": f"{COLORS['neon_pink']}[►]{COLORS['reset']}"
-}
-
 from datetime import datetime
+from .cli_styles import COLORS, DECORATORS, CYBER_BANNER
 from pathlib import Path
 import click
 import yaml
