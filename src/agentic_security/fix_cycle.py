@@ -140,11 +140,20 @@ class FixCycle:
                 cmd.extend(["--message", self.message])
                 
                 # Use a more secure subprocess configuration
+                # Check if aider is installed
+                try:
+                    subprocess.run(["aider", "--version"], 
+                                 capture_output=True, 
+                                 check=True)
+                except (subprocess.SubprocessError, FileNotFoundError):
+                    logger.error("aider is not installed. Please install it with: pip install aider-chat")
+                    return False
+
                 result = subprocess.run(
                     cmd,
                     capture_output=True,
                     text=True,
-                    timeout=60,
+                    timeout=300,  # Increased timeout to 5 minutes
                     shell=False,  # Prevent shell injection
                     env=os.environ.copy(),  # Use clean environment
                     cwd=os.getcwd()  # Explicitly set working directory
@@ -164,8 +173,11 @@ class FixCycle:
                     return True
                 
                 logger.error(f"Aider failed with return code {result.returncode}")
+                if result.stdout:
+                    logger.error(f"Output: {result.stdout}")
                 if result.stderr:
-                    logger.error(f"Stderr: {result.stderr}")
+                    logger.error(f"Error: {result.stderr}")
+                logger.error("Try running aider manually to debug the issue")
                 
             except subprocess.TimeoutExpired:
                 logger.error("Fix cycle step timed out")
