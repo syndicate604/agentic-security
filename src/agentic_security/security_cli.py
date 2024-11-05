@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from datetime import datetime
-from .security_pipeline import COLORS, DECORATORS, CYBER_BANNER
+from .constants import COLORS, DECORATORS, CYBER_BANNER
 from pathlib import Path
 import click
 import yaml
