@@ -156,22 +156,42 @@ def _check_rate_limit(username: str, ip_address: str) -> None:
 
 def authenticate_user(username: str, password: str, stored_hash: bytes, ip_address: str) -> bool:
     """Secure authentication with bcrypt and rate limiting"""
-    if not isinstance(password, str) or not isinstance(stored_hash, bytes):
-        raise AuthenticationError("Invalid input format")
+    if not all(isinstance(x, str) for x in (username, password, ip_address)):
+        raise AuthenticationError("Invalid input types")
+    if not isinstance(stored_hash, bytes):
+        raise AuthenticationError("Invalid hash format")
+    
+    # Validate IP address format before rate limiting
+    try:
+        ip = ipaddress.ip_address(ip_address)
+        if ip.is_private or ip.is_loopback or ip.is_multicast:
+            raise AuthenticationError("Invalid IP address")
+    except ValueError:
+        raise AuthenticationError("Invalid IP address format")
         
     try:
-        _check_rate_limit(username, ip_address)
-        # Use constant-time comparison
-        is_valid = hmac.compare_digest(
-            bcrypt.hashpw(password.encode(), stored_hash),
-            stored_hash
-        )
-        if not is_valid:
+        _check_rate_limit(username, str(ip))
+        
+        # Add pepper before comparing
+        pepper = os.getenv('PASSWORD_PEPPER')
+        if not pepper:
+            raise AuthenticationError("Security configuration error")
+            
+        # Use constant-time comparison with pepper
+        salted_pass = f"{password}{pepper}".encode('utf-8')
+        computed_hash = bcrypt.hashpw(salted_pass, stored_hash)
+        
+        if not hmac.compare_digest(computed_hash, stored_hash):
+            logger.warning(f"Failed login attempt for user: {username}")
             raise AuthenticationError("Invalid credentials")
+            
+        logger.info(f"Successful authentication for user: {username}")
         return True
+        
     except AuthenticationError:
         raise
     except Exception as e:
+        logger.error(f"Authentication error: {str(e)}")
         raise AuthenticationError("Authentication failed")
 
 def hash_password(password: str) -> bytes:
@@ -305,7 +325,7 @@ def generate_token(
 
 def verify_token(token: str, secret: str, audience: str = None) -> Optional[Dict]:
     """
-    Secure token verification with expiration check and safe deserialization
+    Secure token verification with enhanced security checks
     
     Args:
         token: JWT token string
@@ -318,8 +338,14 @@ def verify_token(token: str, secret: str, audience: str = None) -> Optional[Dict
     Raises:
         TokenError: If token format or content is invalid
     """
-    if not isinstance(token, str) or not isinstance(secret, str):
-        raise TokenError("Invalid token or secret format")
+    if not all(isinstance(x, str) for x in filter(None, [token, secret, audience])):
+        raise TokenError("Invalid input types")
+        
+    # Rate limit token verification attempts
+    redis = _get_redis()
+    verify_key = f"token_verify:{datetime.utcnow().strftime('%Y%m%d%H')}"
+    if int(redis.incr(verify_key)) > 1000:  # Max 1000 verifications per hour
+        raise TokenError("Token verification rate limit exceeded")
         
     try:
         # First verify signature in constant time
@@ -440,21 +466,40 @@ class KeyManager:
         return self._current_key
     
     def rotate_key(self) -> None:
-        """Rotate the secret key with safety checks"""
-        from auth_config import KEY_ROTATION_INTERVAL, MINIMUM_KEY_AGE, MAX_KEY_AGE
+        """Rotate the secret key with enhanced security checks"""
+        from auth_config import (KEY_ROTATION_INTERVAL, MINIMUM_KEY_AGE, 
+                               MAX_KEY_AGE, KEY_LENGTH_BYTES)
         
-        # Check if key is too new to rotate
-        key_age = time.time() - os.path.getmtime(self._key_path)
-        if key_age < MINIMUM_KEY_AGE:
-            return
+        current_time = time.time()
+        
+        try:
+            key_age = current_time - os.path.getmtime(self._key_path)
+            key_stats = os.stat(self._key_path)
             
-        # Force rotation if key is too old
-        if key_age > MAX_KEY_AGE:
-            self._generate_new_key()
-            return
-            
-        # Normal rotation after interval
-        if key_age > KEY_ROTATION_INTERVAL:
+            # Verify key file permissions and ownership
+            if key_stats.st_mode & 0o777 != 0o600:
+                logger.error("Invalid key file permissions")
+                self._generate_new_key()
+                return
+                
+            # Check if key is too new to rotate
+            if key_age < MINIMUM_KEY_AGE:
+                logger.debug("Key too new for rotation")
+                return
+                
+            # Force rotation if key is too old
+            if key_age > MAX_KEY_AGE:
+                logger.warning("Forcing key rotation due to age")
+                self._generate_new_key()
+                return
+                
+            # Normal rotation after interval
+            if key_age > KEY_ROTATION_INTERVAL:
+                logger.info("Performing scheduled key rotation")
+                self._generate_new_key()
+                
+        except OSError as e:
+            logger.error(f"Key file error during rotation: {str(e)}")
             self._generate_new_key()
 
 # Global key manager instance
@@ -584,3 +629,69 @@ TOKEN_SECURITY_CONFIG: Final[Dict] = {
     'verify_aud': True,
     'require': ['exp', 'iat', 'nbf', 'aud', 'sub', 'jti']
 }
+"""Centralized security configuration"""
+
+from typing import Dict, Final
+import os
+from datetime import timedelta
+
+# Rate limiting configuration
+RATE_LIMIT_WINDOWS: Final[Dict[str, int]] = {
+    'minute': 60,
+    'hour': 3600,
+    'day': 86400,
+    'week': 604800
+}
+
+RATE_LIMIT_ATTEMPTS: Final[Dict[str, int]] = {
+    'minute': 3,
+    'hour': 10, 
+    'day': 20,
+    'week': 50
+}
+
+# Redis security configuration
+REDIS_CONFIG: Final[Dict] = {
+    'host': os.getenv('REDIS_HOST', 'localhost'),
+    'port': int(os.getenv('REDIS_PORT', '6379')),
+    'db': int(os.getenv('REDIS_DB', '0')),
+    'password': os.getenv('REDIS_PASSWORD'),
+    'ssl': True,
+    'ssl_cert_reqs': 'required',
+    'ssl_ca_certs': os.getenv('REDIS_CA_CERTS', '/etc/ssl/certs/ca-certificates.crt'),
+    'ssl_certfile': os.getenv('REDIS_CERT_FILE'),
+    'ssl_keyfile': os.getenv('REDIS_KEY_FILE'),
+    'socket_timeout': 3.0,
+    'socket_connect_timeout': 2.0,
+    'socket_keepalive': True,
+    'health_check_interval': 30,
+    'retry_on_timeout': True,
+    'max_connections': 10,
+    'retry_on_error': [TimeoutError, ConnectionError]
+}
+
+# Password security settings
+MIN_PASSWORD_LENGTH: Final[int] = 16
+BCRYPT_ROUNDS: Final[int] = 16
+PASSWORD_COMPLEXITY: Final[Dict[str, str]] = {
+    'uppercase': r'[A-Z]',
+    'lowercase': r'[a-z]',
+    'numbers': r'\d',
+    'special': r'[!@#$%^&*(),.?":{}|<>]'
+}
+
+# Token security settings
+TOKEN_EXPIRY: Final[timedelta] = timedelta(hours=1)
+TOKEN_ALGORITHM: Final[str] = 'HS512'
+REQUIRED_TOKEN_CLAIMS: Final[tuple] = (
+    'exp', 'iat', 'nbf', 'aud', 'sub', 'jti',
+    'auth_time', 'nonce', 'sid'
+)
+TOKEN_RATE_LIMIT_WINDOW: Final[int] = 3600  # 1 hour
+TOKEN_RATE_LIMIT_MAX: Final[int] = 10  # tokens per window
+
+# Key rotation settings
+KEY_ROTATION_INTERVAL: Final[int] = 3600  # 1 hour
+MINIMUM_KEY_AGE: Final[int] = 300  # 5 minutes
+MAX_KEY_AGE: Final[int] = 7200  # 2 hours
+KEY_LENGTH_BYTES: Final[int] = 64  # 512 bits
