@@ -186,6 +186,7 @@ class GUI:
             self.do_model_settings()
             self.do_shell_commands()
             self.do_github_actions()
+            self.do_dev_tools()
             
             st.warning(
                 "This browser version of aider is experimental. Please share feedback in [GitHub"
@@ -811,6 +812,133 @@ class GUI:
             - **Max Tokens**: {max_tokens}
             - **Provider**: {provider}
             """)
+
+    def do_dev_tools(self):
+        with st.sidebar.expander("Developer Tools", expanded=False):
+            # Specialized command categories
+            dev_commands = {
+                "Code Analysis": {
+                    "Find TODOs": "grep -r 'TODO' .",
+                    "Count Lines of Code": "find . -name '*.py' | xargs wc -l",
+                    "List Python Files": "find . -name '*.py' | sort",
+                    "Check Python Style": "pylint .",
+                    "Run Security Scan": "bandit -r .",
+                    "Find Large Files": "find . -type f -size +10M",
+                },
+                "Dependencies": {
+                    "List Python Packages": "pip list",
+                    "Show Outdated Packages": "pip list --outdated",
+                    "Check Dependencies": "pip check",
+                    "Generate Requirements": "pip freeze > requirements.txt",
+                    "Install Requirements": "pip install -r requirements.txt",
+                },
+                "Docker": {
+                    "List Containers": "docker ps",
+                    "List Images": "docker images",
+                    "Show Docker Disk": "docker system df",
+                    "Prune Docker": "docker system prune -f",
+                    "Container Logs": "docker logs $(docker ps -q)",
+                },
+                "Security": {
+                    "Find Secrets": "gitleaks detect",
+                    "SAST Scan": "semgrep scan",
+                    "Check File Permissions": "ls -la",
+                    "List Open Ports": "netstat -tuln",
+                    "Show SSH Keys": "ls -la ~/.ssh",
+                },
+                "Performance": {
+                    "CPU Usage": "top -b -n 1",
+                    "Memory Usage": "free -h",
+                    "Disk Space": "df -h",
+                    "IO Stats": "iostat",
+                    "Network Stats": "netstat -s",
+                },
+                "Git Advanced": {
+                    "Show Large Files": "git rev-list --objects --all | git cat-file --batch-check='%(objecttype) %(objectname) %(objectsize) %(rest)' | awk '/^blob/ {print substr($0,6)}' | sort -n",
+                    "List Contributors": "git shortlog -sn",
+                    "Branch History": "git log --graph --oneline --all",
+                    "Find Merge Conflicts": "git diff --check",
+                    "Clean Repo": "git clean -xfd",
+                }
+            }
+            
+            # Category selection
+            selected_category = st.selectbox(
+                "Command Category",
+                options=["Select category..."] + list(dev_commands.keys()),
+                key="dev_tools_category"
+            )
+            
+            # Command selection based on category
+            if selected_category and selected_category != "Select category...":
+                selected_command = st.selectbox(
+                    f"{selected_category} Commands",
+                    options=["Select command..."] + list(dev_commands[selected_category].keys()),
+                    key="dev_tools_command"
+                )
+                
+                # Command input with auto-fill from selection
+                command = st.text_input(
+                    "Developer Command:", 
+                    value=dev_commands[selected_category].get(selected_command, ""),
+                    placeholder="Select or enter command",
+                    help="Enter a development tool command to execute."
+                )
+                
+                # Command options
+                col1, col2 = st.columns(2)
+                with col1:
+                    share_output = st.checkbox("Share with AI", value=True, key="dev_share")
+                with col2:
+                    get_feedback = st.checkbox("Get AI Feedback", key="dev_feedback")
+                
+                # Run button
+                if st.button("Run Dev Command") and command:
+                    with st.spinner("Running command..."):
+                        try:
+                            if get_feedback:
+                                stdout, stderr, chat_msg = self.shell_handler.run_with_ai_feedback(command)
+                            else:
+                                stdout, stderr, chat_msg = self.shell_handler.run_shell_command(
+                                    command, 
+                                    share_output=share_output
+                                )
+                            
+                            # Display results
+                            if stdout:
+                                st.text("Command Output:")
+                                st.code(stdout)
+                            if stderr:
+                                st.error("Error Output:")
+                                st.code(stderr)
+                            
+                            # Handle AI feedback/sharing
+                            if chat_msg:
+                                self.prompt = chat_msg
+                                self.prompt_as = "text"
+                                if get_feedback:
+                                    st.info("✓ Analyzing command output...")
+                                elif share_output:
+                                    st.info("✓ Output shared with AI")
+                                    
+                        except Exception as e:
+                            st.error(f"Error executing command: {str(e)}")
+            
+            # Help text
+            with st.container():
+                st.markdown("""
+                ### Developer Tools Help
+                
+                **Categories:**
+                - **Code Analysis**: Find issues and analyze code
+                - **Dependencies**: Manage project dependencies
+                - **Docker**: Container management
+                - **Security**: Security scanning and checks
+                - **Performance**: System monitoring
+                - **Git Advanced**: Advanced git operations
+                
+                **Note**: Some commands may require additional tools to be installed
+                """)
 
     def do_undo(self, commit_hash):
         self.last_undo_empty.empty()
