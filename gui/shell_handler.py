@@ -43,53 +43,59 @@ class AiderShellHandler:
                 if command.startswith('git '):
                     return stdout, stderr, (
                         f"Git command `{command}` output:\n```\n{output}\n```\n\n"
-                        "I'll provide an overview of these git changes. "
-                        "I won't make any code changes unless specifically asked.\n\n"
-                        "Would you like me to:\n"
-                        "- Explain what these changes show?\n"
-                        "- Suggest what git commands might be helpful next?\n"
-                        "- Help understand any error messages?\n"
-                        "\nLet me know what information would be most helpful."
+                        "Summary of git output:\n"
+                        f"- Command executed: {command}\n"
+                        f"- Output lines: {len(output.splitlines())}\n"
+                        "- Shows repository status and changes\n\n"
+                        "I can help you:\n"
+                        "- Explain what these changes show\n"
+                        "- Suggest next git commands\n"
+                        "- Help understand any error messages\n"
+                        "\nWhat would you like to know more about?"
                     )
                 elif command.startswith('python ') or command.endswith('.py'):
                     return stdout, stderr, (
                         f"Python script `{command}` output:\n```\n{output}\n```\n\n"
-                        "I'll analyze this output and provide an overview. "
-                        "I won't modify any code unless specifically requested.\n\n"
-                        "Would you like me to:\n"
-                        "- Explain what this output means?\n"
-                        "- Help understand any errors or warnings?\n"
-                        "- Suggest ways to investigate further?\n"
-                        "\nLet me know what aspects you'd like me to explain."
+                        "Summary of Python execution:\n"
+                        f"- Script executed: {command}\n"
+                        f"- Output lines: {len(output.splitlines())}\n"
+                        "- Contains program output/results\n\n"
+                        "I can help you:\n"
+                        "- Explain the execution results\n"
+                        "- Debug any errors or warnings\n"
+                        "- Suggest improvements\n"
+                        "\nWhat aspect would you like me to explain?"
                     )
                 else:
                     # Provide command-specific guidance
                     if command.startswith('ls'):
+                        lines = output.splitlines()
+                        file_count = len(lines) - 2 if len(lines) > 2 else 0
                         return stdout, stderr, (
                             f"Command `{command}` output:\n```\n{output}\n```\n\n"
-                            "This directory listing shows:\n"
-                            f"- {len(output.splitlines())-2} files/directories\n"
-                            "- Permissions (first column)\n"
-                            "- Owner and group (middle columns)\n"
-                            "- File sizes (in bytes)\n"
-                            "- Last modified dates\n"
-                            "- Names\n\n"
-                            "Would you like me to:\n"
-                            "- Explain specific file permissions?\n"
-                            "- Help understand file ownership?\n"
-                            "- Analyze disk usage patterns?\n"
-                            "- Suggest file organization improvements?\n"
+                            "Directory listing summary:\n"
+                            f"- Total files/directories: {file_count}\n"
+                            "- Shows: permissions, owners, sizes, dates, names\n"
+                            f"- Current directory contains {sum(1 for line in lines if line.startswith('-'))} files\n"
+                            f"- And {sum(1 for line in lines if line.startswith('d'))} directories\n\n"
+                            "I can help you:\n"
+                            "- Explain file permissions\n"
+                            "- Analyze directory structure\n"
+                            "- Suggest organization improvements\n"
+                            "\nWhat would you like to know more about?"
                         )
                     else:
                         return stdout, stderr, (
                             f"Command `{command}` output:\n```\n{output}\n```\n\n"
-                            "I'll provide an overview of this command output. "
-                            "I won't make any changes unless specifically asked.\n\n"
-                            "Would you like me to:\n"
-                            "- Explain what this output shows?\n"
-                            "- Help understand any warnings or errors?\n"
-                            "- Suggest related commands for more information?\n"
-                            "\nLet me know what you'd like to understand better."
+                            "Command execution summary:\n"
+                            f"- Command run: {command}\n"
+                            f"- Output lines: {len(output.splitlines())}\n"
+                            "- Status: {'Error occurred' if stderr else 'Completed successfully'}\n\n"
+                            "I can help you:\n"
+                            "- Explain the output meaning\n"
+                            "- Analyze any warnings/errors\n"
+                            "- Suggest related commands\n"
+                            "\nWhat would you like to understand better?"
                         )
             
             return stdout, stderr, None
