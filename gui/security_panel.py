@@ -6,7 +6,16 @@ def get_ai_security_analysis(scan_results: dict, scan_type: str) -> str:
     """Format security scan results for AI analysis"""
     vulnerabilities = scan_results.get('vulnerabilities', [])
     
-    return f"""Security scan completed ({scan_type}). Please analyze these results:
+    # Group vulnerabilities by type
+    vuln_types = {}
+    for vuln in vulnerabilities:
+        v_type = vuln.get('type', 'Unknown')
+        if v_type not in vuln_types:
+            vuln_types[v_type] = []
+        vuln_types[v_type].append(vuln)
+    
+    # Build detailed analysis prompt
+    analysis = f"""Security scan completed ({scan_type}). Please analyze these results:
 
 Scan Summary:
 - Total Issues: {len(vulnerabilities)}
@@ -15,19 +24,43 @@ Scan Summary:
 - Medium: {sum(1 for v in vulnerabilities if v.get('severity') == 'medium')}
 - Low: {sum(1 for v in vulnerabilities if v.get('severity') == 'low')}
 
+Vulnerability Types Found:
+{chr(10).join(f"- {v_type}: {len(vulns)} issue(s)" for v_type, vulns in vuln_types.items())}
+
 Detailed Findings:
 ```
 {json.dumps(vulnerabilities, indent=2)}
 ```
 
 Please provide:
-1. A severity assessment for each issue
-2. Explanation of the security implications
-3. Recommended fixes with code examples
-4. Best practices to prevent similar issues
-5. Any patterns or systemic issues identified
+1. Severity Assessment
+   - Risk level analysis for each vulnerability type
+   - Impact on system security
+   - Exploitation potential
 
-What would you like me to explain first?"""
+2. Security Implications
+   - Detailed explanation of each vulnerability type
+   - Potential attack scenarios
+   - Data/system exposure risks
+
+3. Recommended Fixes
+   - Code-level solutions with examples
+   - Implementation guidance
+   - Testing recommendations
+
+4. Best Practices
+   - Prevention strategies for each vulnerability type
+   - Security patterns to implement
+   - Code review guidelines
+
+5. Pattern Analysis
+   - Common vulnerability patterns identified
+   - Systemic issues in the codebase
+   - Architecture/design recommendations
+
+Which aspect would you like me to analyze first?"""
+    
+    return analysis
 
 def render_security_panel(coder=None):
     """Render the security scanning interface"""

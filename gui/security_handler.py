@@ -1,5 +1,6 @@
 from typing import Tuple, Optional
 from datetime import datetime
+from pathlib import Path
 from aider.coders import Coder
 from agentic_security.security_pipeline import SecurityPipeline
 from agentic_security.fix_cycle import FixCycle
@@ -13,6 +14,8 @@ class SecurityHandler:
         self.coder = coder
         self.io = coder.commands.io
         self.pipeline = SecurityPipeline()
+        
+        # Tool configurations for dependency checks
         self.tool_configs = {
             "Bandit": {
                 "command": "bandit",
@@ -83,6 +86,9 @@ class SecurityHandler:
                 "Secret Scanner": {"type": "secrets"}
             }.get(scan_type, {"depth": "quick"})
             
+            # Add severity filter
+            scan_config["min_severity"] = severity.lower()
+            
             # Run the scan
             results = self.pipeline.scan_paths(
                 paths=paths,
@@ -92,23 +98,40 @@ class SecurityHandler:
             
             # Generate timestamp for report
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            report_path = f'security_reports/security_report_{timestamp}.md'
-            os.makedirs('security_reports', exist_ok=True)
+            report_dir = Path('security_reports')
+            report_dir.mkdir(exist_ok=True)
+            report_path = str(report_dir / f'security_report_{timestamp}.md')
             
             # Generate report
             self.pipeline.generate_review_report(results, report_path)
             
-            # Generate AI analysis message
+            # Generate detailed AI analysis message
+            vulnerabilities = results.get('vulnerabilities', [])
+            stats = {
+                "total": len(vulnerabilities),
+                "critical": sum(1 for v in vulnerabilities if v.get('severity') == 'critical'),
+                "high": sum(1 for v in vulnerabilities if v.get('severity') == 'high'),
+                "medium": sum(1 for v in vulnerabilities if v.get('severity') == 'medium'),
+                "low": sum(1 for v in vulnerabilities if v.get('severity') == 'low')
+            }
+            
             chat_msg = (
                 f"Security scan completed ({scan_type}).\n\n"
+                f"Summary:\n"
+                f"- Total Issues: {stats['total']}\n"
+                f"- Critical: {stats['critical']}\n"
+                f"- High: {stats['high']}\n"
+                f"- Medium: {stats['medium']}\n"
+                f"- Low: {stats['low']}\n\n"
                 f"Report saved to: {report_path}\n\n"
                 "I can help you:\n"
-                "1. Analyze the security findings\n"
-                "2. Prioritize vulnerabilities\n"
-                "3. Suggest fixes for issues found\n"
-                "4. Explain specific vulnerability types\n"
-                "5. Recommend security best practices\n\n"
-                "What would you like me to focus on?"
+                "1. Analyze specific vulnerabilities\n"
+                "2. Prioritize issues by risk level\n"
+                "3. Suggest detailed fixes with code examples\n"
+                "4. Explain security implications\n"
+                "5. Recommend best practices\n"
+                "6. Identify patterns and systemic issues\n\n"
+                "What aspect would you like me to focus on?"
             )
             
             return results, None, chat_msg
