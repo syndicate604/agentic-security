@@ -27,7 +27,7 @@ Please provide:
 
 What would you like me to explain first?"""
 
-def render_security_panel():
+def render_security_panel(coder=None):
     """Render the security scanning interface"""
     with st.container():
         st.markdown("## Security Scanner")
