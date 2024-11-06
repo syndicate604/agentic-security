@@ -418,55 +418,104 @@ def gui_main():
         <style>
         /* Dark mode background and text colors */
         .stApp {
-            background-color: #1a1a1a;
-            color: #ff3333;
+            background-color: #0a0a0a;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
         }
         
         /* Sidebar styling */
         .css-1d391kg {
-            background-color: #242424;
+            background-color: #141414;
         }
         
         /* Input fields */
         .stTextInput input {
-            background-color: #2d2d2d;
-            color: #ff3333;
-            border-color: #404040;
+            background-color: #1a1a1a;
+            color: #00ff00;
+            border-color: #00ff00;
+            font-family: 'Courier New', monospace;
         }
         
         /* Buttons */
         .stButton button {
-            background-color: #2d2d2d;
-            color: #ff3333;
-            border: 1px solid #404040;
+            background-color: #1a1a1a;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .stButton button:hover {
+            background-color: #00ff00;
+            color: #0a0a0a;
         }
         
         /* Chat messages */
         .stChatMessage {
-            background-color: #242424;
-            border: 1px solid #404040;
+            background-color: #141414;
+            border: 1px solid #00ff00;
+            font-family: 'Courier New', monospace;
         }
         
         /* Code blocks */
         .stCodeBlock {
-            background-color: #2d2d2d;
+            background-color: #1a1a1a;
+            font-family: 'Courier New', monospace;
         }
         
         /* Links */
         a {
-            color: #ff6666 !important;
+            color: #00ff00 !important;
+            text-decoration: none !important;
+        }
+        
+        a:hover {
+            color: #33ff33 !important;
+            text-decoration: underline !important;
         }
         
         /* Expander */
         .streamlit-expanderHeader {
-            background-color: #2d2d2d;
-            color: #ff3333;
+            background-color: #1a1a1a;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
         }
         
         /* Select boxes */
         .stSelectbox {
-            background-color: #2d2d2d;
-            color: #ff3333;
+            background-color: #1a1a1a;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* Multiselect */
+        .stMultiSelect {
+            background-color: #1a1a1a;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0a0a0a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #00ff00;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #33ff33;
+        }
+
+        /* Text selection */
+        ::selection {
+            background: #00ff00;
+            color: #0a0a0a;
         }
         </style>
     """, unsafe_allow_html=True)
