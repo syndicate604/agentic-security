@@ -38,34 +38,40 @@ class AiderShellHandler:
             # Share with AI if requested and there's output
             if share_output and (stdout or stderr):
                 output = stdout if stdout else stderr
-                # Return the output to be handled by GUI's chat system with git-specific handling
-                # Provide more contextual guidance based on command type
+                # Return the output to be handled by GUI's chat system
+                # Provide context-aware guidance based on command type
                 if command.startswith('git '):
                     return stdout, stderr, (
                         f"Git command `{command}` output:\n```\n{output}\n```\n\n"
-                        "I can help you:\n"
-                        "- Explain what these changes mean\n"
-                        "- Suggest next git commands\n"
-                        "- Help resolve any issues\n"
-                        "What would you like to know?"
+                        "I'll provide an overview of these git changes. "
+                        "I won't make any code changes unless specifically asked.\n\n"
+                        "Would you like me to:\n"
+                        "- Explain what these changes show?\n"
+                        "- Suggest what git commands might be helpful next?\n"
+                        "- Help understand any error messages?\n"
+                        "\nLet me know what information would be most helpful."
                     )
                 elif command.startswith('python ') or command.endswith('.py'):
                     return stdout, stderr, (
                         f"Python script `{command}` output:\n```\n{output}\n```\n\n"
-                        "I can help you:\n"
-                        "- Debug any errors\n"
-                        "- Explain the output\n"
-                        "- Optimize the code\n"
-                        "What would you like me to help with?"
+                        "I'll analyze this output and provide an overview. "
+                        "I won't modify any code unless specifically requested.\n\n"
+                        "Would you like me to:\n"
+                        "- Explain what this output means?\n"
+                        "- Help understand any errors or warnings?\n"
+                        "- Suggest ways to investigate further?\n"
+                        "\nLet me know what aspects you'd like me to explain."
                     )
                 else:
                     return stdout, stderr, (
                         f"Command `{command}` output:\n```\n{output}\n```\n\n"
-                        "I can:\n"
-                        "- Explain this output\n"
-                        "- Suggest related commands\n"
-                        "- Help troubleshoot issues\n"
-                        "How can I assist you?"
+                        "I'll provide an overview of this command output. "
+                        "I won't make any changes unless specifically asked.\n\n"
+                        "Would you like me to:\n"
+                        "- Explain what this output shows?\n"
+                        "- Help understand any warnings or errors?\n"
+                        "- Suggest related commands for more information?\n"
+                        "\nLet me know what you'd like to understand better."
                     )
             
             return stdout, stderr, None
