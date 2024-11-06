@@ -1,11 +1,11 @@
 {
-  "name": "your-extension-name",
+  "name": "sparc",
   "displayName": "Your Extension Display Name",
   "description": "AI pair programming with Aider in VSCode",
   "publisher": "your-publisher-id",
   "repository": {
     "type": "git",
-    "url": "your-repo-url"
+    "url": "https://github.com/ruvnet"
   },
   "version": "0.1.0",
   "engines": {
