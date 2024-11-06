@@ -434,7 +434,7 @@ class GUI:
             self.web_content = None
 
     def do_shell_commands(self):
-        from gui.shell_handler import AiderShellHandler
+        from shell_handler import AiderShellHandler
         
         with st.sidebar.expander("Shell Commands", expanded=False):
             # Initialize shell handler if needed
