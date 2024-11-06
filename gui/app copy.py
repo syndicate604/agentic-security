@@ -4,10 +4,10 @@ import os
 import random
 import sys
 import io
-import os
 import streamlit as st
 from aider import urls, coders, io, main, scrape
 from aider.commands import SwitchCoder
+from prompt_handler import render_prompt_engineering_panel
 
 class CaptureIO(io.InputOutput):
     def __init__(self, *args, **kwargs):
