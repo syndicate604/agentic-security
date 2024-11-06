@@ -112,84 +112,99 @@ class ConfigHandler:
 def render_config_panel(coder: Coder):
     """Render configuration management panel"""
     with st.sidebar:
-        with st.expander("Configuration Manager", expanded=False):
-            config_handler = ConfigHandler(coder)
-            
-            # System Information
+        config_handler = ConfigHandler(coder)
+        
+        # Main configuration tabs
+        system_tab, tools_tab, help_tab = st.tabs(["System", "Tools", "Help"])
+        
+        # System Information Tab
+        with system_tab:
             st.markdown("### System Information")
             sys_info = config_handler.get_system_info()
             for key, value in sys_info.items():
                 st.text(f"{key}: {value}")
-            
-            # Tool Installation Status
-            st.markdown("### Tool Status")
-            
-            # Create columns for different tool categories
+        
+        # Tools Tab        
+        with tools_tab:
+            # Tool Categories in Sub-tabs
             categories = list(config_handler.tool_configs.keys())
-            for category in categories:
-                st.markdown(f"#### {category}")
-                tools = config_handler.tool_configs[category]
-                
-                for tool_name, config in tools.items():
-                    col1, col2 = st.columns([3,1])
-                    
-                    with col1:
-                        st.markdown(f"**{tool_name}**")
-                        st.caption(config["description"])
-                    
-                    with col2:
-                        installed = config_handler.check_tool(tool_name, config)
-                        if installed:
-                            st.success("✓")
-                        else:
-                            if st.button("Install", key=f"install_{tool_name}"):
-                                with st.spinner(f"Installing {tool_name}..."):
-                                    success, message = config_handler.install_tool(tool_name, config)
-                                    if success:
-                                        st.success("✓")
-                                    else:
-                                        st.error(message)
-                st.markdown("---")
+            category_tabs = st.tabs(categories)
             
-            # Bulk Installation
-            st.markdown("### Bulk Installation")
-            if st.button("Install All Missing Tools"):
-                missing_tools = []
-                for category, tools in config_handler.tool_configs.items():
+            for cat_tab, category in zip(category_tabs, categories):
+                with cat_tab:
+                    tools = config_handler.tool_configs[category]
+                    
+                    # Tool list with status and install buttons
                     for tool_name, config in tools.items():
-                        if not config_handler.check_tool(tool_name, config):
-                            missing_tools.append((tool_name, config))
-                
-                if missing_tools:
-                    progress_bar = st.progress(0)
-                    for i, (tool_name, config) in enumerate(missing_tools):
-                        with st.spinner(f"Installing {tool_name}..."):
-                            success, message = config_handler.install_tool(tool_name, config)
-                            if success:
-                                st.success(f"✓ {tool_name}")
-                            else:
-                                st.error(f"Failed: {tool_name}")
-                        progress_bar.progress((i + 1) / len(missing_tools))
-                else:
-                    st.success("All tools are installed!")
-
-            # Help section
-            with st.container():
-                st.markdown("### Help & Documentation")
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.markdown("#### Features")
-                    st.markdown("""
-                    - System Information
-                    - Tool Status Check
-                    - Installation Manager
-                    """)
-                
-                with col2:
-                    st.markdown("#### Package Managers")
-                    st.markdown("""
-                    - Ubuntu: `apt-get`
-                    - macOS: `brew`
-                    - Windows: `choco`
-                    """)
+                        with st.container():
+                            col1, col2, col3 = st.columns([2, 1, 1])
+                            
+                            with col1:
+                                st.markdown(f"**{tool_name}**")
+                                st.caption(config["description"])
+                            
+                            with col2:
+                                installed = config_handler.check_tool(tool_name, config)
+                                if installed:
+                                    st.success("✓ Installed")
+                                else:
+                                    st.warning("Not Found")
+                            
+                            with col3:
+                                if not installed:
+                                    if st.button("Install", key=f"install_{tool_name}"):
+                                        with st.spinner("Installing..."):
+                                            success, message = config_handler.install_tool(tool_name, config)
+                                            if success:
+                                                st.success("✓")
+                                            else:
+                                                st.error(message)
+                    
+                    # Bulk install section at bottom of each category
+                    st.markdown("---")
+                    if st.button(f"Install All {category}", key=f"install_all_{category}"):
+                        missing = [(name, cfg) for name, cfg in tools.items() 
+                                 if not config_handler.check_tool(name, cfg)]
+                        if missing:
+                            progress = st.progress(0)
+                            for i, (tool_name, tool_cfg) in enumerate(missing):
+                                with st.spinner(f"Installing {tool_name}..."):
+                                    success, msg = config_handler.install_tool(tool_name, tool_cfg)
+                                    if success:
+                                        st.success(f"✓ {tool_name}")
+                                    else:
+                                        st.error(f"Failed: {tool_name}")
+                                progress.progress((i + 1) / len(missing))
+                        else:
+                            st.success("All tools are installed!")
+        
+        # Help Tab
+        with help_tab:
+            st.markdown("### Configuration Help")
+            
+            # Features section
+            st.markdown("#### Available Features")
+            features = {
+                "System Info": "View installed versions and system details",
+                "Tool Management": "Install and manage security tools",
+                "Bulk Installation": "Install multiple tools at once",
+                "Status Tracking": "Monitor tool installation status"
+            }
+            
+            for feature, desc in features.items():
+                with st.container():
+                    st.markdown(f"**{feature}**")
+                    st.caption(desc)
+            
+            # Package manager info
+            st.markdown("#### System Requirements")
+            st.markdown("""
+            Package Managers:
+            - Ubuntu/Debian: `sudo apt-get install <package>`
+            - macOS: `brew install <package>`
+            - Windows: `choco install <package>`
+            
+            Python Requirements:
+            - Python 3.8+
+            - pip (latest version)
+            """)
