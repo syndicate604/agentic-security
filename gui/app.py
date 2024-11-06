@@ -444,9 +444,32 @@ class GUI:
             if not hasattr(self, 'shell_handler'):
                 self.shell_handler = AiderShellHandler(self.coder)
             
-            # Command input
+            # Common commands dropdown
+            common_commands = {
+                "Git Status": "git status",
+                "List Files": "ls -la",
+                "Python Tests": "python -m pytest",
+                "Git Log": "git log --oneline",
+                "Check Python Version": "python --version",
+                "List Git Branches": "git branch",
+                "Current Directory": "pwd",
+                "System Info": "uname -a",
+                "Disk Usage": "df -h",
+                "Memory Usage": "free -h",
+                "Process Status": "ps aux",
+                "Network Status": "netstat -tuln"
+            }
+            
+            selected_command = st.selectbox(
+                "Common Commands",
+                options=["Select a command..."] + list(common_commands.keys()),
+                key="common_commands"
+            )
+            
+            # Command input with auto-fill from dropdown
             command = st.text_input(
                 "Shell Command:", 
+                value=common_commands.get(selected_command, ""),
                 placeholder="/run python test.py",
                 help="Enter a shell command to execute. '/run' prefix is optional."
             )
