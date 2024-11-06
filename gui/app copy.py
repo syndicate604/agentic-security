@@ -3,12 +3,16 @@
 import os
 import random
 import sys
+import io
+import os
 import streamlit as st
 from aider import urls, coders, io, main, scrape
-from config_handler import render_config_panel
+from aider.commands import SwitchCoder
 
 class CaptureIO(io.InputOutput):
-    lines = []
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.lines = []
 
     def tool_output(self, msg, log_only=False):
         if not log_only:
@@ -53,24 +57,51 @@ def get_state():
 
 @st.cache_resource
 def get_coder():
-    coder = main.main(return_coder=True)
-    if not isinstance(coder, coders.Coder):
-        raise ValueError(coder)
-    if not coder.repo:
-        raise ValueError("GUI can currently only be used inside a git repo")
+    try:
+        # Get model name from session state if available
+        model_name = st.session_state.get('selected_model')
+        
+        if model_name:
+            from aider.models import Model, OPENAI_MODELS, ANTHROPIC_MODELS
+            # Determine model type and validate
+            if model_name in OPENAI_MODELS or (isinstance(model_name, str) and model_name.startswith("openai/")):
+                model = Model(model_name)
+            elif model_name in ANTHROPIC_MODELS or (isinstance(model_name, str) and model_name.startswith("claude-")):
+                model = Model(model_name)
+            else:
+                model = None
+                
+            if model:
+                coder = coders.Coder.create(main_model=model)
+            else:
+                coder = main.main(return_coder=True)
+        else:
+            coder = main.main(return_coder=True)
+            
+        if not isinstance(coder, coders.Coder):
+            raise ValueError(coder)
+        if not coder.repo:
+            raise ValueError("GUI can currently only be used inside a git repo")
 
-    io = CaptureIO(
-        pretty=False,
-        yes=True,
-        dry_run=coder.io.dry_run,
-        encoding=coder.io.encoding,
-    )
-    coder.commands.io = io
-
-    for line in coder.get_announcements():
-        coder.io.tool_output(line)
-
-    return coder
+        # Create CaptureIO instance with proper initialization
+        capture_io = CaptureIO(
+            pretty=False,
+            yes=True,
+            dry_run=coder.io.dry_run,
+            encoding=coder.io.encoding,
+        )
+        
+        # Set the IO instance
+        coder.commands.io = capture_io
+        
+        # Get initial announcements
+        for line in coder.get_announcements():
+            capture_io.tool_output(line, log_only=False)
+            
+        return coder
+    except Exception as e:
+        st.error(f"Error initializing Aider: {str(e)}")
+        raise
 
 class GUI:
     prompt = None
@@ -79,7 +110,10 @@ class GUI:
     recent_msgs_empty = None
     web_content_empty = None
 
-    def announce(self):
+    def announce(self, force_update=False):
+        if force_update:
+            # Force refresh of announcements to reflect new model
+            self.coder.update_announcements()
         lines = self.coder.get_announcements()
         lines = "  \n".join(lines)
         return lines
@@ -146,16 +180,17 @@ class GUI:
             S.P.A.R.C.
             </h1>            
             """, unsafe_allow_html=True)
-            
-            # Add config panel
-            render_config_panel(self.coder)
-            
             self.do_add_to_chat()
             self.do_recent_msgs()
             self.do_clear_chat_history()
+            self.do_model_settings()
+            self.do_shell_commands()
+            self.do_github_actions() 
+            self.do_security_tools()  # Add security tools
+            self.do_dev_tools()
+            
             st.warning(
-                "This browser version of aider is experimental. Please share feedback in [GitHub"
-                " issues](https://github.com/Aider-AI/aider/issues)."
+                "Created by rUv, bacause he could, with help from aider."
             )
 
     def do_add_to_chat(self):
@@ -251,7 +286,7 @@ class GUI:
         self.state.init("web_content_num", 0)
         self.state.init("prompt")
         self.state.init("scraper")
-
+        self.state.init("current_model", self.coder.main_model)
         self.state.init("initial_inchat_files", self.coder.get_inchat_relative_files())
 
         if "input_history" not in self.state.keys:
@@ -267,14 +302,22 @@ class GUI:
         return st.button(args, **kwargs)
 
     def __init__(self):
-        self.coder = get_coder()
-        self.state = get_state()
+        try:
+            self.coder = get_coder()
+            self.state = get_state()
 
-        self.coder.yield_stream = True
-        self.coder.stream = True
-        self.coder.pretty = False
+            self.coder.yield_stream = True
+            self.coder.stream = True
+            self.coder.pretty = False
+            
+            # Disable interactive prompts in IO to prevent blocking
+            self.coder.io.yes = True
+            self.coder.io.no_interactive = True
 
-        self.initialize_state()
+            self.initialize_state()
+        except Exception as e:
+            st.error(f"Error initializing GUI: {str(e)}")
+            return
 
         self.do_messages_container()
         self.do_sidebar()
@@ -394,6 +437,529 @@ class GUI:
             self.info(f"No web content found for `{url}`.")
             self.web_content = None
 
+
+    def do_shell_commands(self):
+        from shell_handler import AiderShellHandler
+        
+        with st.sidebar.expander("Shell Commands", expanded=False):
+            # Initialize shell handler if needed
+            if not hasattr(self, 'shell_handler'):
+                self.shell_handler = AiderShellHandler(self.coder)
+            
+            # Common commands dropdown
+            common_commands = {
+                "Git Status": "git status",
+                "List Files": "ls -la",
+                "Python Tests": "python -m pytest",
+                "Git Log": "git log --oneline",
+                "Check Python Version": "python --version",
+                "List Git Branches": "git branch",
+                "Current Directory": "pwd",
+                "System Info": "uname -a",
+                "Disk Usage": "df -h",
+                "Memory Usage": "free -h",
+                "Process Status": "ps aux",
+                "Network Status": "netstat -tuln"
+            }
+            
+            selected_command = st.selectbox(
+                "Common Commands",
+                options=["Select a command..."] + list(common_commands.keys()),
+                key="common_commands"
+            )
+            
+            # Command input with auto-fill from dropdown
+            command = st.text_input(
+                "Shell Command:", 
+                value=common_commands.get(selected_command, ""),
+                placeholder="/run python test.py",
+                help="Enter a shell command to execute. '/run' prefix is optional."
+            )
+            
+            # Command options
+            col1, col2 = st.columns(2)
+            with col1:
+                share_output = st.checkbox("Share with AI", value=True)
+            with col2:
+                get_feedback = st.checkbox("Get AI Feedback", value=True)
+            
+            # Run button
+            if st.button("Run Command") and command:
+                with st.spinner("Running command..."):
+                    try:
+                        if get_feedback:
+                            # Run with AI feedback
+                            stdout, stderr, chat_msg = self.shell_handler.run_with_ai_feedback(command)
+                            
+                            # Display command output
+                            if stdout:
+                                st.text("Command Output:")
+                                st.code(stdout)
+                            if stderr:
+                                st.error("Error Output:")
+                                st.code(stderr)
+                            
+                            # If we have output and a chat message, process it through the chat
+                            if chat_msg:
+                                self.prompt = chat_msg
+                                self.prompt_as = "text"
+                                st.info("✓ Analyzing command output...")
+                        
+                        else:
+                            # Run without feedback
+                            stdout, stderr, chat_msg = self.shell_handler.run_shell_command(
+                                command, 
+                                share_output=share_output
+                            )
+                            
+                            # Display results
+                            if stdout:
+                                st.text("Command Output:")
+                                st.code(stdout)
+                                if share_output:
+                                    st.info("✓ Output shared with AI")
+                            if stderr:
+                                st.error("Error Output:")
+                                st.code(stderr)
+                                if share_output:
+                                    st.info("✓ Error shared with AI")
+                            
+                            if not stdout and not stderr:
+                                st.info("Command executed successfully with no output")
+                            
+                            # Add to chat if sharing is enabled and we have a chat message
+                            if share_output and chat_msg:
+                                # Add command context and instructions
+                                self.prompt = (
+                                    f"Shell command: `{command}`\n\n"
+                                    f"{chat_msg}\n\n"
+                                    "Please let me know what specific aspects of this output "
+                                    "you'd like me to explain or what assistance you need."
+                                )
+                                self.prompt_as = "text"
+                                
+                    except Exception as e:
+                        st.error(f"Error executing command: {str(e)}")
+            
+            # Help text in a container
+            with st.container():
+                st.markdown("""
+                ### Shell Command Help
+                
+                **Available Options:**
+                - **Share with AI**: Adds command output to the chat
+                - **Get AI Feedback**: Gets AI analysis of the command output
+                
+                **Example Commands:**
+                - `python test.py`
+                - `git status`
+                - `ls -la`
+                
+                **Note**: Commands are executed in the current working directory
+                """)
+
+    def do_github_actions(self):
+        from github_handler import GitHubActionsHandler
+        
+        with st.sidebar.expander("GitHub Actions", expanded=False):
+            # Initialize GitHub handler if needed
+            if not hasattr(self, 'github_handler'):
+                self.github_handler = GitHubActionsHandler(self.coder)
+            
+            # Common GitHub Actions commands
+            github_commands = {
+                "List Workflows": "gh workflow list",
+                "View Recent Runs": "gh run list",
+                "List Secrets": "gh secret list",
+                "List Variables": "gh variable list",
+                "View Repository Status": "gh repo view",
+                "List Pull Requests": "gh pr list",
+                "List Issues": "gh issue list",
+                "View CI Status": "gh status",
+                "List Contributors": "gh contributor list",
+                "View Repository Settings": "gh repo view --json name,description,visibility"
+            }
+            
+            selected_action = st.selectbox(
+                "Common GitHub Actions",
+                options=["Select an action..."] + list(github_commands.keys()),
+                key="github_actions"
+            )
+            
+            # Command input with auto-fill from dropdown
+            command = st.text_input(
+                "GitHub Command:", 
+                value=github_commands.get(selected_action, ""),
+                placeholder="gh workflow list",
+                help="Enter a GitHub CLI command to execute."
+            )
+            
+            # Command options
+            col1, col2 = st.columns(2)
+            with col1:
+                share_output = st.checkbox("Share with AI", value=True, key="gh_share")
+            with col2:
+                get_feedback = st.checkbox("Get AI Feedback", value=True, key="gh_feedback")
+            
+            # Run button
+            if st.button("Run GitHub Command") and command:
+                with st.spinner("Running command..."):
+                    try:
+                        if get_feedback:
+                            # Run with AI feedback
+                            stdout, stderr, chat_msg = self.shell_handler.run_with_ai_feedback(command)
+                            
+                            # Display command output
+                            if stdout:
+                                st.text("Command Output:")
+                                st.code(stdout)
+                            if stderr:
+                                st.error("Error Output:")
+                                st.code(stderr)
+                            
+                            # If we have output and a chat message, process it through the chat
+                            if chat_msg:
+                                self.prompt = chat_msg
+                                self.prompt_as = "text"
+                                st.info("✓ Analyzing GitHub Actions output...")
+                        
+                        else:
+                            # Run without feedback
+                            stdout, stderr, chat_msg = self.shell_handler.run_shell_command(
+                                command, 
+                                share_output=share_output
+                            )
+                            
+                            # Display results
+                            if stdout:
+                                st.text("Command Output:")
+                                st.code(stdout)
+                                if share_output:
+                                    st.info("✓ Output shared with AI")
+                            if stderr:
+                                st.error("Error Output:")
+                                st.code(stderr)
+                                if share_output:
+                                    st.info("✓ Error shared with AI")
+                            
+                            if not stdout and not stderr:
+                                st.info("Command executed successfully with no output")
+                            
+                            # Add to chat if sharing is enabled and we have a chat message
+                            if share_output and chat_msg:
+                                self.prompt = (
+                                    f"GitHub command: `{command}`\n\n"
+                                    f"{chat_msg}\n\n"
+                                    "Please let me know what specific aspects of this output "
+                                    "you'd like me to explain or what assistance you need."
+                                )
+                                self.prompt_as = "text"
+                                
+                    except Exception as e:
+                        st.error(f"Error executing GitHub command: {str(e)}")
+            
+            # Help text in a container
+            with st.container():
+                st.markdown("""
+                ### GitHub Actions Help
+                
+                **Available Options:**
+                - **Share with AI**: Adds command output to the chat
+                - **Get AI Feedback**: Gets AI analysis of the command output
+                
+                **Example Commands:**
+                - `gh workflow list`
+                - `gh run list`
+                - `gh repo view`
+                
+                **Note**: Commands require GitHub CLI (`gh`) to be installed and authenticated
+                """)
+
+    def do_model_settings(self):
+        with st.sidebar.expander("Model Settings", expanded=False):
+            # Provider selection
+            provider = st.radio(
+                "AI Provider",
+                ["OpenAI", "Anthropic"],
+                key="provider_selection"
+            )
+            
+            # Model selection based on provider
+            if provider == "OpenAI":
+                model = st.selectbox(
+                    "Select Model",
+                    [
+                        "gpt-4",
+                        "gpt-4-32k",
+                        "gpt-4-1106-preview",  # GPT-4 Turbo
+                        "gpt-4-0125-preview",  # Latest GPT-4 Preview
+                        "gpt-3.5-turbo",
+                        "gpt-3.5-turbo-16k",
+                        "gpt-3.5-turbo-1106"
+                    ],
+                    index=0,
+                    key="openai_model_selection"
+                )
+            else:  # Anthropic
+                model = st.selectbox(
+                    "Select Model",
+                    [
+                        "claude-3-opus-20240229",
+                        "claude-3-sonnet-20240229",
+                        "claude-3-haiku-20240307",
+                        "claude-2.1",
+                        "claude-2.0"
+                    ],
+                    index=0,
+                    key="anthropic_model_selection"
+                )
+
+            # Model switching
+            if st.button("Switch Model"):
+                try:
+                    # Check API keys before attempting switch
+                    if provider == "OpenAI" and not os.getenv("OPENAI_API_KEY"):
+                        raise ValueError("OpenAI API key not found. Please set OPENAI_API_KEY environment variable.")
+                    elif provider == "Anthropic" and not os.getenv("ANTHROPIC_API_KEY"):
+                        raise ValueError("Anthropic API key not found. Please set ANTHROPIC_API_KEY environment variable.")
+                    
+                    # Store current model info before switching
+                    old_model = getattr(self.coder, 'main_model', 'unknown')
+                    
+                    # Store selected model in session state
+                    st.session_state['selected_model'] = model
+                    
+                    # Clear cache and force reload
+                    st.cache_resource.clear()
+                    
+                    # Create new coder instance with new model
+                    self.coder = get_coder()
+                    
+                    # Update state and display info
+                    self.state.init("current_model", model)
+                    self.info(f"Successfully switched from {old_model} to {model}")
+                    
+                    # Add system message about model switch
+                    self.state.messages.append({
+                        "role": "system",
+                        "content": f"Model switched from {old_model} to {model}"
+                    })
+                    
+                    # Force UI update
+                    st.rerun()
+                    
+                except AttributeError as e:
+                    self.info(f"Configuration error: {str(e)}")
+                except ValueError as e:
+                    self.info(f"Invalid model selection: {str(e)}")
+                except RuntimeError as e:
+                    self.info(f"Streamlit error: {str(e)}")
+                except Exception as e:
+                    self.info(f"Unexpected error switching model: {str(e)}\nPlease check your API keys and model access.")
+
+            # Model settings
+            settings_container = st.container()
+            with settings_container:
+                st.markdown("### Model Settings")
+                
+                # Temperature setting
+                current_temp = self.coder.temperature if hasattr(self.coder, 'temperature') else 0.7
+                # Ensure current_temp is a float
+                if isinstance(current_temp, (list, tuple)):
+                    current_temp = 0.7  # Default if invalid type
+
+                temperature = st.slider(
+                    "Temperature",
+                    min_value=0.0,
+                    max_value=2.0,
+                    value=float(current_temp),  # Convert to float
+                    step=0.1,
+                    help="Higher values make output more random, lower values more deterministic"
+                )
+                
+                # Max tokens setting
+                max_tokens = st.number_input(
+                    "Max Tokens",
+                    min_value=100,
+                    max_value=32000,
+                    value=2000,
+                    step=100,
+                    help="Maximum number of tokens in the response"
+                )
+
+                # Apply settings button
+                if st.button("Apply Settings"):
+                    try:
+                        # Update temperature
+                        if hasattr(self.coder, 'set_temperature'):
+                            self.coder.set_temperature(temperature)
+                        else:
+                            self.coder.temperature = temperature
+                        
+                        # Update max tokens if supported
+                        if hasattr(self.coder, 'set_max_tokens'):
+                            self.coder.set_max_tokens(max_tokens)
+                        
+                        self.info("Model settings updated successfully")
+                    except Exception as e:
+                        self.info(f"Error updating settings: {str(e)}")
+
+            # Display current settings
+            st.markdown("### Current Model Info")
+            st.markdown(f"""
+            - **Current Model**: {self.state.current_model if hasattr(self.state, 'current_model') else model}
+            - **Temperature**: {temperature}
+            - **Max Tokens**: {max_tokens}
+            - **Provider**: {provider}
+            """)
+
+
+    def do_security_tools(self):
+        """Add security panel to sidebar"""
+        from security_handler import SecurityHandler
+        from security_panel import render_security_panel
+        
+        with st.sidebar.expander("Security Tools", expanded=False):
+            if not hasattr(self, 'security_handler'):
+                self.security_handler = SecurityHandler(self.coder)
+            
+            # Render the new security panel
+            render_security_panel()
+
+    def do_dev_tools(self):
+        with st.sidebar.expander("Developer Tools", expanded=False):
+            # Specialized command categories
+            dev_commands = {
+                "Code Analysis": {
+                    "Find TODOs": "grep -r 'TODO' .",
+                    "Count Lines of Code": "find . -name '*.py' | xargs wc -l",
+                    "List Python Files": "find . -name '*.py' | sort",
+                    "Check Python Style": "pylint .",
+                    "Run Security Scan": "bandit -r .",
+                    "Find Large Files": "find . -type f -size +10M",
+                },
+                "Dependencies": {
+                    "List Python Packages": "pip list",
+                    "Show Outdated Packages": "pip list --outdated",
+                    "Check Dependencies": "pip check",
+                    "Generate Requirements": "pip freeze > requirements.txt",
+                    "Install Requirements": "pip install -r requirements.txt",
+                },
+                "Docker": {
+                    "List Containers": "docker ps",
+                    "List Images": "docker images",
+                    "Show Docker Disk": "docker system df",
+                    "Prune Docker": "docker system prune -f",
+                    "Container Logs": "docker logs $(docker ps -q)",
+                },
+                "Security": {
+                    "Find Secrets": "gitleaks detect",
+                    "SAST Scan": "semgrep scan",
+                    "Check File Permissions": "ls -la",
+                    "List Open Ports": "netstat -tuln",
+                    "Show SSH Keys": "ls -la ~/.ssh",
+                },
+                "Performance": {
+                    "CPU Usage": "top -b -n 1",
+                    "Memory Usage": "free -h",
+                    "Disk Space": "df -h",
+                    "IO Stats": "iostat",
+                    "Network Stats": "netstat -s",
+                },
+                "Git Advanced": {
+                    "Show Large Files": "git rev-list --objects --all | git cat-file --batch-check='%(objecttype) %(objectname) %(objectsize) %(rest)' | awk '/^blob/ {print substr($0,6)}' | sort -n",
+                    "List Contributors": "git shortlog -sn",
+                    "Branch History": "git log --graph --oneline --all",
+                    "Find Merge Conflicts": "git diff --check",
+                    "Clean Repo": "git clean -xfd",
+                }
+            }
+            
+            # Category selection
+            selected_category = st.selectbox(
+                "Command Category",
+                options=["Select category..."] + list(dev_commands.keys()),
+                key="dev_tools_category"
+            )
+            
+            # Command selection based on category
+            if selected_category and selected_category != "Select category...":
+                selected_command = st.selectbox(
+                    f"{selected_category} Commands",
+                    options=["Select command..."] + list(dev_commands[selected_category].keys()),
+                    key="dev_tools_command"
+                )
+                
+                # Command input with auto-fill from selection
+                command = st.text_input(
+                    "Developer Command:", 
+                    value=dev_commands[selected_category].get(selected_command, ""),
+                    placeholder="Select or enter command",
+                    help="Enter a development tool command to execute."
+                )
+                
+                # Command options
+                col1, col2 = st.columns(2)
+                with col1:
+                    share_output = st.checkbox("Share with AI", value=True, key="dev_share")
+                with col2:
+                    get_feedback = st.checkbox("Get AI Feedback", value=True, key="dev_feedback")
+                
+                # Run button
+                if st.button("Run Dev Command") and command:
+                    with st.spinner("Running command..."):
+                        try:
+                            if get_feedback:
+                                stdout, stderr, chat_msg = self.shell_handler.run_with_ai_feedback(command)
+                            else:
+                                stdout, stderr, chat_msg = self.shell_handler.run_shell_command(
+                                    command, 
+                                    share_output=share_output
+                                )
+                            
+                            # Display results
+                            if stdout:
+                                st.text("Command Output:")
+                                st.code(stdout)
+                            if stderr:
+                                st.error("Error Output:")
+                                st.code(stderr)
+                            
+                            # Handle AI feedback/sharing
+                            if chat_msg:
+                                self.prompt = chat_msg
+                                self.prompt_as = "text"
+                                if get_feedback:
+                                    st.info("✓ Analyzing command output...")
+                                elif share_output:
+                                    st.info("✓ Output shared with AI")
+                                    
+                        except Exception as e:
+                            st.error(f"Error executing command: {str(e)}")
+            
+            # Help text
+            with st.container():
+                st.markdown("""
+                ### Developer Tools Help
+                
+                **Categories:**
+                - **Code Analysis**: Find issues and analyze code
+                - **Dependencies**: Manage project dependencies
+                - **Docker**: Container management
+                - **Security**: Security scanning and checks
+                - **Performance**: System monitoring
+                - **Git Advanced**: Advanced git operations
+                
+                **Note**: Some commands require additional tools to be installed. Run:
+                ```
+                pip install -r gui/requirements.txt
+                ```
+                For system-level tools like iostat, use your system's package manager:
+                - Ubuntu/Debian: sudo apt-get install sysstat net-tools
+                - CentOS/RHEL: sudo yum install sysstat net-tools
+                - macOS: brew install sysstat
+                """)
+
     def do_undo(self, commit_hash):
         self.last_undo_empty.empty()
 
@@ -420,20 +986,21 @@ class GUI:
             self.prompt = reply
 
 def gui_main():
-    # Set dark theme and custom styles
-    st.set_page_config(
-        layout="wide",
-        page_title="Aider",
-        page_icon=urls.favicon,
-        menu_items={
-            "Get Help": urls.website,
-            "Report a bug": "https://github.com/Aider-AI/aider/issues",
-            "About": "# Aider\nAI pair programming in your browser.",
-        },
-    )
+    try:
+        # Set dark theme and custom styles
+        st.set_page_config(
+            layout="wide",
+            page_title="Aider",
+            page_icon=urls.favicon,
+            menu_items={
+                "Get Help": urls.website,
+                "Report a bug": "https://agentic-security.io/support",
+                "About": "# Aider\nAI pair programming in your browser.",
+            },
+        )
 
-    # Apply custom CSS for dark mode hacker style
-    st.markdown("""
+        # Apply custom CSS for dark mode hacker style
+        st.markdown("""
         <style>
         /* Dark mode background and text colors */
         .stApp {
@@ -591,7 +1158,11 @@ def gui_main():
         </style>
     """, unsafe_allow_html=True)
 
-    GUI()
+        GUI()
+    except Exception as e:
+        st.error(f"Error running GUI: {str(e)}")
+        return 1
+    return 0
 
 if __name__ == "__main__":
     status = gui_main()
