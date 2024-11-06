@@ -903,13 +903,106 @@ class GUI:
                                     share_output=share_output
                                 )
                             
-                            # Display results
-                            if stdout:
-                                st.text("Scan Output:")
-                                st.code(stdout)
-                            if stderr:
-                                st.error("Scan Errors:")
+                            # Check for common installation errors in stderr
+                            if stderr and any(x in stderr.lower() for x in ['not found', 'no such', 'command not found']):
+                                st.error("Tool not installed:")
                                 st.code(stderr)
+                                
+                                # Determine which tool is missing
+                                tool_name = command.split()[0]
+                                install_commands = {
+                                    'zap-cli': {
+                                        'pip': 'pip install python-owasp-zap-v2.4 zaproxy',
+                                        'apt': 'sudo apt-get install -y zaproxy',
+                                        'brew': 'brew install zaproxy'
+                                    },
+                                    'semgrep': {
+                                        'pip': 'pip install semgrep',
+                                        'apt': 'sudo apt-get install -y semgrep',
+                                        'brew': 'brew install semgrep'
+                                    },
+                                    'bandit': {
+                                        'pip': 'pip install bandit',
+                                        'apt': 'sudo apt-get install -y bandit',
+                                        'brew': 'brew install bandit'
+                                    },
+                                    'gitleaks': {
+                                        'pip': 'pip install gitleaks',
+                                        'apt': 'sudo apt-get install -y gitleaks',
+                                        'brew': 'brew install gitleaks'
+                                    },
+                                    'safety': {
+                                        'pip': 'pip install safety',
+                                        'apt': 'sudo apt-get install -y safety',
+                                        'brew': 'brew install safety'
+                                    },
+                                    'sslyze': {
+                                        'pip': 'pip install sslyze',
+                                        'apt': 'sudo apt-get install -y sslyze',
+                                        'brew': 'brew install sslyze'
+                                    },
+                                    'nmap': {
+                                        'apt': 'sudo apt-get install -y nmap',
+                                        'brew': 'brew install nmap',
+                                        'yum': 'sudo yum install -y nmap'
+                                    }
+                                }
+                                
+                                if tool_name in install_commands:
+                                    st.info("Installation options:")
+                                    
+                                    # Show installation commands
+                                    col1, col2 = st.columns(2)
+                                    with col1:
+                                        if 'pip' in install_commands[tool_name]:
+                                            if st.button(f"Install with pip", key=f"pip_{tool_name}"):
+                                                install_cmd = install_commands[tool_name]['pip']
+                                                with st.spinner(f"Installing {tool_name}..."):
+                                                    result = subprocess.run(install_cmd.split(), capture_output=True, text=True)
+                                                    if result.returncode == 0:
+                                                        st.success(f"✓ {tool_name} installed successfully")
+                                                    else:
+                                                        st.error(f"Failed to install: {result.stderr}")
+                                    
+                                    with col2:
+                                        if 'apt' in install_commands[tool_name]:
+                                            if st.button(f"Install with apt", key=f"apt_{tool_name}"):
+                                                install_cmd = install_commands[tool_name]['apt']
+                                                with st.spinner(f"Installing {tool_name}..."):
+                                                    result = subprocess.run(install_cmd.split(), capture_output=True, text=True)
+                                                    if result.returncode == 0:
+                                                        st.success(f"✓ {tool_name} installed successfully")
+                                                    else:
+                                                        st.error(f"Failed to install: {result.stderr}")
+                                    
+                                    # Show manual installation instructions
+                                    with st.expander("Manual Installation"):
+                                        st.markdown(f"""
+                                        ### Install {tool_name} manually:
+                                        
+                                        **Using pip:**
+                                        ```bash
+                                        {install_commands[tool_name].get('pip', '# Not available via pip')}
+                                        ```
+                                        
+                                        **Using apt (Ubuntu/Debian):**
+                                        ```bash
+                                        {install_commands[tool_name].get('apt', '# Not available via apt')}
+                                        ```
+                                        
+                                        **Using brew (macOS):**
+                                        ```bash
+                                        {install_commands[tool_name].get('brew', '# Not available via brew')}
+                                        ```
+                                        """)
+                            else:
+                                # Display normal results
+                                if stdout:
+                                    st.text("Scan Output:")
+                                    st.code(stdout)
+                                if stderr:
+                                    st.error("Scan Errors:")
+                                    st.code(stderr)
                             
                             # Handle AI feedback/sharing
                             if chat_msg:
