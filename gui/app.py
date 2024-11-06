@@ -826,8 +826,8 @@ class GUI:
             if not hasattr(self, 'security_handler'):
                 self.security_handler = SecurityHandler(self.coder)
             
-            # Render the new security panel
-            render_security_panel()
+            # Render the security panel with the coder instance
+            render_security_panel(coder=self.coder)
 
     def do_dev_tools(self):
         with st.sidebar.expander("Developer Tools", expanded=False):
