@@ -306,27 +306,20 @@ class GUI:
 
     def __init__(self):
         try:
-            # Initialize core components
+            # Initialize core components first
             self.coder = get_coder()
             self.state = get_state()
             
-            # Configure coder settings
-            if hasattr(self.coder, 'yield_stream'):
-                self.coder.yield_stream = True
-            if hasattr(self.coder, 'stream'):
-                self.coder.stream = True
-            if hasattr(self.coder, 'pretty'):
-                self.coder.pretty = False
-            
-            # Configure IO settings
-            if hasattr(self.coder, 'io'):
-                self.coder.io.yes = True
-                self.coder.io.no_interactive = True
-            
-            # Initialize handlers
+            # Initialize handlers before configuring them
             self.shell_handler = None
             self.github_handler = None
             self.security_handler = None
+            
+            # Configure coder settings safely
+            self._configure_coder()
+            
+            # Configure IO settings safely
+            self._configure_io()
             
             # Initialize state last
             self.initialize_state()
@@ -1265,3 +1258,25 @@ def gui_main():
 if __name__ == "__main__":
     status = gui_main()
     sys.exit(status)
+    def _configure_coder(self):
+        """Configure coder settings safely"""
+        if not hasattr(self, 'coder'):
+            return
+            
+        # Set streaming options
+        for attr in ['yield_stream', 'stream']:
+            if hasattr(self.coder, attr):
+                setattr(self.coder, attr, True)
+                
+        # Set pretty print option
+        if hasattr(self.coder, 'pretty'):
+            self.coder.pretty = False
+            
+    def _configure_io(self):
+        """Configure IO settings safely"""
+        if not hasattr(self, 'coder') or not hasattr(self.coder, 'io'):
+            return
+            
+        # Set IO options
+        self.coder.io.yes = True
+        self.coder.io.no_interactive = True
