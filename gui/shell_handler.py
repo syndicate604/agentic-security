@@ -10,7 +10,7 @@ class AiderShellHandler:
         self.coder = coder
         self.io = coder.commands.io
     
-    def run_shell_command(self, command: str, share_output: bool = True) -> Tuple[Optional[str], Optional[str]]:
+    def run_shell_command(self, command: str, share_output: bool = True) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """
         Execute a shell command and optionally share output with AI
         Returns: Tuple of (stdout, stderr)
