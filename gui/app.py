@@ -165,6 +165,7 @@ class GUI:
 
     def do_sidebar(self):
         with st.sidebar:
+            # Title
             st.markdown("""
             <h1 style='
                 font-family: "Courier New", monospace;
@@ -180,17 +181,38 @@ class GUI:
             S.P.A.R.C.
             </h1>            
             """, unsafe_allow_html=True)
+
+            # Chat Controls - Always visible
             self.do_add_to_chat()
             self.do_recent_msgs()
             self.do_clear_chat_history()
-            self.do_model_settings()
-            self.do_shell_commands()
-            self.do_github_actions() 
-            self.do_security_tools()  # Add security tools
-            self.do_dev_tools()
-            
+
+            # Main Tabs
+            chat_tab, tools_tab, settings_tab = st.tabs(["Chat", "Tools", "Settings"])
+
+            with chat_tab:
+                # Chat related panels
+                st.markdown("### Chat Controls")
+                # Chat controls already shown above
+
+            with tools_tab:
+                # Development and Security Tools
+                dev_security_tab, ops_tab = st.tabs(["Dev & Security", "Operations"])
+                
+                with dev_security_tab:
+                    self.do_security_tools()
+                    self.do_dev_tools()
+                
+                with ops_tab:
+                    self.do_shell_commands()
+                    self.do_github_actions()
+
+            with settings_tab:
+                # Settings and Configuration
+                self.do_model_settings()
+                
             st.warning(
-                "Created by rUv, bacause he could, with help from aider."
+                "Created by rUv, because he could, with help from aider."
             )
 
     def do_add_to_chat(self):
