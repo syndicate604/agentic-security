@@ -63,16 +63,34 @@ class AiderShellHandler:
                         "\nLet me know what aspects you'd like me to explain."
                     )
                 else:
-                    return stdout, stderr, (
-                        f"Command `{command}` output:\n```\n{output}\n```\n\n"
-                        "I'll provide an overview of this command output. "
-                        "I won't make any changes unless specifically asked.\n\n"
-                        "Would you like me to:\n"
-                        "- Explain what this output shows?\n"
-                        "- Help understand any warnings or errors?\n"
-                        "- Suggest related commands for more information?\n"
-                        "\nLet me know what you'd like to understand better."
-                    )
+                    # Provide command-specific guidance
+                    if command.startswith('ls'):
+                        return stdout, stderr, (
+                            f"Command `{command}` output:\n```\n{output}\n```\n\n"
+                            "This directory listing shows:\n"
+                            f"- {len(output.splitlines())-2} files/directories\n"
+                            "- Permissions (first column)\n"
+                            "- Owner and group (middle columns)\n"
+                            "- File sizes (in bytes)\n"
+                            "- Last modified dates\n"
+                            "- Names\n\n"
+                            "Would you like me to:\n"
+                            "- Explain specific file permissions?\n"
+                            "- Help understand file ownership?\n"
+                            "- Analyze disk usage patterns?\n"
+                            "- Suggest file organization improvements?\n"
+                        )
+                    else:
+                        return stdout, stderr, (
+                            f"Command `{command}` output:\n```\n{output}\n```\n\n"
+                            "I'll provide an overview of this command output. "
+                            "I won't make any changes unless specifically asked.\n\n"
+                            "Would you like me to:\n"
+                            "- Explain what this output shows?\n"
+                            "- Help understand any warnings or errors?\n"
+                            "- Suggest related commands for more information?\n"
+                            "\nLet me know what you'd like to understand better."
+                        )
             
             return stdout, stderr, None
             
