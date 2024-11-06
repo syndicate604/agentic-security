@@ -989,16 +989,78 @@ Please provide:
                 include_metrics = st.checkbox("Include Code Metrics", value=True)
                 suggest_alternatives = st.checkbox("Suggest Alternative Implementations", value=True)
                 
-            # Analyze button
-            if st.button("Analyze Code"):
-                # Build analysis prompt based on selections
-                prompt = f"""Perform a {depth.lower()} analysis of the {'provided code' if input_method == 'Paste Code' else 'repository'} focusing on:
-                
+            # Analysis execution options
+            st.markdown("### Execute Analysis")
+            col1, col2 = st.columns(2)
+            with col1:
+                run_tools = st.multiselect(
+                    "Run Tools",
+                    ["pylint", "bandit", "semgrep", "gitleaks", "pytest"],
+                    default=["pylint", "bandit"],
+                    help="Select tools to run during analysis"
+                )
+            with col2:
+                include_ai = st.checkbox("Include AI Analysis", value=True,
+                    help="Combine tool results with AI insights")
+            
+            # Run button with progress tracking
+            if st.button("Run Analysis", type="primary"):
+                if not analysis_type:
+                    st.error("Please select at least one Analysis Type")
+                    return
+                    
+                with st.spinner("Running analysis..."):
+                    results = []
+                    
+                    # Run selected tools
+                    if run_tools:
+                        for tool in run_tools:
+                            try:
+                                if tool == "pylint":
+                                    cmd = f"pylint {'.' if input_method == 'Current Files' else code}"
+                                    stdout, stderr, _ = self.shell_handler.run_shell_command(cmd)
+                                    if stdout:
+                                        results.append(f"Pylint Results:\n```\n{stdout}\n```")
+                                        
+                                elif tool == "bandit":
+                                    cmd = f"bandit -r {'.' if input_method == 'Current Files' else '-'}"
+                                    stdout, stderr, _ = self.shell_handler.run_shell_command(cmd)
+                                    if stdout:
+                                        results.append(f"Bandit Security Scan:\n```\n{stdout}\n```")
+                                        
+                                elif tool == "semgrep":
+                                    cmd = f"semgrep scan {'.' if input_method == 'Current Files' else '--stdin'}"
+                                    stdout, stderr, _ = self.shell_handler.run_shell_command(cmd)
+                                    if stdout:
+                                        results.append(f"Semgrep Analysis:\n```\n{stdout}\n```")
+                                        
+                                elif tool == "gitleaks":
+                                    cmd = "gitleaks detect -v"
+                                    stdout, stderr, _ = self.shell_handler.run_shell_command(cmd)
+                                    if stdout:
+                                        results.append(f"Gitleaks Secrets Detection:\n```\n{stdout}\n```")
+                                        
+                                elif tool == "pytest":
+                                    cmd = "python -m pytest --verbose"
+                                    stdout, stderr, _ = self.shell_handler.run_shell_command(cmd)
+                                    if stdout:
+                                        results.append(f"Pytest Results:\n```\n{stdout}\n```")
+                                        
+                            except Exception as e:
+                                st.error(f"Error running {tool}: {str(e)}")
+                    
+                    # Build AI analysis prompt
+                    if include_ai:
+                        prompt = f"""Perform a {depth.lower()} analysis of the {'provided code' if input_method == 'Paste Code' else 'repository'} focusing on:
+                        
 Analysis Types:
 {chr(10).join(f'- {t}' for t in analysis_type)}
 
 Focus Areas:
 {chr(10).join(f'- {f}' for f in focus)}
+
+Tool Results:
+{chr(10).join(results) if results else 'No tool results available'}
 
 Please provide:
 {chr(10).join(f'- {o}' for o in output_format)}
@@ -1008,16 +1070,26 @@ Please provide:
 
 {'Custom Rules to apply:' + chr(10) + custom_rules if custom_rules else ''}
 {'Ignore patterns:' + chr(10) + ignore_patterns if ignore_patterns else ''}
-
 """
-                if input_method == "Paste Code":
-                    prompt += f"\nCode to analyze:\n```\n{code}\n```"
-                elif input_method == "GitHub URL":
-                    prompt += f"\nAnalyze repository: {repo_url}"
-                
-                # Set the prompt for processing
-                self.prompt = prompt
-                self.prompt_as = "user"
+                        if input_method == "Paste Code":
+                            prompt += f"\nCode to analyze:\n```\n{code}\n```"
+                        elif input_method == "GitHub URL":
+                            prompt += f"\nAnalyze repository: {repo_url}"
+                        
+                        # Set the prompt for AI processing
+                        self.prompt = prompt
+                        self.prompt_as = "user"
+                        
+                        # Show success message
+                        st.success("Analysis complete! AI is processing results...")
+                    else:
+                        # Display tool results directly
+                        if results:
+                            st.markdown("### Analysis Results")
+                            for result in results:
+                                st.markdown(result)
+                        else:
+                            st.warning("No results generated. Please check tool selection and input.")
 
     def do_dev_tools(self):
         with st.sidebar.expander("Developer Tools", expanded=False):
