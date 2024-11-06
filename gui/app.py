@@ -185,11 +185,12 @@ class GUI:
             """, unsafe_allow_html=True)
             
             # Create main tabs for better organization
-            chat_tab, tools_tab = st.tabs(["Chat & Files", "Tools & Settings"])
+            chat_tab, tools_tab = st.tabs(["Chat", "Tools & Settings"])
             
             with chat_tab:
                 # Chat related sections
-                self.do_add_to_chat()
+                self.do_add_files()
+                self.do_recent_msgs()
                 self.do_clear_chat_history()
             
             with tools_tab:
@@ -219,62 +220,8 @@ class GUI:
             )
 
     def do_add_to_chat(self):
-        # Create tabs for file management, documentation and recent messages
-        files_tab, docs_tab, recent_tab = st.tabs(["Files", "Documentation", "Recent"])
-        
-        with files_tab:
-            self.do_add_files()
-            self.do_add_web_page()
-            
-        with docs_tab:
-            # Quick Start accordion
-            with st.expander("🚀 Quick Start Guide", expanded=True):
-                st.markdown("""
-                1. Add files to edit in the Files tab
-                2. Type your request in the chat
-                3. Review and confirm changes
-                """)
-            
-            # Features accordion
-            with st.expander("✨ Features"):
-                st.markdown("""
-                - Real-time code editing
-                - Git integration
-                - Security scanning
-                - Shell commands
-                - GitHub Actions
-                """)
-            
-            # Tips accordion
-            with st.expander("💡 Tips & Best Practices"):
-                st.markdown("""
-                - Use clear, specific requests
-                - Review diffs before confirming
-                - Check security scan results
-                - Keep chat context focused
-                """)
-                
-            # Keyboard Shortcuts accordion
-            with st.expander("⌨️ Keyboard Shortcuts"):
-                st.markdown("""
-                - `Ctrl + Enter`: Submit chat
-                - `Ctrl + Z`: Undo last change
-                - `Ctrl + /`: Toggle sidebar
-                - `Ctrl + F`: Search in files
-                """)
-                
-            # Common Commands accordion
-            with st.expander("🔧 Common Commands"):
-                st.markdown("""
-                - `/help`: Show help
-                - `/clear`: Clear chat history
-                - `/undo`: Undo last change
-                - `/add <file>`: Add file to chat
-                - `/run <cmd>`: Run shell command
-                """)
-            
-        with recent_tab:
-            self.do_recent_msgs()
+        self.do_add_files()
+        self.do_add_web_page()
 
     def do_add_files(self):
         fnames = st.multiselect(
