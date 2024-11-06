@@ -451,8 +451,8 @@ class GUI:
                     [
                         "gpt-4",
                         "gpt-4-32k",
-                        "gpt-4-1106-preview",
-                        "gpt-4-0125-preview",
+                        "gpt-4-1106-preview",  # GPT-4 Turbo
+                        "gpt-4-0125-preview",  # Latest GPT-4 Preview
                         "gpt-3.5-turbo",
                         "gpt-3.5-turbo-16k",
                         "gpt-3.5-turbo-1106"
@@ -460,7 +460,7 @@ class GUI:
                     index=0,
                     key="openai_model_selection"
                 )
-            else:
+            else:  # Anthropic
                 model = st.selectbox(
                     "Select Model",
                     [
@@ -476,24 +476,32 @@ class GUI:
 
             # Model switching
             if st.button("Switch Model"):
-                original_stdout = sys.stdout
-                sys.stdout = io.StringIO()
-                
                 try:
+                    # Store current model info before switching
+                    old_model = self.coder.main_model
+                    
+                    # Attempt to switch model
                     self.coder.commands.cmd_model(model)
-                    self.info(f"Switched to {model}")
+                    
+                    # Force reload coder with new model
+                    st.cache_resource.clear()
+                    self.coder = get_coder()
+                    
+                    # Update state and display info
+                    self.state.init("current_model", model)
+                    self.info(f"Switched from {old_model} to {model}")
+                    
+                    # Add system message about model switch
+                    self.state.messages.append({
+                        "role": "system",
+                        "content": f"Model switched from {old_model} to {model}"
+                    })
+                    
+                    # Force UI update
+                    st.rerun()
+                    
                 except Exception as e:
-                    if "SwitchCoder" in str(type(e)):
-                        # Handle model switch by reinitializing the coder
-                        self.state.init("current_model", model)
-                        # Force reload of coder with new model
-                        if hasattr(st, 'cache_resource'):
-                            st.cache_resource.clear()
-                        self.coder = get_coder()
-                        self.info(f"Successfully switched to {model}")
-                    else:
-                        self.info(f"Error switching model: {str(e)}")
-                finally:
+                    self.info(f"Error switching model: {str(e)}")
                     # Restore stdout
                     sys.stdout = original_stdout
 
