@@ -31,7 +31,9 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile"
+    "pretest": "npm run compile",
+    "dev": "npm run watch",
+    "start": "npm run compile && code --extensionDevelopmentPath=${PWD}"
   },
   "devDependencies": {
     "@types/vscode": "^1.74.0",
