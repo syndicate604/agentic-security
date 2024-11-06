@@ -997,7 +997,129 @@ def gui_main():
                 "Report a bug": "https://agentic-security.io/support",
                 "About": "# Aider\nAI pair programming in your browser.",
             },
+            initial_sidebar_state="expanded",
         )
+
+        # Enable dark mode globally
+        st.markdown("""
+            <style>
+                [data-testid="stSidebar"] {
+                    background-color: #0E1117;
+                }
+                
+                [data-testid="stToolbar"] {
+                    background-color: #0E1117;
+                }
+                
+                .stApp {
+                    background-color: #0E1117;
+                }
+                
+                .stMarkdown, .stText {
+                    color: #FAFAFA;
+                }
+                
+                button[data-baseweb="tab"] {
+                    background-color: #0E1117;
+                    color: #FAFAFA;
+                }
+                
+                button[data-baseweb="tab"]:hover {
+                    background-color: #262730;
+                }
+                
+                .stSelectbox > div > div {
+                    background-color: #262730;
+                    color: #FAFAFA;
+                }
+                
+                .stTextInput > div > div > input {
+                    background-color: #262730;
+                    color: #FAFAFA;
+                }
+                
+                .stTextArea > div > div > textarea {
+                    background-color: #262730;
+                    color: #FAFAFA;
+                }
+                
+                .stNumberInput > div > div > input {
+                    background-color: #262730;
+                    color: #FAFAFA;
+                }
+                
+                .stDateInput > div > div > input {
+                    background-color: #262730;
+                    color: #FAFAFA;
+                }
+                
+                .stTimeInput > div > div > input {
+                    background-color: #262730;
+                    color: #FAFAFA;
+                }
+                
+                .stFileUploader > div > div {
+                    background-color: #262730;
+                    color: #FAFAFA;
+                }
+                
+                .stDataFrame {
+                    background-color: #262730;
+                    color: #FAFAFA;
+                }
+                
+                .stTable {
+                    background-color: #262730;
+                    color: #FAFAFA;
+                }
+                
+                .stAlert {
+                    background-color: #262730;
+                    color: #FAFAFA;
+                }
+                
+                .stProgress > div > div > div > div {
+                    background-color: #262730;
+                }
+                
+                .stDownloadButton > button {
+                    background-color: #262730;
+                    color: #FAFAFA;
+                }
+                
+                .stExpander > div > div {
+                    background-color: #262730;
+                    color: #FAFAFA;
+                }
+                
+                .streamlit-expanderHeader {
+                    background-color: #262730;
+                    color: #FAFAFA;
+                }
+                
+                .stWidgetLabel {
+                    color: #FAFAFA;
+                }
+                
+                .stRadio > div {
+                    background-color: #262730;
+                    color: #FAFAFA;
+                }
+                
+                .stCheckbox > div > label {
+                    color: #FAFAFA;
+                }
+                
+                .stSlider > div {
+                    color: #FAFAFA;
+                }
+                
+                .stMultiSelect > div > div {
+                    background-color: #262730;
+                    color: #FAFAFA;
+                }
+            </style>
+        """, unsafe_allow_html=True)
 
         # Apply custom CSS for dark mode hacker style
         st.markdown("""
