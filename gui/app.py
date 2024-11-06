@@ -189,8 +189,7 @@ class GUI:
             self.do_dev_tools()
             
             st.warning(
-                "This browser version of aider is experimental. Please share feedback in [GitHub"
-                " issues](https://github.com/Aider-AI/aider/issues)."
+                "Created by rUv, bacause he could, with help from aider."
             )
 
     def do_add_to_chat(self):
