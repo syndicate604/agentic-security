@@ -838,6 +838,12 @@ class GUI:
                     if stderr:
                         st.error("Scan Errors:")
                         st.code(stderr)
+                    
+                    # Add scan results to chat with guidance
+                    if chat_msg:
+                        self.prompt = chat_msg
+                        self.prompt_as = "text"
+                        st.info("✓ Analyzing scan results...")
 
     def do_dev_tools(self):
         with st.sidebar.expander("Developer Tools", expanded=False):
