@@ -599,7 +599,7 @@ class GUI:
             with col1:
                 share_output = st.checkbox("Share with AI", value=True, key="gh_share")
             with col2:
-                get_feedback = st.checkbox("Get AI Feedback", key="gh_feedback")
+                get_feedback = st.checkbox("Get AI Feedback", value=True, key="gh_feedback")
             
             # Run button
             if st.button("Run GitHub Command") and command:
@@ -922,7 +922,7 @@ class GUI:
                 with col1:
                     share_output = st.checkbox("Share with AI", value=True, key="dev_share")
                 with col2:
-                    get_feedback = st.checkbox("Get AI Feedback", key="dev_feedback")
+                    get_feedback = st.checkbox("Get AI Feedback", value=True, key="dev_feedback")
                 
                 # Run button
                 if st.button("Run Dev Command") and command:
