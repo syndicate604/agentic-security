@@ -195,12 +195,35 @@ class GUI:
             )
 
     def do_add_to_chat(self):
-        # Create tabs for file management and recent messages
-        files_tab, recent_tab = st.tabs(["Files", "Recent"])
+        # Create tabs for file management, documentation and recent messages
+        files_tab, docs_tab, recent_tab = st.tabs(["Files", "Documentation", "Recent"])
         
         with files_tab:
             self.do_add_files()
             self.do_add_web_page()
+            
+        with docs_tab:
+            st.markdown("""
+            ### Project Documentation
+            
+            **Quick Start:**
+            1. Add files to edit in the Files tab
+            2. Type your request in the chat
+            3. Review and confirm changes
+            
+            **Features:**
+            - Real-time code editing
+            - Git integration
+            - Security scanning
+            - Shell commands
+            - GitHub Actions
+            
+            **Tips:**
+            - Use clear, specific requests
+            - Review diffs before confirming
+            - Check security scan results
+            - Keep chat context focused
+            """)
             
         with recent_tab:
             self.do_recent_msgs()
