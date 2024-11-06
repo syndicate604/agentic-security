@@ -1175,14 +1175,16 @@ def gui_main():
 
         /* Chat input container background */
         [data-testid="stChatInputContainer"], 
-        [data-testid="stChatInputContainer"] > div {
+        [data-testid="stChatInputContainer"] > div,
+        .stBottom.st-emotion-cache-1p2n2i4.ea3mdgi7 {
             background-color: #0a0a0a !important;
             border-top: 1px solid #00ff00 !important;
             padding-top: 1rem !important;
         }
 
         /* Ensure all nested divs in chat input are dark */
-        [data-testid="stChatInputContainer"] div {
+        [data-testid="stChatInputContainer"] div,
+        .stBottom.st-emotion-cache-1p2n2i4.ea3mdgi7 div {
             background-color: #0a0a0a !important;
         }
         </style>
