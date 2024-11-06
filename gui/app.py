@@ -817,33 +817,14 @@ class GUI:
     def do_security_tools(self):
         """Add security panel to sidebar"""
         from security_handler import SecurityHandler
+        from security_panel import render_security_panel
         
         with st.sidebar.expander("Security Tools", expanded=False):
             if not hasattr(self, 'security_handler'):
                 self.security_handler = SecurityHandler(self.coder)
-                
-            # Basic security scan options
-            scan_type = st.selectbox(
-                "Security Scan Type",
-                ["Select scan...", "bandit", "safety"]
-            )
             
-            if st.button("Run Security Scan") and scan_type != "Select scan...":
-                with st.spinner(f"Running {scan_type} scan..."):
-                    stdout, stderr, chat_msg = self.security_handler.run_security_scan(scan_type)
-                    
-                    if stdout:
-                        st.text("Scan Results:")
-                        st.code(stdout)
-                    if stderr:
-                        st.error("Scan Errors:")
-                        st.code(stderr)
-                    
-                    # Add scan results to chat with guidance
-                    if chat_msg:
-                        self.prompt = chat_msg
-                        self.prompt_as = "text"
-                        st.info("✓ Analyzing scan results...")
+            # Render the new security panel
+            render_security_panel()
 
     def do_dev_tools(self):
         with st.sidebar.expander("Developer Tools", expanded=False):
