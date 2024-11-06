@@ -977,19 +977,20 @@ Please provide:
             )
             
             # Advanced options
-            with st.expander("Advanced Analysis Options"):
-                ignore_patterns = st.text_input(
-                    "Ignore Patterns",
-                    placeholder="*.test.py,*_test.go"
-                )
-                custom_rules = st.text_area(
-                    "Custom Analysis Rules",
-                    placeholder="One rule per line"
-                )
-                include_metrics = st.checkbox("Include Code Metrics", value=True)
-                suggest_alternatives = st.checkbox("Suggest Alternative Implementations", value=True)
+            st.markdown("### Advanced Options")
+            ignore_patterns = st.text_input(
+                "Ignore Patterns",
+                placeholder="*.test.py,*_test.go"
+            )
+            custom_rules = st.text_area(
+                "Custom Analysis Rules",
+                placeholder="One rule per line"
+            )
+            include_metrics = st.checkbox("Include Code Metrics", value=True)
+            suggest_alternatives = st.checkbox("Suggest Alternative Implementations", value=True)
                 
-            # Analysis execution options
+            # Analysis execution options with divider
+            st.markdown("---")
             st.markdown("### Execute Analysis")
             col1, col2 = st.columns(2)
             with col1:
