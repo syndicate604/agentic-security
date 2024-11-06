@@ -813,6 +813,31 @@ class GUI:
             """)
 
 
+    def do_security_tools(self):
+        """Add security panel to sidebar"""
+        from security_handler import SecurityHandler
+        
+        with st.sidebar.expander("Security Tools", expanded=False):
+            if not hasattr(self, 'security_handler'):
+                self.security_handler = SecurityHandler(self.coder)
+                
+            # Basic security scan options
+            scan_type = st.selectbox(
+                "Security Scan Type",
+                ["Select scan...", "bandit", "safety"]
+            )
+            
+            if st.button("Run Security Scan") and scan_type != "Select scan...":
+                with st.spinner(f"Running {scan_type} scan..."):
+                    stdout, stderr = self.security_handler.run_security_scan(scan_type)
+                    
+                    if stdout:
+                        st.text("Scan Results:")
+                        st.code(stdout)
+                    if stderr:
+                        st.error("Scan Errors:")
+                        st.code(stderr)
+
     def do_dev_tools(self):
         with st.sidebar.expander("Developer Tools", expanded=False):
             # Specialized command categories
