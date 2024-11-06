@@ -190,7 +190,7 @@ class GUI:
             self.do_dev_tools()
             
             st.warning(
-                "Created by rUv, bacause he could, with help from aider."
+                "Created by rUv, 'cause he could, with help from aider."
             )
 
     def do_add_to_chat(self):
