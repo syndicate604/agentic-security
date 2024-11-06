@@ -35,9 +35,10 @@ class AiderShellHandler:
             # Share with AI if requested and there's output
             if share_output and (stdout or stderr):
                 output = stdout if stdout else stderr
-                self.coder.run(f"Command output:\n```\n{output}\n```")
+                # Return the output to be handled by GUI's chat system
+                return stdout, stderr, f"Command output:\n```\n{output}\n```"
             
-            return stdout, stderr
+            return stdout, stderr, None
             
         except Exception as e:
             error_msg = str(e)

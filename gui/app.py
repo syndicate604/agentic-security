@@ -479,7 +479,7 @@ class GUI:
                         
                         else:
                             # Run without feedback
-                            stdout, stderr = self.shell_handler.run_shell_command(
+                            stdout, stderr, chat_msg = self.shell_handler.run_shell_command(
                                 command, 
                                 share_output=share_output
                             )
@@ -495,10 +495,9 @@ class GUI:
                             if not stdout and not stderr:
                                 st.info("Command executed successfully with no output")
                             
-                            # Add to chat if sharing is enabled
-                            if share_output and (stdout or stderr):
-                                output = stdout if stdout else stderr
-                                self.prompt = f"Command output:\n```\n{output}\n```"
+                            # Add to chat if sharing is enabled and we have a chat message
+                            if share_output and chat_msg:
+                                self.prompt = chat_msg
                                 self.prompt_as = "text"
                                 
                     except Exception as e:
