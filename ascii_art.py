@@ -1,6 +1,45 @@
 import random
 import time
 
+# Pre-made ASCII art patterns
+PATTERNS = {
+    "mountain": """
+    /\\
+   /  \\
+  /    \\
+ /      \\
+/________\\
+""",
+    "heart": """
+ /\\  /\\
+ \\/\\/\\/
+  \\  /
+   \\/
+""",
+    "castle": """
+    /\\
+   /  \\
+  /----\\
+ /|  |  \\
+ ||  |  ||
+=||==|==||=
+""",
+    "star": """
+    *
+   /|\\
+  /*|*\\
+ /*/*\\*\\
+/*/*/*\\*\\
+""",
+}
+
+def show_pattern(name):
+    """Display a pre-made ASCII art pattern"""
+    if name in PATTERNS:
+        print(PATTERNS[name])
+    else:
+        print("Available patterns:", ", ".join(PATTERNS.keys()))
+
 def generate_random_art(width=40, height=15):
     """Generate random ASCII art using #/@ characters"""
     characters = '#/@*+='
@@ -24,5 +63,11 @@ def animate_art(frames=10, delay=0.2):
         print("\nArt show stopped!")
 
 if __name__ == "__main__":
-    print("ASCII Art Show!")
-    animate_art()
+    print("ASCII Art Gallery!")
+    print("\nPre-made patterns:")
+    for pattern_name in PATTERNS:
+        print(f"\n{pattern_name.upper()}:")
+        show_pattern(pattern_name)
+    
+    print("\nRandom Art Show:")
+    animate_art(frames=5)
