@@ -134,6 +134,7 @@ class GUI:
             self.do_add_to_chat()
             self.do_recent_msgs()
             self.do_clear_chat_history()
+            self.do_model_settings()
             st.warning(
                 "This browser version of aider is experimental. Please share feedback in [GitHub"
                 " issues](https://github.com/Aider-AI/aider/issues)."
@@ -374,6 +375,30 @@ class GUI:
         else:
             self.info(f"No web content found for `{url}`.")
             self.web_content = None
+
+    def do_model_settings(self):
+        with st.sidebar.expander("Model Settings", expanded=False):
+            # Model selection
+            model = st.selectbox(
+                "Select Model",
+                ["gpt-4", "gpt-3.5-turbo", "gpt-4-32k"],
+                index=0,
+                key="model_selection"
+            )
+            if st.button("Switch Model"):
+                self.coder.commands.cmd_model(model)
+                self.info(f"Switched to {model}")
+            
+            # Temperature setting
+            temperature = st.slider(
+                "Temperature",
+                min_value=0.0,
+                max_value=2.0,
+                value=0.7,
+                step=0.1
+            )
+            if st.button("Update Temperature"):
+                self.coder.commands.set_temperature(temperature)
 
     def do_undo(self, commit_hash):
         self.last_undo_empty.empty()
