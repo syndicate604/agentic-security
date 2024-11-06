@@ -17,17 +17,42 @@ class SecurityHandler:
                     capture_output=True,
                     text=True
                 )
-                # Enhanced chat message for Bandit results
+                # Enhanced chat message with specific vulnerability guidance
                 chat_msg = (
                     f"I've completed a Bandit security scan. Here's the analysis:\n\n"
                     f"```\n{result.stdout.strip()}\n```\n\n"
-                    "I can help you:\n"
-                    "1. Explain any security issues found\n"
-                    "2. Prioritize vulnerabilities by severity\n"
-                    "3. Suggest specific fixes for each issue\n"
-                    "4. Recommend security best practices\n"
-                    "5. Help implement the fixes\n\n"
-                    "What would you like me to focus on?"
+                    "I can help you address specific vulnerabilities:\n\n"
+                    "1. SQL Injection\n"
+                    "   - Identify unsafe database queries\n"
+                    "   - Convert to parameterized queries\n"
+                    "   - Implement proper input validation\n"
+                    "   - Add query sanitization\n\n"
+                    "2. Command Injection\n"
+                    "   - Review subprocess calls\n"
+                    "   - Implement safe command execution\n"
+                    "   - Add input sanitization\n"
+                    "   - Use shell=False in subprocess\n\n"
+                    "3. Cross-Site Scripting (XSS)\n"
+                    "   - Verify HTML escaping\n"
+                    "   - Review template usage\n"
+                    "   - Implement Content Security Policy\n"
+                    "   - Use secure template engines\n\n"
+                    "4. Password Security\n"
+                    "   - Check password storage methods\n"
+                    "   - Implement proper hashing (bcrypt/Argon2)\n"
+                    "   - Add salt to passwords\n"
+                    "   - Set up password policies\n\n"
+                    "5. Input Validation\n"
+                    "   - Review validation logic\n"
+                    "   - Implement strong validation\n"
+                    "   - Add type checking\n"
+                    "   - Sanitize all inputs\n\n"
+                    "6. General Security\n"
+                    "   - Review error handling\n"
+                    "   - Check access controls\n"
+                    "   - Audit logging practices\n"
+                    "   - Update dependencies\n\n"
+                    "Which security issue would you like me to help fix first?"
                 )
                 return result.stdout.strip(), result.stderr.strip(), chat_msg
                 
