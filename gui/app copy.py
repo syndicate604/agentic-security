@@ -1155,6 +1155,29 @@ def gui_main():
         .css-1d391kg hr {
             border-color: #00ff00 !important;
         }
+
+        /* Aria popup menus */
+        [aria-haspopup="true"] {
+            background-color: #0a0a0a !important;
+            color: #00ff00 !important;
+            border-color: #00ff00 !important;
+        }
+
+        [aria-haspopup="true"]:hover {
+            background-color: #1a1a1a !important;
+            border-color: #33ff33 !important;
+        }
+
+        [aria-haspopup="listbox"] {
+            background-color: #0a0a0a !important;
+            color: #00ff00 !important;
+            border-color: #00ff00 !important;
+        }
+
+        [aria-haspopup="listbox"]:hover {
+            background-color: #1a1a1a !important;
+            border-color: #33ff33 !important;
+        }
         </style>
     """, unsafe_allow_html=True)
 
