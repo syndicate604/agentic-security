@@ -185,6 +185,7 @@ class GUI:
             self.do_clear_chat_history()
             self.do_model_settings()
             self.do_shell_commands()
+            self.do_github_actions()
             
             st.warning(
                 "This browser version of aider is experimental. Please share feedback in [GitHub"
@@ -554,6 +555,123 @@ class GUI:
                 - `ls -la`
                 
                 **Note**: Commands are executed in the current working directory
+                """)
+
+    def do_github_actions(self):
+        from github_handler import GitHubActionsHandler
+        
+        with st.sidebar.expander("GitHub Actions", expanded=False):
+            # Initialize GitHub handler if needed
+            if not hasattr(self, 'github_handler'):
+                self.github_handler = GitHubActionsHandler(self.coder)
+            
+            # Common GitHub Actions commands
+            github_commands = {
+                "List Workflows": "gh workflow list",
+                "View Recent Runs": "gh run list",
+                "List Secrets": "gh secret list",
+                "List Variables": "gh variable list",
+                "View Repository Status": "gh repo view",
+                "List Pull Requests": "gh pr list",
+                "List Issues": "gh issue list",
+                "View CI Status": "gh status",
+                "List Contributors": "gh contributor list",
+                "View Repository Settings": "gh repo view --json name,description,visibility"
+            }
+            
+            selected_action = st.selectbox(
+                "Common GitHub Actions",
+                options=["Select an action..."] + list(github_commands.keys()),
+                key="github_actions"
+            )
+            
+            # Command input with auto-fill from dropdown
+            command = st.text_input(
+                "GitHub Command:", 
+                value=github_commands.get(selected_action, ""),
+                placeholder="gh workflow list",
+                help="Enter a GitHub CLI command to execute."
+            )
+            
+            # Command options
+            col1, col2 = st.columns(2)
+            with col1:
+                share_output = st.checkbox("Share with AI", value=True, key="gh_share")
+            with col2:
+                get_feedback = st.checkbox("Get AI Feedback", key="gh_feedback")
+            
+            # Run button
+            if st.button("Run GitHub Command") and command:
+                with st.spinner("Running command..."):
+                    try:
+                        if get_feedback:
+                            # Run with AI feedback
+                            stdout, stderr, chat_msg = self.shell_handler.run_with_ai_feedback(command)
+                            
+                            # Display command output
+                            if stdout:
+                                st.text("Command Output:")
+                                st.code(stdout)
+                            if stderr:
+                                st.error("Error Output:")
+                                st.code(stderr)
+                            
+                            # If we have output and a chat message, process it through the chat
+                            if chat_msg:
+                                self.prompt = chat_msg
+                                self.prompt_as = "text"
+                                st.info("✓ Analyzing GitHub Actions output...")
+                        
+                        else:
+                            # Run without feedback
+                            stdout, stderr, chat_msg = self.shell_handler.run_shell_command(
+                                command, 
+                                share_output=share_output
+                            )
+                            
+                            # Display results
+                            if stdout:
+                                st.text("Command Output:")
+                                st.code(stdout)
+                                if share_output:
+                                    st.info("✓ Output shared with AI")
+                            if stderr:
+                                st.error("Error Output:")
+                                st.code(stderr)
+                                if share_output:
+                                    st.info("✓ Error shared with AI")
+                            
+                            if not stdout and not stderr:
+                                st.info("Command executed successfully with no output")
+                            
+                            # Add to chat if sharing is enabled and we have a chat message
+                            if share_output and chat_msg:
+                                self.prompt = (
+                                    f"GitHub command: `{command}`\n\n"
+                                    f"{chat_msg}\n\n"
+                                    "Please let me know what specific aspects of this output "
+                                    "you'd like me to explain or what assistance you need."
+                                )
+                                self.prompt_as = "text"
+                                
+                    except Exception as e:
+                        st.error(f"Error executing GitHub command: {str(e)}")
+            
+            # Help text in a container
+            with st.container():
+                st.markdown("""
+                ### GitHub Actions Help
+                
+                **Available Options:**
+                - **Share with AI**: Adds command output to the chat
+                - **Get AI Feedback**: Gets AI analysis of the command output
+                
+                **Example Commands:**
+                - `gh workflow list`
+                - `gh run list`
+                - `gh repo view`
+                
+                **Note**: Commands require GitHub CLI (`gh`) to be installed and authenticated
                 """)
 
     def do_model_settings(self):
