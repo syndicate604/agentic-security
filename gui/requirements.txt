@@ -11,3 +11,7 @@ netifaces>=0.11.0  # For network interface info
 gitpython>=3.1.40  # For advanced git operations
 memory-profiler>=0.61.0  # For detailed memory analysis
 py-cpuinfo>=9.0.0  # For CPU information
+python-owasp-zap-v2.4>=0.4.0  # For OWASP ZAP integration
+zaproxy>=0.3.0  # ZAP API client
+trufflehog>=3.63.2  # For secrets scanning
+nuclei>=2.9.1  # For vulnerability scanning
