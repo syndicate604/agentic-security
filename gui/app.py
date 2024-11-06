@@ -386,14 +386,20 @@ class GUI:
             command = st.text_input("Shell Command:", placeholder="/run python test.py")
             share_output = st.checkbox("Share output with AI", value=True)
             
-            if st.button("Run Command"):
+            if st.button("Run Command") and command:  # Only run if command is not empty
                 with st.spinner("Running command..."):
-                    output = self.coder.commands.cmd_run(command)
-                    if share_output:
-                        self.prompt = f"Command output:\n```\n{output}\n```"
-                        self.prompt_as = "text"
-                    else:
-                        st.code(output)
+                    try:
+                        output = self.coder.commands.cmd_run(command)
+                        if output:  # Only process if there is output
+                            if share_output:
+                                self.prompt = f"Command output:\n```\n{output}\n```"
+                                self.prompt_as = "text"
+                            else:
+                                st.code(output)
+                        else:
+                            st.info("Command executed successfully with no output")
+                    except Exception as e:
+                        st.error(f"Error executing command: {str(e)}")
 
     def do_model_settings(self):
         with st.sidebar.expander("Model Settings", expanded=False):
