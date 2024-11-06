@@ -185,6 +185,22 @@ class GUI:
             self.do_clear_chat_history()
             self.do_model_settings()
             self.do_shell_commands()
+            
+            # GitHub Actions placeholder
+            with st.sidebar.expander("GitHub Actions", expanded=False):
+                st.info("GitHub Actions integration coming soon!")
+                st.markdown("""
+                Future features:
+                - View workflow status
+                - Trigger workflows
+                - View workflow logs
+                - Configure workflow settings
+                """)
+                
+                # Disabled placeholder button
+                st.button("Refresh Workflows", disabled=True)
+                st.button("Configure Actions", disabled=True)
+            
             st.warning(
                 "This browser version of aider is experimental. Please share feedback in [GitHub"
                 " issues](https://github.com/Aider-AI/aider/issues)."
