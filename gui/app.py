@@ -186,6 +186,7 @@ class GUI:
             self.do_model_settings()
             self.do_shell_commands()
             self.do_github_actions() 
+            self.do_security_tools()  # Add security tools
             self.do_dev_tools()
             
             st.warning(
