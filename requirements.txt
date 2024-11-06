@@ -1,4 +1,4 @@
-semgrep
-bandit
-safety
-# gitleaks  # Commented out since it could not be installed
+# ... other dependencies ...
+importlib-metadata==7.2.1
+rich==13.9.3
+# ... other dependencies ...
