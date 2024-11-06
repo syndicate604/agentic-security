@@ -166,13 +166,6 @@ class GUI:
     def do_sidebar(self):
         with st.sidebar:
             st.markdown("""
-            ```
-             /\\___/\\
-            ( o   o )
-            (  =^=  )
-            ```
-            """)
-            st.markdown("""
             <h1 style='
                 font-family: "Courier New", monospace;
                 color: #00ff00;
