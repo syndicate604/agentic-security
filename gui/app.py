@@ -78,7 +78,10 @@ class GUI:
     recent_msgs_empty = None
     web_content_empty = None
 
-    def announce(self):
+    def announce(self, force_update=False):
+        if force_update:
+            # Force refresh of announcements to reflect new model
+            self.coder.update_announcements()
         lines = self.coder.get_announcements()
         lines = "  \n".join(lines)
         return lines
@@ -420,6 +423,9 @@ class GUI:
                 if st.button("Switch Model"):
                     self.coder.commands.cmd_model(model)
                     self.info(f"Switched to {model}")
+                    # Update the announcement message with new model info
+                    new_announcement = self.announce(force_update=True)
+                    self.state.messages[0] = dict(role="info", content=new_announcement)
 
             # Model settings
             with st.container():
