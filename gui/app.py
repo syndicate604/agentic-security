@@ -77,6 +77,24 @@ def get_coder():
             else:
                 coder = main.main(return_coder=True)
         else:
+            # Create default config if missing
+            if not os.path.exists('config.yml'):
+                default_config = {
+                    'security': {
+                        'critical_threshold': 7.0,
+                        'max_fix_attempts': 3
+                    },
+                    'ai': {
+                        'models': {
+                            'architecture_review': 'gpt-4-1106-preview',
+                            'fix_implementation': 'claude-3-sonnet-20240229'
+                        }
+                    }
+                }
+                with open('config.yml', 'w') as f:
+                    yaml.dump(default_config, f)
+                st.info("Created default config.yml")
+            
             coder = main.main(return_coder=True)
             
         if not isinstance(coder, coders.Coder):
