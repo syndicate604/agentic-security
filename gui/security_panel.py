@@ -2,6 +2,7 @@ import streamlit as st
 import datetime
 import json
 from typing import Dict, List, Optional
+from security_handler import SecurityHandler
 
 def get_ai_security_analysis(scan_results: dict, scan_type: str) -> str:
     """Format security scan results for AI analysis"""
@@ -29,7 +30,11 @@ Please provide:
 What would you like me to explain first?"""
 
 def render_security_panel(coder=None):
-    """Render the security scanning interface"""
+    """Render the security scanning interface with enhanced handler integration"""
+    # Initialize security handler if coder provided
+    security_handler = None
+    if coder:
+        security_handler = SecurityHandler(coder)
     with st.container():
         st.markdown("## Security Scanner")
         
@@ -207,16 +212,13 @@ def render_security_panel(coder=None):
                    - Systemic issues
                 """)
             
-            # Generate and download report
-            if save_report:
+            # Generate and download report using security handler
+            if save_report and security_handler:
                 try:
-                    from report_generator import SecurityReportGenerator
-                    
-                    # Collect all scan data
-                    report_data = {
-                        'scan_results': scan_results,
-                        'vulnerabilities': vulnerabilities,
-                        'dependencies': {
+                    report_content = security_handler.generate_report(
+                        scan_results=scan_results,
+                        vulnerabilities=vulnerabilities,
+                        dependencies={
                             pkg: {
                                 'version': ver,
                                 'status': status,
@@ -227,55 +229,19 @@ def render_security_panel(coder=None):
                                 ["Up to date", "Update available", "Vulnerable"],
                                 ["Low", "Medium", "High"]
                             )
-                        }
-                    }
-                    
-                    # Get AI analysis if available
-                    ai_analysis = ""
-                    if get_feedback and coder:
-                        analysis_prompt = get_ai_security_analysis(scan_results, scan_type)
-                        ai_analysis = coder.run(analysis_prompt)
-                    
-                    # Generate report
-                    generator = SecurityReportGenerator()
-                    report_content = generator.generate_report(
-                        report_data['scan_results'],
-                        report_data['vulnerabilities'],
-                        report_data['dependencies'],
-                        ai_analysis
+                        },
+                        scan_type=scan_type,
+                        get_ai_feedback=get_feedback
                     )
                     
-                    # Add report to chat for AI insights
-                    if coder:
-                        report_prompt = f"""I've generated a security report. Please review and provide:
-1. Additional security insights
-2. Recommended next steps
-3. Risk mitigation strategies
-4. Best practices to implement
-
-Report summary:
-{json.dumps(report_data, indent=2)}
-
-AI Analysis:
-{ai_analysis}
-"""
-                        with st.spinner("Getting AI insights on report..."):
-                            with st.chat_message("assistant"):
-                                res = st.write_stream(coder.run_stream(report_prompt))
-                                st.session_state['messages'].append({
-                                    "role": "assistant",
-                                    "content": res
-                                })
-                    
-                    # Offer report download
-                    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                    st.download_button(
-                        "Download Full Report",
-                        report_content,
-                        file_name=f"security_report_{timestamp}.pdf",
-                        mime="application/pdf"
-                    )
-                    
+                    if report_content:
+                        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                        st.download_button(
+                            "Download Full Report",
+                            report_content,
+                            file_name=f"security_report_{timestamp}.pdf",
+                            mime="application/pdf"
+                        )
                 except Exception as e:
                     st.error(f"Error generating report: {str(e)}")
 import streamlit as st
