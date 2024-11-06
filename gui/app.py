@@ -415,16 +415,20 @@ class GUI:
                         output_lines = self.coder.commands.io.get_captured_lines()
                         output = "\n".join(output_lines) if output_lines else ""
                         
+                        # Always show the command output in the UI
                         if output or result:  # Show output if we have any
                             final_output = output
                             if result and str(result).strip():
                                 final_output += f"\nResult: {result}"
                             
+                            # Display in Streamlit UI
+                            st.text("Command Output:")
+                            st.code(final_output)
+                            
+                            # If share output is enabled, also add to chat
                             if share_output:
                                 self.prompt = f"Command output:\n```\n{final_output}\n```"
                                 self.prompt_as = "text"
-                            else:
-                                st.code(final_output)
                         else:
                             st.info("Command executed successfully with no output")
                     except Exception as e:
