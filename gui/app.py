@@ -203,27 +203,51 @@ class GUI:
             self.do_add_web_page()
             
         with docs_tab:
-            st.markdown("""
-            ### Project Documentation
+            # Quick Start accordion
+            with st.expander("🚀 Quick Start Guide", expanded=True):
+                st.markdown("""
+                1. Add files to edit in the Files tab
+                2. Type your request in the chat
+                3. Review and confirm changes
+                """)
             
-            **Quick Start:**
-            1. Add files to edit in the Files tab
-            2. Type your request in the chat
-            3. Review and confirm changes
+            # Features accordion
+            with st.expander("✨ Features"):
+                st.markdown("""
+                - Real-time code editing
+                - Git integration
+                - Security scanning
+                - Shell commands
+                - GitHub Actions
+                """)
             
-            **Features:**
-            - Real-time code editing
-            - Git integration
-            - Security scanning
-            - Shell commands
-            - GitHub Actions
-            
-            **Tips:**
-            - Use clear, specific requests
-            - Review diffs before confirming
-            - Check security scan results
-            - Keep chat context focused
-            """)
+            # Tips accordion
+            with st.expander("💡 Tips & Best Practices"):
+                st.markdown("""
+                - Use clear, specific requests
+                - Review diffs before confirming
+                - Check security scan results
+                - Keep chat context focused
+                """)
+                
+            # Keyboard Shortcuts accordion
+            with st.expander("⌨️ Keyboard Shortcuts"):
+                st.markdown("""
+                - `Ctrl + Enter`: Submit chat
+                - `Ctrl + Z`: Undo last change
+                - `Ctrl + /`: Toggle sidebar
+                - `Ctrl + F`: Search in files
+                """)
+                
+            # Common Commands accordion
+            with st.expander("🔧 Common Commands"):
+                st.markdown("""
+                - `/help`: Show help
+                - `/clear`: Clear chat history
+                - `/undo`: Undo last change
+                - `/add <file>`: Add file to chat
+                - `/run <cmd>`: Run shell command
+                """)
             
         with recent_tab:
             self.do_recent_msgs()
