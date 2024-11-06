@@ -29,15 +29,51 @@ export async function activate(context: vscode.ExtensionContext) {
 
                 // Start Streamlit server
                 const pythonPath = await getPythonPath();
+                console.log(`Starting Streamlit with Python path: ${pythonPath}`);
+                
+                const appPath = path.join(context.extensionPath, 'src', 'python', 'app.py');
+                console.log(`App path: ${appPath}`);
+                
                 streamlitProcess = spawn(pythonPath, [
                     '-m', 'streamlit', 'run',
-                    path.join(context.extensionPath, 'src', 'python', 'app.py'),
+                    appPath,
                     '--server.port', port.toString(),
                     '--server.address', 'localhost',
                     '--server.headless', 'true'
                 ]);
 
-                // Set webview content
+                // Add logging for Streamlit process
+                streamlitProcess.stdout.on('data', (data) => {
+                    console.log(`Streamlit stdout: ${data}`);
+                });
+
+                streamlitProcess.stderr.on('data', (data) => {
+                    console.error(`Streamlit stderr: ${data}`);
+                });
+
+                // Wait for server to start
+                await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error('Streamlit server failed to start within 30 seconds'));
+                    }, 30000);
+
+                    const checkServer = async () => {
+                        try {
+                            const response = await fetch(`http://localhost:${port}`);
+                            if (response.ok) {
+                                clearTimeout(timeout);
+                                resolve(true);
+                            } else {
+                                setTimeout(checkServer, 1000);
+                            }
+                        } catch (error) {
+                            setTimeout(checkServer, 1000);
+                        }
+                    };
+                    checkServer();
+                });
+
+                // Set webview content after server is confirmed running
                 currentPanel.webview.html = getWebviewContent(port);
 
                 // Handle panel disposal
