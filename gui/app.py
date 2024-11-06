@@ -3,6 +3,7 @@
 import os
 import random
 import sys
+import io
 import streamlit as st
 from aider import urls, coders, io, main, scrape
 from aider.commands import SwitchCoder
@@ -476,20 +477,28 @@ class GUI:
             # Model switching
             if st.button("Switch Model"):
                 try:
-                    self.coder.commands.cmd_model(model)
-                    self.info(f"Switched to {model}")
-                except Exception as e:
-                    if "SwitchCoder" in str(type(e)):
-                        # Handle model switch by reinitializing the coder
-                        self.info(f"Reinitializing with model {model}...")
-                        self.state.init("current_model", model)
-                        # Force reload of coder with new model
-                        if hasattr(st, 'cache_resource'):
-                            st.cache_resource.clear()
-                        self.coder = get_coder()
-                        self.info(f"Successfully switched to {model}")
-                    else:
-                        self.info(f"Error switching model: {str(e)}")
+                    # Suppress console output during model switch
+                    original_stdout = sys.stdout
+                    sys.stdout = io.StringIO()
+                    
+                    try:
+                        self.coder.commands.cmd_model(model)
+                        self.info(f"Switched to {model}")
+                    except Exception as e:
+                        if "SwitchCoder" in str(type(e)):
+                            # Handle model switch by reinitializing the coder
+                            self.state.init("current_model", model)
+                            # Force reload of coder with new model
+                            if hasattr(st, 'cache_resource'):
+                                st.cache_resource.clear()
+                            self.coder = get_coder()
+                            self.info(f"Successfully switched to {model}")
+                        else:
+                            self.info(f"Error switching model: {str(e)}")
+                    
+                    finally:
+                        # Restore stdout
+                        sys.stdout = original_stdout
 
             # Model settings
             with st.container():
