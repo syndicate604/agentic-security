@@ -5,6 +5,7 @@ from agentic_security.security_pipeline import SecurityPipeline
 from agentic_security.fix_cycle import FixCycle
 import json
 import os
+import subprocess
 
 class SecurityHandler:
     def __init__(self, coder: Coder):
