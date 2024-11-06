@@ -180,15 +180,38 @@ class GUI:
             S.P.A.R.C.
             </h1>            
             """, unsafe_allow_html=True)
-            self.do_add_to_chat()
-            self.do_recent_msgs()
-            self.do_clear_chat_history()
-            self.do_model_settings()
-            self.do_shell_commands()
-            self.do_github_actions() 
-            self.do_security_tools()  # Add security tools
-            self.do_dev_tools()
             
+            # Create main tabs for better organization
+            chat_tab, tools_tab = st.tabs(["Chat", "Tools & Settings"])
+            
+            with chat_tab:
+                # Chat related sections
+                self.do_add_files()
+                self.do_recent_msgs()
+                self.do_clear_chat_history()
+            
+            with tools_tab:
+                # Tools and settings in collapsible sections
+                with st.expander("🤖 Model Settings", expanded=False):
+                    self.do_model_settings()
+                
+                with st.expander("🛠️ Shell Commands", expanded=False):
+                    self.do_shell_commands()
+                
+                with st.expander("🔄 GitHub Actions", expanded=False):
+                    self.do_github_actions()
+                
+                with st.expander("🔒 Security Tools", expanded=False):
+                    self.do_security_tools()
+                
+                with st.expander("⚙️ Developer Tools", expanded=False):
+                    self.do_dev_tools()
+                
+                with st.expander("🧠 Prompt Engineering", expanded=False):
+                    render_prompt_engineering_panel(self.coder)
+            
+            # Footer
+            st.markdown("---")
             st.warning(
                 "Created by rUv, bacause he could, with help from aider."
             )
