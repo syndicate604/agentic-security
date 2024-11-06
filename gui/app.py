@@ -1003,8 +1003,11 @@ Please provide:
                 include_ai = st.checkbox("Include AI Analysis", value=True,
                     help="Combine tool results with AI insights")
             
-            # Run button with progress tracking
-            if st.button("Run Analysis", type="primary"):
+            # Run button with prominent styling
+            st.markdown("---")  # Add a divider
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                if st.button("🔍 Run Analysis", type="primary", use_container_width=True):
                 if not analysis_type:
                     st.error("Please select at least one Analysis Type")
                     return
