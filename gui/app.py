@@ -500,6 +500,11 @@ def gui_main():
             border-bottom: 1px solid #00ff00;
         }
 
+        /* Progress bar - the gradient at the top */
+        .stProgress > div > div > div > div {
+            background-image: linear-gradient(to right, #050505, #00ff00) !important;
+        }
+
         /* Scrollbars */
         ::-webkit-scrollbar {
             width: 10px;
