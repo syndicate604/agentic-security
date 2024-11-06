@@ -240,6 +240,18 @@ class GUI:
                     self.do_dev_tools()
                     
             with settings_tab:
+                # Brief settings overview at top
+                st.markdown("""
+                ### Settings Overview
+                Configure your environment, tools, and AI settings through the configuration panel below.
+                Key features:
+                - Tool installation and management 
+                - System information and status
+                - Security tool configurations
+                """)
+                
+                st.markdown("---")  # Divider
+                
                 # Only show config panel in settings
                 render_config_panel(self.coder)
 
