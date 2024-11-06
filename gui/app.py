@@ -4,7 +4,7 @@ import os
 import random
 import sys
 import io
-import os
+import subprocess
 import streamlit as st
 from aider import urls, coders, io, main, scrape
 from aider.commands import SwitchCoder
