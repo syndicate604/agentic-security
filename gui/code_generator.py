@@ -222,8 +222,14 @@ def render_code_generator(coder: Coder):
                             except Exception as e:
                                 st.error(f"Error generating code: {str(e)}")
         
-        # Help text
-        with st.expander("Code Generator Help", expanded=False):
+        # Help section using tabs
+        main_tab, help_tab = st.tabs(["Generator", "Help"])
+        
+        with main_tab:
+            st.markdown("### Code Generator")
+            # Main generator content here...
+            
+        with help_tab:
             st.markdown("""
             ### How to use the Code Generator
             
