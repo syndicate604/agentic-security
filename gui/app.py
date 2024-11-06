@@ -240,9 +240,8 @@ class GUI:
                     self.do_dev_tools()
                     
             with settings_tab:
-                # Config panel at top of settings
+                # Only show config panel in settings
                 render_config_panel(self.coder)
-                self.do_model_settings()
 
     def do_add_to_chat(self):
         self.do_add_files()
