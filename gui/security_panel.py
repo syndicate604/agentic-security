@@ -161,23 +161,28 @@ def render_security_panel(coder=None):
                 )
             }
             
-            # Generate AI analysis prompt
+            # Prepare scan results for AI analysis
             ai_prompt = get_ai_security_analysis(scan_results, scan_type)
-            
-            # Add to chat for AI analysis
-            st.session_state['messages'] = st.session_state.get('messages', [])
-            st.session_state['messages'].append({
-                "role": "system",
-                "content": "Security Scanner Analysis"
-            })
-            st.session_state['messages'].append({
-                "role": "user",
-                "content": ai_prompt
-            })
             
             with tab4:
                 st.markdown("### AI Security Analysis")
-                st.info("✓ Security scan results added to chat for AI analysis")
+                
+                # Add AI feedback option
+                get_feedback = st.checkbox("Get AI Feedback", value=True, key="security_feedback")
+                
+                if get_feedback and coder:
+                    with st.spinner("Analyzing security results..."):
+                        # Stream the AI analysis
+                        with st.chat_message("assistant"):
+                            res = st.write_stream(coder.run_stream(ai_prompt))
+                            st.session_state['messages'].append({
+                                "role": "assistant", 
+                                "content": res
+                            })
+                else:
+                    st.info("✓ Security scan results captured")
+                    if not coder:
+                        st.warning("AI analysis not available - no aider instance provided")
                 st.markdown("The AI assistant will provide:")
                 st.markdown("""
                 1. **Severity Assessment**
