@@ -480,15 +480,29 @@ class GUI:
                                     if stderr:
                                         st.error("Standard Error:")
                                         st.code(stderr)
+                                
+                                # Add command output to chat history
+                                output_type = "error" if stderr else "output"
+                                output_content = stderr if stderr else stdout
+                                self.state.messages.append({
+                                    "role": "text",
+                                    "content": f"Command `{command}` {output_type}:\n```\n{output_content}\n```"
+                                })
                             
+                            # Process AI feedback
                             if ai_feedback:
+                                # Display in UI
                                 with st.expander("AI Analysis", expanded=True):
                                     st.markdown(ai_feedback)
-                                    # Add to chat history
-                                    self.state.messages.append({
-                                        "role": "assistant",
-                                        "content": f"Analysis of `{command}`:\n\n{ai_feedback}"
-                                    })
+                                
+                                # Add to chat history as assistant message
+                                self.state.messages.append({
+                                    "role": "assistant",
+                                    "content": f"Analysis of command `{command}`:\n\n{ai_feedback}"
+                                })
+                                
+                                # Force chat update
+                                st.experimental_rerun()
                         
                         else:
                             # Run without feedback
