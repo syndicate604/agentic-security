@@ -2,6 +2,31 @@ import streamlit as st
 import datetime
 from typing import Dict, List, Optional
 
+def get_ai_security_analysis(scan_results: dict, scan_type: str) -> str:
+    """Format security scan results for AI analysis"""
+    return f"""Security scan completed ({scan_type}). Please analyze these results:
+
+Scan Summary:
+- Total Issues: {scan_results.get('total_issues', 0)}
+- Critical: {scan_results.get('critical', 0)}
+- High: {scan_results.get('high', 0)}
+- Medium: {scan_results.get('medium', 0)}
+- Low: {scan_results.get('low', 0)}
+
+Detailed Findings:
+```
+{scan_results.get('details', '')}
+```
+
+Please provide:
+1. A severity assessment for each issue
+2. Explanation of the security implications
+3. Recommended fixes with code examples
+4. Best practices to prevent similar issues
+5. Any patterns or systemic issues identified
+
+What would you like me to explain first?"""
+
 def render_security_panel():
     """Render the security scanning interface"""
     with st.container():
@@ -123,24 +148,57 @@ def render_security_panel():
                     "Risk": ["Low", "Medium", "High"]
                 })
             
+            # Prepare scan results for AI analysis
+            scan_results = {
+                "total_issues": 12,  # Replace with actual counts
+                "critical": metrics_col2._value,
+                "high": metrics_col3._value,
+                "medium": 3,
+                "low": 3,
+                "details": "\n".join(
+                    f"{vuln['severity']}: {vuln['title']} in {vuln['file']}:{vuln['line']}\n{vuln['description']}"
+                    for vuln in vulnerabilities
+                )
+            }
+            
+            # Generate AI analysis prompt
+            ai_prompt = get_ai_security_analysis(scan_results, scan_type)
+            
+            # Add to chat for AI analysis
+            st.session_state['messages'] = st.session_state.get('messages', [])
+            st.session_state['messages'].append({
+                "role": "system",
+                "content": "Security Scanner Analysis"
+            })
+            st.session_state['messages'].append({
+                "role": "user",
+                "content": ai_prompt
+            })
+            
             with tab4:
                 st.markdown("### AI Security Analysis")
+                st.info("✓ Security scan results added to chat for AI analysis")
+                st.markdown("The AI assistant will provide:")
                 st.markdown("""
-                Based on the scan results, here are the key findings:
+                1. **Severity Assessment**
+                   - Detailed analysis of each issue
+                   - Risk categorization
                 
-                1. **Critical Issues**
-                   - SQL injection vulnerabilities need immediate attention
-                   - Password storage practices require updates
+                2. **Security Implications**
+                   - Potential exploit scenarios
+                   - Impact analysis
                 
-                2. **Recommendations**
-                   - Implement parameterized queries
-                   - Update password hashing to use bcrypt
-                   - Enable CSRF protection
+                3. **Recommended Fixes**
+                   - Code-level solutions
+                   - Implementation guidance
                    
-                3. **Best Practices**
-                   - Add input validation
-                   - Update vulnerable dependencies
-                   - Implement security headers
+                4. **Best Practices**
+                   - Prevention strategies
+                   - Security patterns
+                   
+                5. **Pattern Analysis**
+                   - Common vulnerability types
+                   - Systemic issues
                 """)
             
             # Download report button
