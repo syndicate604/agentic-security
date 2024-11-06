@@ -182,12 +182,13 @@ class GUI:
             </h1>            
             """, unsafe_allow_html=True)
             self.do_add_to_chat()
-            self.do_clear_chat_history()
             self.do_model_settings()
             self.do_shell_commands()
             self.do_github_actions()
             self.do_security_tools()  # Add security panel
             self.do_dev_tools()
+            
+            self.do_clear_chat_history()
             
             st.warning(
                 "Created by rUv, bacause he could, with help from aider."
