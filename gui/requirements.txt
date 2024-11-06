@@ -3,7 +3,7 @@ aider-chat>=0.61.0
 pylint>=3.0.0
 bandit>=1.7.5
 semgrep>=1.34.0
-gitleaks>=8.18.0
+gitleaks
 docker>=6.1.3
 psutil>=5.9.0
 sysstat>=12.0.0  # For iostat command

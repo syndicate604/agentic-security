@@ -171,14 +171,14 @@ class GUI:
                 color: #00ff00;
                 text-shadow: 2px 2px 4px #003300;
                 border: 1px solid #00ff00;
-                padding: 10px;
+                padding: 30px;
                 background: linear-gradient(45deg, #050505, #0a0a0a);
                 text-align: center;
                 letter-spacing: 3px;
                 margin-bottom: 20px;
             '>
-            A.I.D.E.R
-            </h1>
+            S.P.A.R.C.
+            </h1>            
             """, unsafe_allow_html=True)
             self.do_add_to_chat()
             self.do_recent_msgs()
