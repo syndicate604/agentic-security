@@ -43,11 +43,11 @@ export async function activate(context: vscode.ExtensionContext) {
                 ]);
 
                 // Add logging for Streamlit process
-                streamlitProcess.stdout.on('data', (data) => {
+                streamlitProcess.stdout.on('data', (data: Buffer) => {
                     console.log(`Streamlit stdout: ${data}`);
                 });
 
-                streamlitProcess.stderr.on('data', (data) => {
+                streamlitProcess.stderr.on('data', (data: Buffer) => {
                     console.error(`Streamlit stderr: ${data}`);
                 });
 
@@ -59,7 +59,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
                     const checkServer = async () => {
                         try {
-                            const response = await fetch(`http://localhost:${port}`);
+                            const response = await (globalThis as any).fetch(`http://localhost:${port}`);
                             if (response.ok) {
                                 clearTimeout(timeout);
                                 resolve(true);
