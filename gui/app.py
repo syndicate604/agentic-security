@@ -1008,9 +1008,9 @@ Please provide:
             col1, col2, col3 = st.columns([1, 2, 1])
             with col2:
                 if st.button("🔍 Run Analysis", type="primary", use_container_width=True):
-                if not analysis_type:
-                    st.error("Please select at least one Analysis Type")
-                    return
+                    if not analysis_type:
+                        st.error("Please select at least one Analysis Type")
+                        return
                     
                 with st.spinner("Running analysis..."):
                     results = []
