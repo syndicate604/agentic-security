@@ -478,18 +478,27 @@ class GUI:
             if st.button("Switch Model"):
                 try:
                     # Store current model info before switching
-                    old_model = self.coder.main_model
+                    old_model = getattr(self.coder, 'main_model', 'unknown')
+                    
+                    # Validate model exists before switching
+                    if not hasattr(self.coder.commands, 'cmd_model'):
+                        raise AttributeError("Model switching not supported in current configuration")
                     
                     # Attempt to switch model
-                    self.coder.commands.cmd_model(model)
+                    result = self.coder.commands.cmd_model(model)
+                    if not result:
+                        raise ValueError(f"Failed to switch to model {model}")
                     
                     # Force reload coder with new model
-                    st.cache_resource.clear()
-                    self.coder = get_coder()
+                    if hasattr(st, 'cache_resource'):
+                        st.cache_resource.clear()
+                        self.coder = get_coder()
+                    else:
+                        raise RuntimeError("Cache resource not available")
                     
                     # Update state and display info
                     self.state.init("current_model", model)
-                    self.info(f"Switched from {old_model} to {model}")
+                    self.info(f"Successfully switched from {old_model} to {model}")
                     
                     # Add system message about model switch
                     self.state.messages.append({
@@ -500,8 +509,14 @@ class GUI:
                     # Force UI update
                     st.rerun()
                     
+                except AttributeError as e:
+                    self.info(f"Configuration error: {str(e)}")
+                except ValueError as e:
+                    self.info(f"Invalid model selection: {str(e)}")
+                except RuntimeError as e:
+                    self.info(f"Streamlit error: {str(e)}")
                 except Exception as e:
-                    self.info(f"Error switching model: {str(e)}")
+                    self.info(f"Unexpected error switching model: {str(e)}\nPlease check your API keys and model access.")
 
             # Model settings
             settings_container = st.container()
