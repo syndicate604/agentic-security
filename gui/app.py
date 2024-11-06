@@ -442,11 +442,16 @@ class GUI:
                 st.markdown("### Model Settings")
                 
                 # Temperature setting
+                current_temp = self.coder.temperature if hasattr(self.coder, 'temperature') else 0.7
+                # Ensure current_temp is a float
+                if isinstance(current_temp, (list, tuple)):
+                    current_temp = 0.7  # Default if invalid type
+
                 temperature = st.slider(
                     "Temperature",
                     min_value=0.0,
                     max_value=2.0,
-                    value=self.coder.temperature if hasattr(self.coder, 'temperature') else 0.7,
+                    value=float(current_temp),  # Convert to float
                     step=0.1,
                     help="Higher values make output more random, lower values more deterministic"
                 )
