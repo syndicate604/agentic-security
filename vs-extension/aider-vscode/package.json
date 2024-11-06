@@ -1,0 +1,41 @@
+{
+  "name": "aider-vscode",
+  "displayName": "Aider VSCode",
+  "description": "AI pair programming with Aider in VSCode",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": ["onCommand:aider.startChat"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "aider.startChat",
+        "title": "Start Aider Chat"
+      }
+    ],
+    "configuration": {
+      "title": "Aider",
+      "properties": {
+        "aider.port": {
+          "type": "number",
+          "default": 8501,
+          "description": "Port for Streamlit server"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/node": "^16.18.34",
+    "typescript": "^5.1.3"
+  }
+}
