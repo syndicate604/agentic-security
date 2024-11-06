@@ -1,5 +1,6 @@
 from typing import Tuple, Optional
 import subprocess
+import os
 from aider.coders import Coder
 from aider.models import Model
 from aider.io import InputOutput
@@ -27,7 +28,7 @@ class AiderShellHandler:
                 shell=True,
                 text=True,
                 capture_output=True,
-                env={"PATH": shutil.which("python")}  # Set PATH to find python
+                env={**os.environ, "PATH": os.environ.get("PATH", "") + os.pathsep + str(shutil.which("python"))}  # Preserve PATH and add python
             )
             
             # Capture output
