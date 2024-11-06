@@ -502,8 +502,6 @@ class GUI:
                     
                 except Exception as e:
                     self.info(f"Error switching model: {str(e)}")
-                    # Restore stdout
-                    sys.stdout = original_stdout
 
             # Model settings
             settings_container = st.container()
