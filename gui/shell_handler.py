@@ -35,8 +35,14 @@ class AiderShellHandler:
             # Share with AI if requested and there's output
             if share_output and (stdout or stderr):
                 output = stdout if stdout else stderr
-                # Return the output to be handled by GUI's chat system
-                return stdout, stderr, f"Command output:\n```\n{output}\n```"
+                # Return the output to be handled by GUI's chat system with git-specific handling
+                if command.startswith('git '):
+                    return stdout, stderr, (
+                        f"Git command `{command}` output:\n```\n{output}\n```\n\n"
+                        "Would you like me to explain the git status or help with any git operations?"
+                    )
+                else:
+                    return stdout, stderr, f"Command output:\n```\n{output}\n```"
             
             return stdout, stderr, None
             
