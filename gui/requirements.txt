@@ -15,3 +15,4 @@ python-owasp-zap-v2.4>=0.4.0  # For OWASP ZAP integration
 zaproxy>=0.3.0  # ZAP API client
 trufflehog>=3.63.2  # For secrets scanning
 nuclei>=2.9.1  # For vulnerability scanning
+fpdf>=1.7.2  # For PDF report generation

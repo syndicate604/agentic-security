@@ -206,15 +206,77 @@ def render_security_panel(coder=None):
                    - Systemic issues
                 """)
             
-            # Download report button
+            # Generate and download report
             if save_report:
-                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                st.download_button(
-                    "Download Full Report",
-                    "Detailed security report content...",
-                    file_name=f"security_report_{timestamp}.pdf",
-                    mime="application/pdf"
-                )
+                try:
+                    from report_generator import SecurityReportGenerator
+                    
+                    # Collect all scan data
+                    report_data = {
+                        'scan_results': scan_results,
+                        'vulnerabilities': vulnerabilities,
+                        'dependencies': {
+                            pkg: {
+                                'version': ver,
+                                'status': status,
+                                'risk': risk
+                            } for pkg, ver, status, risk in zip(
+                                ["requests", "flask", "sqlalchemy"],
+                                ["2.28.1", "2.0.1", "1.4.41"],
+                                ["Up to date", "Update available", "Vulnerable"],
+                                ["Low", "Medium", "High"]
+                            )
+                        }
+                    }
+                    
+                    # Get AI analysis if available
+                    ai_analysis = ""
+                    if get_feedback and coder:
+                        analysis_prompt = get_ai_security_analysis(scan_results, scan_type)
+                        ai_analysis = coder.run(analysis_prompt)
+                    
+                    # Generate report
+                    generator = SecurityReportGenerator()
+                    report_content = generator.generate_report(
+                        report_data['scan_results'],
+                        report_data['vulnerabilities'],
+                        report_data['dependencies'],
+                        ai_analysis
+                    )
+                    
+                    # Add report to chat for AI insights
+                    if coder:
+                        report_prompt = f"""I've generated a security report. Please review and provide:
+1. Additional security insights
+2. Recommended next steps
+3. Risk mitigation strategies
+4. Best practices to implement
+
+Report summary:
+{json.dumps(report_data, indent=2)}
+
+AI Analysis:
+{ai_analysis}
+"""
+                        with st.spinner("Getting AI insights on report..."):
+                            with st.chat_message("assistant"):
+                                res = st.write_stream(coder.run_stream(report_prompt))
+                                st.session_state['messages'].append({
+                                    "role": "assistant",
+                                    "content": res
+                                })
+                    
+                    # Offer report download
+                    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                    st.download_button(
+                        "Download Full Report",
+                        report_content,
+                        file_name=f"security_report_{timestamp}.pdf",
+                        mime="application/pdf"
+                    )
+                    
+                except Exception as e:
+                    st.error(f"Error generating report: {str(e)}")
 import streamlit as st
 import datetime
 from typing import Dict, List, Optional
