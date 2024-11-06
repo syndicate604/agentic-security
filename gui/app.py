@@ -389,22 +389,32 @@ class GUI:
             if st.button("Run Command") and command:  # Only run if command is not empty
                 with st.spinner("Running command..."):
                     try:
-                        # Capture any existing output before running command
+                        # Strip /run prefix if present
+                        cmd = command.strip()
+                        if cmd.startswith('/run '):
+                            cmd = cmd[5:]
+                        
+                        # Clear any existing output
                         self.coder.commands.io.get_captured_lines()
                         
-                        # Run the command
-                        self.coder.commands.cmd_run(command)
+                        # Run the command and capture output
+                        self.coder.commands.io.tool_output(f"Running: {cmd}")
+                        result = self.coder.commands.run_cmd(cmd)
                         
-                        # Get captured output
+                        # Get all captured output
                         output_lines = self.coder.commands.io.get_captured_lines()
                         output = "\n".join(output_lines) if output_lines else ""
                         
-                        if output:  # Only process if there is output
+                        if output or result:  # Show output if we have any
+                            final_output = output
+                            if result and str(result).strip():
+                                final_output += f"\nResult: {result}"
+                            
                             if share_output:
-                                self.prompt = f"Command output:\n```\n{output}\n```"
+                                self.prompt = f"Command output:\n```\n{final_output}\n```"
                                 self.prompt_as = "text"
                             else:
-                                st.code(output)
+                                st.code(final_output)
                         else:
                             st.info("Command executed successfully with no output")
                     except Exception as e:
