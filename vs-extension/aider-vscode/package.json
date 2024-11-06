@@ -33,7 +33,7 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
     "dev": "npm run watch",
-    "start": "npm run compile && echo '\nOpen http://localhost:8501 in your browser\n'"
+    "start": "npm run compile && python src/python/app.py"
   },
   "devDependencies": {
     "@types/vscode": "^1.74.0",
