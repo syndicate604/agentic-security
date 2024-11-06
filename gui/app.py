@@ -474,8 +474,13 @@ class GUI:
                                         st.code(stderr)
                             
                             if ai_feedback:
-                                with st.expander("AI Feedback", expanded=True):
+                                with st.expander("AI Analysis", expanded=True):
                                     st.markdown(ai_feedback)
+                                    # Add to chat history
+                                    self.state.messages.append({
+                                        "role": "assistant",
+                                        "content": f"Analysis of `{command}`:\n\n{ai_feedback}"
+                                    })
                         
                         else:
                             # Run without feedback
