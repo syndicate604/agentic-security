@@ -139,6 +139,7 @@ class GUI:
             self.do_recent_msgs()
             self.do_clear_chat_history()
             self.do_model_settings()
+            self.do_shell_commands()
             st.warning(
                 "This browser version of aider is experimental. Please share feedback in [GitHub"
                 " issues](https://github.com/Aider-AI/aider/issues)."
@@ -379,6 +380,20 @@ class GUI:
         else:
             self.info(f"No web content found for `{url}`.")
             self.web_content = None
+
+    def do_shell_commands(self):
+        with st.sidebar.expander("Shell Commands", expanded=False):
+            command = st.text_input("Shell Command:", placeholder="/run python test.py")
+            share_output = st.checkbox("Share output with AI", value=True)
+            
+            if st.button("Run Command"):
+                with st.spinner("Running command..."):
+                    output = self.coder.commands.cmd_run(command)
+                    if share_output:
+                        self.prompt = f"Command output:\n```\n{output}\n```"
+                        self.prompt_as = "text"
+                    else:
+                        st.code(output)
 
     def do_model_settings(self):
         with st.sidebar.expander("Model Settings", expanded=False):
