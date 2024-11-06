@@ -182,7 +182,6 @@ class GUI:
             </h1>            
             """, unsafe_allow_html=True)
             self.do_add_to_chat()
-            self.do_recent_msgs()
             self.do_clear_chat_history()
             self.do_model_settings()
             self.do_shell_commands()
@@ -195,8 +194,15 @@ class GUI:
             )
 
     def do_add_to_chat(self):
-        self.do_add_files()
-        self.do_add_web_page()
+        # Create tabs for file management and recent messages
+        files_tab, recent_tab = st.tabs(["Files", "Recent"])
+        
+        with files_tab:
+            self.do_add_files()
+            self.do_add_web_page()
+            
+        with recent_tab:
+            self.do_recent_msgs()
 
     def do_add_files(self):
         fnames = st.multiselect(
