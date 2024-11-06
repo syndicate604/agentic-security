@@ -488,16 +488,20 @@ class GUI:
                             if stdout:
                                 st.text("Command Output:")
                                 st.code(stdout)
+                                if share_output:
+                                    st.info("✓ Output shared with AI")
                             if stderr:
                                 st.error("Error Output:")
                                 st.code(stderr)
+                                if share_output:
+                                    st.info("✓ Error shared with AI")
                             
                             if not stdout and not stderr:
                                 st.info("Command executed successfully with no output")
                             
                             # Add to chat if sharing is enabled and we have a chat message
                             if share_output and chat_msg:
-                                self.prompt = chat_msg
+                                self.prompt = f"Shell command: `{command}`\n{chat_msg}"
                                 self.prompt_as = "text"
                                 
                     except Exception as e:
