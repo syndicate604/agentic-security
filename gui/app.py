@@ -5,6 +5,7 @@ import random
 import sys
 import streamlit as st
 from aider import urls, coders, io, main, scrape
+from aider.commands import SwitchCoder
 
 class CaptureIO(io.InputOutput):
     lines = []
@@ -421,11 +422,11 @@ class GUI:
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("Switch Model"):
-                    self.coder.commands.cmd_model(model)
-                    self.info(f"Switched to {model}")
-                    # Update the announcement message with new model info
-                    new_announcement = self.announce(force_update=True)
-                    self.state.messages[0] = dict(role="info", content=new_announcement)
+                    try:
+                        self.coder.commands.cmd_model(model)
+                    except SwitchCoder:
+                        # Force a rerun to reinitialize with the new model
+                        st.rerun()
 
             # Model settings
             with st.container():
