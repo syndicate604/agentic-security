@@ -306,14 +306,22 @@ class GUI:
         return st.button(args, **kwargs)
 
     def __init__(self):
-        self.coder = get_coder()
-        self.state = get_state()
+        try:
+            self.coder = get_coder()
+            self.state = get_state()
 
-        self.coder.yield_stream = True
-        self.coder.stream = True
-        self.coder.pretty = False
+            self.coder.yield_stream = True
+            self.coder.stream = True
+            self.coder.pretty = False
+            
+            # Disable interactive prompts in IO to prevent blocking
+            self.coder.io.yes = True
+            self.coder.io.no_interactive = True
 
-        self.initialize_state()
+            self.initialize_state()
+        except Exception as e:
+            st.error(f"Error initializing GUI: {str(e)}")
+            return
 
         self.do_messages_container()
         self.do_sidebar()
@@ -699,8 +707,9 @@ class GUI:
             self.prompt = reply
 
 def gui_main():
-    # Set dark theme and custom styles
-    st.set_page_config(
+    try:
+        # Set dark theme and custom styles
+        st.set_page_config(
         layout="wide",
         page_title="Aider",
         page_icon=urls.favicon,
@@ -870,7 +879,11 @@ def gui_main():
         </style>
     """, unsafe_allow_html=True)
 
-    GUI()
+        GUI()
+    except Exception as e:
+        st.error(f"Error running GUI: {str(e)}")
+        return 1
+    return 0
 
 if __name__ == "__main__":
     status = gui_main()
