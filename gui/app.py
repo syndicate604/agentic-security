@@ -710,18 +710,18 @@ def gui_main():
     try:
         # Set dark theme and custom styles
         st.set_page_config(
-        layout="wide",
-        page_title="Aider",
-        page_icon=urls.favicon,
-        menu_items={
-            "Get Help": urls.website,
-            "Report a bug": "https://github.com/Aider-AI/aider/issues",
-            "About": "# Aider\nAI pair programming in your browser.",
-        },
-    )
+            layout="wide",
+            page_title="Aider",
+            page_icon=urls.favicon,
+            menu_items={
+                "Get Help": urls.website,
+                "Report a bug": "https://github.com/Aider-AI/aider/issues",
+                "About": "# Aider\nAI pair programming in your browser.",
+            },
+        )
 
-    # Apply custom CSS for dark mode hacker style
-    st.markdown("""
+        # Apply custom CSS for dark mode hacker style
+        st.markdown("""
         <style>
         /* Dark mode background and text colors */
         .stApp {
