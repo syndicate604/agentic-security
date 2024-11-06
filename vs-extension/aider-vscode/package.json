@@ -12,7 +12,10 @@
     "vscode": "^1.74.0"
   },
   "categories": ["Other"],
-  "activationEvents": ["onCommand:aider.startChat"],
+  "activationEvents": [
+    "onCommand:aider.startChat",
+    "onView:aiderChat"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
