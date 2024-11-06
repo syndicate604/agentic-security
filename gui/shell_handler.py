@@ -3,6 +3,7 @@ import subprocess
 from aider.coders import Coder
 from aider.models import Model
 from aider.io import InputOutput
+import shutil
 
 class AiderShellHandler:
     def __init__(self, coder: Coder):
@@ -25,7 +26,8 @@ class AiderShellHandler:
                 command,
                 shell=True,
                 text=True,
-                capture_output=True
+                capture_output=True,
+                env={"PATH": shutil.which("python")}  # Set PATH to find python
             )
             
             # Capture output
