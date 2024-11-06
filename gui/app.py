@@ -187,6 +187,7 @@ class GUI:
             self.do_model_settings()
             self.do_shell_commands()
             self.do_github_actions()
+            self.do_security_tools()  # Add security panel
             self.do_dev_tools()
             
             st.warning(
@@ -827,6 +828,113 @@ class GUI:
             - **Provider**: {provider}
             """)
 
+
+    def do_security_tools(self):
+        """Add security tools panel to sidebar"""
+        with st.sidebar.expander("Security Tools", expanded=False):
+            # Security scan categories
+            scan_categories = {
+                "Code Analysis": {
+                    "SAST Scan": "semgrep scan .",
+                    "Secret Scanner": "gitleaks detect",
+                    "Python Security": "bandit -r .",
+                    "Dependency Check": "safety check",
+                },
+                "Web Security": {
+                    "OWASP ZAP Scan": "zap-cli quick-scan --self-contained --start-options '-config api.disablekey=true'",
+                    "SSL Check": "sslyze --regular localhost",
+                    "Port Scan": "nmap -sV localhost",
+                },
+                "Config Security": {
+                    "File Permissions": "find . -type f -exec ls -l {} \\;",
+                    "Environment Check": "env | grep -i key",
+                    "Docker Security": "docker scan .",
+                    "Git Leaks": "gitleaks detect -v"
+                }
+            }
+            
+            # Category selection
+            selected_category = st.selectbox(
+                "Scan Category",
+                options=["Select category..."] + list(scan_categories.keys()),
+                key="security_category"
+            )
+            
+            if selected_category and selected_category != "Select category...":
+                # Scan selection
+                selected_scan = st.selectbox(
+                    f"{selected_category} Scans",
+                    options=["Select scan..."] + list(scan_categories[selected_category].keys()),
+                    key="security_scan"
+                )
+                
+                # Command input with auto-fill from selection
+                command = st.text_input(
+                    "Security Command:", 
+                    value=scan_categories[selected_category].get(selected_scan, ""),
+                    placeholder="Select or enter security scan command",
+                    help="Enter a security scanning command to execute."
+                )
+                
+                # Scan options
+                col1, col2 = st.columns(2)
+                with col1:
+                    share_output = st.checkbox("Share with AI", value=True, key="security_share")
+                with col2:
+                    get_feedback = st.checkbox("Get AI Feedback", value=True, key="security_feedback")
+                
+                # Run button
+                if st.button("Run Security Scan") and command:
+                    with st.spinner("Running security scan..."):
+                        try:
+                            if get_feedback:
+                                stdout, stderr, chat_msg = self.shell_handler.run_with_ai_feedback(command)
+                            else:
+                                stdout, stderr, chat_msg = self.shell_handler.run_shell_command(
+                                    command, 
+                                    share_output=share_output
+                                )
+                            
+                            # Display results
+                            if stdout:
+                                st.text("Scan Output:")
+                                st.code(stdout)
+                            if stderr:
+                                st.error("Scan Errors:")
+                                st.code(stderr)
+                            
+                            # Handle AI feedback/sharing
+                            if chat_msg:
+                                self.prompt = chat_msg
+                                self.prompt_as = "text"
+                                if get_feedback:
+                                    st.info("✓ Analyzing security scan results...")
+                                elif share_output:
+                                    st.info("✓ Scan results shared with AI")
+                                    
+                        except Exception as e:
+                            st.error(f"Error executing security scan: {str(e)}")
+            
+            # Help text
+            with st.container():
+                st.markdown("""
+                ### Security Tools Help
+                
+                **Categories:**
+                - **Code Analysis**: Static analysis and vulnerability scanning
+                - **Web Security**: Dynamic web application security testing
+                - **Config Security**: System and configuration security checks
+                
+                **Note**: Some security tools require installation:
+                ```bash
+                pip install semgrep bandit safety gitleaks
+                ```
+                
+                For system-level tools:
+                - Ubuntu/Debian: `sudo apt-get install nmap sslyze`
+                - CentOS/RHEL: `sudo yum install nmap sslyze`
+                - macOS: `brew install nmap sslyze`
+                """)
 
     def do_dev_tools(self):
         with st.sidebar.expander("Developer Tools", expanded=False):
