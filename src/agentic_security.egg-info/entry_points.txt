@@ -1,0 +1,2 @@
+[console_scripts]
+agentic-security = agentic_security.security_cli:cli

@@ -18,3 +18,5 @@
 
 # Miscellaneous
 .DS_Store
+.aider*
+venv

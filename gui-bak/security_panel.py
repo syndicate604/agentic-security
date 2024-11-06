@@ -1,69 +1,31 @@
 import streamlit as st
 import datetime
-import json
-import yaml
-import os
 from typing import Dict, List, Optional
 
 def get_ai_security_analysis(scan_results: dict, scan_type: str) -> str:
     """Format security scan results for AI analysis"""
-    vulnerabilities = scan_results.get('vulnerabilities', [])
-    
-    # Group vulnerabilities by type
-    vuln_types = {}
-    for vuln in vulnerabilities:
-        v_type = vuln.get('type', 'Unknown')
-        if v_type not in vuln_types:
-            vuln_types[v_type] = []
-        vuln_types[v_type].append(vuln)
-    
-    # Build detailed analysis prompt
-    analysis = f"""Security scan completed ({scan_type}). Please analyze these results:
+    return f"""Security scan completed ({scan_type}). Please analyze these results:
 
 Scan Summary:
-- Total Issues: {len(vulnerabilities)}
-- Critical: {sum(1 for v in vulnerabilities if v.get('severity') == 'critical')}
-- High: {sum(1 for v in vulnerabilities if v.get('severity') == 'high')}
-- Medium: {sum(1 for v in vulnerabilities if v.get('severity') == 'medium')}
-- Low: {sum(1 for v in vulnerabilities if v.get('severity') == 'low')}
-
-Vulnerability Types Found:
-{chr(10).join(f"- {v_type}: {len(vulns)} issue(s)" for v_type, vulns in vuln_types.items())}
+- Total Issues: {scan_results.get('total_issues', 0)}
+- Critical: {scan_results.get('critical', 0)}
+- High: {scan_results.get('high', 0)}
+- Medium: {scan_results.get('medium', 0)}
+- Low: {scan_results.get('low', 0)}
 
 Detailed Findings:
 ```
-{json.dumps(vulnerabilities, indent=2)}
+{scan_results.get('details', '')}
 ```
 
 Please provide:
-1. Severity Assessment
-   - Risk level analysis for each vulnerability type
-   - Impact on system security
-   - Exploitation potential
+1. A severity assessment for each issue
+2. Explanation of the security implications
+3. Recommended fixes with code examples
+4. Best practices to prevent similar issues
+5. Any patterns or systemic issues identified
 
-2. Security Implications
-   - Detailed explanation of each vulnerability type
-   - Potential attack scenarios
-   - Data/system exposure risks
-
-3. Recommended Fixes
-   - Code-level solutions with examples
-   - Implementation guidance
-   - Testing recommendations
-
-4. Best Practices
-   - Prevention strategies for each vulnerability type
-   - Security patterns to implement
-   - Code review guidelines
-
-5. Pattern Analysis
-   - Common vulnerability patterns identified
-   - Systemic issues in the codebase
-   - Architecture/design recommendations
-
-Which aspect would you like me to analyze first?"""
-    
-    return analysis
+What would you like me to explain first?"""
 
 def render_security_panel(coder=None):
     """Render the security scanning interface"""
@@ -115,30 +77,6 @@ def render_security_panel(coder=None):
                 else:
                     status_text.text("Generating report...")
                 
-            # Run the security scan with proper configuration
-            scan_config = {
-                "Quick Scan": {"depth": "quick"},
-                "Deep Scan": {"depth": "deep"},
-                "Dependency Scan": {"type": "dependency"},
-                "Secret Scanner": {"type": "secrets"}
-            }
-                
-            paths = ["."] if scan_target == "Current Directory" else None
-            if scan_target == "Selected Files":
-                # TODO: Add file selector
-                st.warning("File selection not yet implemented")
-                return
-                
-            results, error, chat_msg = coder.security.run_security_scan(
-                scan_type=scan_config[scan_type]["type"] if "type" in scan_config[scan_type] else "bandit",
-                severity=severity,
-                paths=paths
-            )
-            
-            if error:
-                st.error(error)
-                return
-                
             # Display results in tabs
             tab1, tab2, tab3, tab4 = st.tabs([
                 "Summary", 
@@ -151,17 +89,12 @@ def render_security_panel(coder=None):
                 st.markdown("### Scan Summary")
                 metrics_col1, metrics_col2, metrics_col3 = st.columns(3)
                 
-                vulnerabilities = results.get('vulnerabilities', [])
-                total = len(vulnerabilities)
-                critical = sum(1 for v in vulnerabilities if v.get('severity') == 'critical')
-                high = sum(1 for v in vulnerabilities if v.get('severity') == 'high')
-                
                 with metrics_col1:
-                    st.metric("Total Issues", str(total))
+                    st.metric("Total Issues", "12")
                 with metrics_col2:
-                    st.metric("Critical", str(critical))
+                    st.metric("Critical", "2", delta="-1")
                 with metrics_col3:
-                    st.metric("High", str(high))
+                    st.metric("High", "4", delta="+1")
                 
                 st.markdown("#### Quick Stats")
                 st.json({
@@ -179,8 +112,23 @@ def render_security_panel(coder=None):
             with tab2:
                 st.markdown("### Security Issues")
                 
-                # Display actual vulnerabilities from scan results
-                vulnerabilities = results.get('vulnerabilities', [])
+                # Example vulnerabilities
+                vulnerabilities = [
+                    {
+                        "severity": "Critical",
+                        "title": "SQL Injection Vulnerability",
+                        "file": "app.py",
+                        "line": 23,
+                        "description": "Unsanitized user input in SQL query"
+                    },
+                    {
+                        "severity": "High",
+                        "title": "Insecure Password Storage",
+                        "file": "auth.py",
+                        "line": 45,
+                        "description": "Passwords stored without proper hashing"
+                    }
+                ]
                 
                 for vuln in vulnerabilities:
                     with st.container():
@@ -193,22 +141,12 @@ def render_security_panel(coder=None):
             
             with tab3:
                 st.markdown("### Dependency Analysis")
-                if 'dependencies' in results:
-                    deps_data = {
-                        "Package": [],
-                        "Version": [],
-                        "Status": [],
-                        "Risk": []
-                    }
-                    for dep in results['dependencies']:
-                        deps_data["Package"].append(dep.get('name', 'Unknown'))
-                        deps_data["Version"].append(dep.get('version', 'Unknown'))
-                        deps_data["Status"].append(dep.get('status', 'Unknown'))
-                        deps_data["Risk"].append(dep.get('risk_level', 'Unknown'))
-                    
-                    st.dataframe(deps_data)
-                else:
-                    st.info("No dependency information available")
+                st.dataframe({
+                    "Package": ["requests", "flask", "sqlalchemy"],
+                    "Version": ["2.28.1", "2.0.1", "1.4.41"],
+                    "Status": ["Up to date", "Update available", "Vulnerable"],
+                    "Risk": ["Low", "Medium", "High"]
+                })
             
             # Prepare scan results for AI analysis
             scan_results = {
