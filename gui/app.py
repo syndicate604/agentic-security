@@ -937,7 +937,14 @@ class GUI:
                 - **Performance**: System monitoring
                 - **Git Advanced**: Advanced git operations
                 
-                **Note**: Some commands may require additional tools to be installed
+                **Note**: Some commands require additional tools to be installed. Run:
+                ```
+                pip install -r gui/requirements.txt
+                ```
+                For system-level tools like iostat, use your system's package manager:
+                - Ubuntu/Debian: sudo apt-get install sysstat net-tools
+                - CentOS/RHEL: sudo yum install sysstat net-tools
+                - macOS: brew install sysstat
                 """)
 
     def do_undo(self, commit_hash):
