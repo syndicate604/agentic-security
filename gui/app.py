@@ -186,8 +186,7 @@ class GUI:
             self.do_clear_chat_history()
             self.do_model_settings()
             self.do_shell_commands()
-            self.do_github_actions() 
-            self.do_security_tools()  # Add security tools
+            self.do_github_actions()
             self.do_dev_tools()
             
             st.warning(
@@ -828,18 +827,6 @@ class GUI:
             - **Provider**: {provider}
             """)
 
-
-    def do_security_tools(self):
-        """Add security panel to sidebar"""
-        from security_handler import SecurityHandler
-        from security_panel import render_security_panel
-        
-        with st.sidebar.expander("Security Tools", expanded=False):
-            if not hasattr(self, 'security_handler'):
-                self.security_handler = SecurityHandler(self.coder)
-            
-            # Render the new security panel
-            render_security_panel()
 
     def do_dev_tools(self):
         with st.sidebar.expander("Developer Tools", expanded=False):
