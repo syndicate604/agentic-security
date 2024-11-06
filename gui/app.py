@@ -7,8 +7,6 @@ import io
 import os
 import streamlit as st
 from aider import urls, coders, io, main, scrape
-from config_handler import render_config_panel
-from config_handler import render_config_panel
 from aider.commands import SwitchCoder
 
 class CaptureIO(io.InputOutput):
@@ -167,7 +165,6 @@ class GUI:
 
     def do_sidebar(self):
         with st.sidebar:
-            # Header
             st.markdown("""
             <h1 style='
                 font-family: "Courier New", monospace;
@@ -183,87 +180,18 @@ class GUI:
             S.P.A.R.C.
             </h1>            
             """, unsafe_allow_html=True)
+            self.do_add_to_chat()
+            self.do_recent_msgs()
+            self.do_clear_chat_history()
+            self.do_model_settings()
+            self.do_shell_commands()
+            self.do_github_actions() 
+            self.do_security_tools()  # Add security tools
+            self.do_dev_tools()
             
-            # Create tabs for main sections
-            chat_tab, tools_tab, settings_tab = st.tabs(["Chat", "Tools", "Settings"])
-            
-            with chat_tab:
-                self.do_add_to_chat()
-                self.do_recent_msgs()
-                self.do_clear_chat_history()
-                
-            with tools_tab:
-                # Initialize handlers if not already done
-                if not hasattr(self, 'shell_handler'):
-                    from shell_handler import AiderShellHandler
-                    self.shell_handler = AiderShellHandler(self.coder)
-                
-                if not hasattr(self, 'git_handler'):
-                    from git_handler import SimpleGitHandler
-                    self.git_handler = SimpleGitHandler()
-                
-                if not hasattr(self, 'security_handler'):
-                    from security_handler import SecurityHandler
-                    self.security_handler = SecurityHandler(self.coder)
-                
-                # Create tool tabs
-                tool_tabs = st.tabs(["Shell", "Git", "Security", "Dev"])
-                
-                # Shell Commands Tab
-                with tool_tabs[0]:
-                    self.do_shell_commands()
-                
-                # Git Tab
-                with tool_tabs[1]:
-                    st.markdown("### Git Operations")
-                    # Show current branch and status
-                    st.info(f"Current Branch: {self.git_handler.get_current_branch()}")
-                    
-                    # Git operations
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        if st.button("Show Status"):
-                            status = self.git_handler.get_status()
-                            st.code(status)
-                    with col2:
-                        if st.button("Show Recent Commits"):
-                            commits = self.git_handler.get_recent_commits(5)
-                            for commit in commits:
-                                st.write(f"• {commit['hash']}: {commit['message']}")
-                
-                # Security Tab
-                with tool_tabs[2]:
-                    self.do_security_tools()
-                
-                # Dev Tools Tab
-                with tool_tabs[3]:
-                    self.do_dev_tools()
-                    
-            with settings_tab:
-                # Brief settings overview at top
-                st.markdown("""
-                ### Settings Overview
-                Configure your environment, tools, and AI settings through the configuration panel below.
-                Key features:
-                - Tool installation and management 
-                - System information and status
-                - Security tool configurations
-                """)
-                
-                # Add Aider configuration info
-                st.markdown("#### Aider Configuration")
-                st.code(f"""
-Aider v{self.coder.__version__}
-Main model: {self.coder.main_model}
-Weak model: {self.coder.other_model if hasattr(self.coder, 'other_model') else 'Not configured'}
-Git repo: {self.coder.repo.git_dir.parent if self.coder.repo else 'None'} with {len(self.coder.get_all_relative_files())} files
-Repo-map: using {self.coder.repo_map_tokens if hasattr(self.coder, 'repo_map_tokens') else '1024'} tokens, auto refresh
-                """)
-                
-                st.markdown("---")  # Divider
-                
-                # Configuration panel with existing sections
-                render_config_panel(self.coder)
+            st.warning(
+                "Created by rUv, bacause he could, with help from aider."
+            )
 
     def do_add_to_chat(self):
         self.do_add_files()
@@ -474,7 +402,6 @@ Repo-map: using {self.coder.repo_map_tokens if hasattr(self.coder, 'repo_map_tok
 
         if echo:
             self.messages.info(message)
-
 
     def do_web(self):
         st.markdown("Add the text content of a web page to the chat")
@@ -894,112 +821,29 @@ Repo-map: using {self.coder.repo_map_tokens if hasattr(self.coder, 'repo_map_tok
         with st.sidebar.expander("Security Tools", expanded=False):
             if not hasattr(self, 'security_handler'):
                 self.security_handler = SecurityHandler(self.coder)
-
-            # Create tabs for different security aspects
-            vuln_tab, secrets_tab, deps_tab = st.tabs(["Vulnerabilities", "Secrets", "Dependencies"])
-
-            with vuln_tab:
-                st.markdown("### Vulnerability Scanning")
                 
-                # SAST tools
-                st.subheader("Static Analysis")
-                sast_col1, sast_col2 = st.columns(2)
-                with sast_col1:
-                    if st.button("Run Bandit"):
-                        with st.spinner("Running Bandit scan..."):
-                            stdout, stderr, chat_msg = self.security_handler.run_security_scan("bandit")
-                            if stdout:
-                                st.code(stdout)
-                            if stderr:
-                                st.error(stderr)
-                
-                with sast_col2:
-                    if st.button("Run Semgrep"):
-                        with st.spinner("Running Semgrep scan..."):
-                            stdout, stderr, chat_msg = self.security_handler.run_security_scan("semgrep")
-                            if stdout:
-                                st.code(stdout)
-                            if stderr:
-                                st.error(stderr)
-                
-                # DAST tools
-                st.subheader("Dynamic Analysis")
-                dast_col1, dast_col2 = st.columns(2)
-                with dast_col1:
-                    if st.button("OWASP ZAP Scan"):
-                        with st.spinner("Running ZAP scan..."):
-                            stdout, stderr, chat_msg = self.security_handler.run_security_scan("owasp zap")
-                            if stdout:
-                                st.code(stdout)
-                            if stderr:
-                                st.error(stderr)
-                
-                with dast_col2:
-                    if st.button("Nuclei Scan"):
-                        with st.spinner("Running Nuclei scan..."):
-                            stdout, stderr, chat_msg = self.security_handler.run_security_scan("nuclei")
-                            if stdout:
-                                st.code(stdout)
-                            if stderr:
-                                st.error(stderr)
-
-            with secrets_tab:
-                st.markdown("### Secrets Detection")
-                
-                # Secret scanning tools
-                secrets_col1, secrets_col2 = st.columns(2)
-                with secrets_col1:
-                    if st.button("GitLeaks Scan"):
-                        with st.spinner("Running GitLeaks scan..."):
-                            stdout, stderr, chat_msg = self.security_handler.run_security_scan("gitleaks")
-                            if stdout:
-                                st.code(stdout)
-                            if stderr:
-                                st.error(stderr)
-                
-                with secrets_col2:
-                    if st.button("TruffleHog Scan"):
-                        with st.spinner("Running TruffleHog scan..."):
-                            stdout, stderr, chat_msg = self.security_handler.run_security_scan("trufflehog")
-                            if stdout:
-                                st.code(stdout)
-                            if stderr:
-                                st.error(stderr)
-                
-                # Configuration for secret scanning
-                st.subheader("Configuration")
-                st.checkbox("Scan Git History", value=True)
-                st.checkbox("Include Private Keys", value=True)
-                st.checkbox("Check API Tokens", value=True)
-
-            with deps_tab:
-                st.markdown("### Dependency Analysis")
-                
-                # Dependency scanning tools
-                deps_col1, deps_col2 = st.columns(2)
-                with deps_col1:
-                    if st.button("Safety Check"):
-                        with st.spinner("Running Safety check..."):
-                            stdout, stderr, chat_msg = self.security_handler.run_security_scan("safety")
-                            if stdout:
-                                st.code(stdout)
-                            if stderr:
-                                st.error(stderr)
-                
-                with deps_col2:
-                    if st.button("OWASP Dependency Check"):
-                        with st.spinner("Running Dependency check..."):
-                            stdout, stderr, chat_msg = self.security_handler.run_security_scan("dependency-check")
-                            if stdout:
-                                st.code(stdout)
-                            if stderr:
-                                st.error(stderr)
-                
-                # Dependency analysis options
-                st.subheader("Options")
-                st.checkbox("Check Direct Dependencies", value=True)
-                st.checkbox("Check Transitive Dependencies", value=True)
-                st.checkbox("Include Dev Dependencies", value=False)
+            # Basic security scan options
+            scan_type = st.selectbox(
+                "Security Scan Type",
+                ["Select scan...", "bandit", "safety"]
+            )
+            
+            if st.button("Run Security Scan") and scan_type != "Select scan...":
+                with st.spinner(f"Running {scan_type} scan..."):
+                    stdout, stderr, chat_msg = self.security_handler.run_security_scan(scan_type)
+                    
+                    if stdout:
+                        st.text("Scan Results:")
+                        st.code(stdout)
+                    if stderr:
+                        st.error("Scan Errors:")
+                        st.code(stderr)
+                    
+                    # Add scan results to chat with guidance
+                    if chat_msg:
+                        self.prompt = chat_msg
+                        self.prompt_as = "text"
+                        st.info("✓ Analyzing scan results...")
 
     def do_dev_tools(self):
         with st.sidebar.expander("Developer Tools", expanded=False):
