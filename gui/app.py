@@ -399,7 +399,7 @@ class GUI:
                         
                         # Run the command and capture output
                         self.coder.commands.io.tool_output(f"Running: {cmd}")
-                        result = self.coder.commands.run_cmd(cmd)
+                        result = self.coder.commands.cmd_run(cmd)
                         
                         # Get all captured output
                         output_lines = self.coder.commands.io.get_captured_lines()
