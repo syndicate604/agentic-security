@@ -1181,6 +1181,7 @@ def gui_main():
             background-color: #0a0a0a !important;
             border-top: 1px solid #00ff00 !important;
             padding-top: 1rem !important;
+            color: #ffffff !important;
         }
 
         /* Ensure all nested divs in chat input are dark */
