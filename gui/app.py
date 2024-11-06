@@ -187,14 +187,17 @@ class GUI:
             # Create main tabs for better organization
             chat_tab, tools_tab = st.tabs(["Chat", "Tools & Settings"])
             
+            # Chat tab content
             with chat_tab:
-                # Chat related sections
+                # Only chat-related functions
                 self.do_add_files()
+                self.do_add_web_page()
                 self.do_recent_msgs()
                 self.do_clear_chat_history()
             
+            # Tools tab content 
             with tools_tab:
-                # Tools and settings in collapsible sections
+                # All tools and settings
                 with st.expander("🤖 Model Settings", expanded=False):
                     self.do_model_settings()
                 
