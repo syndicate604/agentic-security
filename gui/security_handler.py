@@ -1,6 +1,8 @@
 from typing import Tuple, Optional
-import subprocess
+from datetime import datetime
 from aider.coders import Coder
+from agentic_security.security_pipeline import SecurityPipeline
+from agentic_security.fix_cycle import FixCycle
 import json
 import os
 
@@ -9,9 +11,7 @@ class SecurityHandler:
         """Initialize with an existing coder instance"""
         self.coder = coder
         self.io = coder.commands.io
-        
-        # Map friendly names to command configurations
-        self.tool_configs = {
+        self.pipeline = SecurityPipeline()
             "Bandit": {
                 "command": "bandit",
                 "args": ["-r", ".", "-f", "json"],
@@ -67,39 +67,39 @@ class SecurityHandler:
                 return False
         return True
     
-    def run_security_scan(self, tool_name: str, severity: str = "Medium", output_format: str = "JSON") -> Tuple[Optional[str], Optional[str], Optional[str]]:
-        """Run security scan with specified tool"""
+    def run_security_scan(self, scan_type: str, severity: str = "Medium", paths: list = None) -> Tuple[Optional[dict], Optional[str], Optional[str]]:
+        """Run security scan using SecurityPipeline"""
         try:
-            # Get tool configuration
-            config = self.tool_configs.get(tool_name)
-            if not config:
-                return None, f"Unknown security tool: {tool_name}", None
+            if not paths:
+                paths = ['.']
                 
-            # Check if tool is installed
-            if not self._check_tool_installed(tool_name):
-                install_msg = f"Tool {tool_name} is not installed. Please install required packages:\n"
-                for req in config["requires"]:
-                    install_msg += f"pip install {req}\n"
-                return None, install_msg, None
-            
-            # Prepare command with args
-            cmd = [config["command"]] + config["args"]
-            
-            # Add severity if supported
-            if tool_name in ["Bandit", "Semgrep"]:
-                cmd.extend(["--severity", severity.lower()])
+            # Convert scan_type to appropriate configuration
+            scan_config = {
+                "Quick Scan": {"depth": "quick"},
+                "Deep Scan": {"depth": "deep"},
+                "Dependency Scan": {"type": "dependency"},
+                "Secret Scanner": {"type": "secrets"}
+            }.get(scan_type, {"depth": "quick"})
             
             # Run the scan
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True
+            results = self.pipeline.scan_paths(
+                paths=paths,
+                auto_fix=False,
+                **scan_config
             )
+            
+            # Generate timestamp for report
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            report_path = f'security_reports/security_report_{timestamp}.md'
+            os.makedirs('security_reports', exist_ok=True)
+            
+            # Generate report
+            self.pipeline.generate_review_report(results, report_path)
             
             # Generate AI analysis message
             chat_msg = (
-                f"{tool_name} scan completed.\n\n"
-                f"```\n{result.stdout}\n```\n\n"
+                f"Security scan completed ({scan_type}).\n\n"
+                f"Report saved to: {report_path}\n\n"
                 "I can help you:\n"
                 "1. Analyze the security findings\n"
                 "2. Prioritize vulnerabilities\n"
@@ -109,8 +109,8 @@ class SecurityHandler:
                 "What would you like me to focus on?"
             )
             
-            return result.stdout, result.stderr, chat_msg
+            return results, None, chat_msg
             
         except Exception as e:
             error_msg = str(e)
-            return None, f"Error running {tool_name} scan: {error_msg}", None
+            return None, f"Error running security scan: {error_msg}", None
