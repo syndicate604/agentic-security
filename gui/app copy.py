@@ -130,7 +130,25 @@ class GUI:
 
     def do_sidebar(self):
         with st.sidebar:
-            st.title("Aider")
+            st.markdown("""
+            <h1 style='
+                font-family: "Courier New", monospace;
+                color: #00ff00;
+                text-shadow: 2px 2px 4px #003300;
+                border: 1px solid #00ff00;
+                padding: 30px;
+                background: linear-gradient(45deg, #050505, #0a0a0a);
+                text-align: center;
+                letter-spacing: 3px;
+                margin-bottom: 20px;
+            '>
+            S.P.A.R.C.
+            </h1>            
+            """, unsafe_allow_html=True)
+            
+            # Add config panel
+            render_config_panel(self.coder)
+            
             self.do_add_to_chat()
             self.do_recent_msgs()
             self.do_clear_chat_history()

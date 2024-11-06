@@ -7,6 +7,7 @@ import io
 import os
 import streamlit as st
 from aider import urls, coders, io, main, scrape
+from config_handler import render_config_panel
 from aider.commands import SwitchCoder
 
 class CaptureIO(io.InputOutput):
