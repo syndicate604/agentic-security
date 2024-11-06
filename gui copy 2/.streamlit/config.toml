@@ -1,0 +1,65 @@
+[global]
+# Disable duplicate widget state warning
+disableWidgetStateDuplicationWarning = true
+# Don't warn when running scripts directly
+showWarningOnDirectExecution = false
+
+[server]
+# Run server in headless mode (no browser auto-open)
+headless = true
+# Enable CORS for API access
+enableCORS = true
+# Port for the server
+port = 8501
+# Enable websocket compression for better performance
+enableWebsocketCompression = true
+# Maximum upload size in MB
+maxUploadSize = 200
+# Enable static file serving
+enableStaticServing = true
+# Base URL path
+baseUrlPath = ""
+# Session cleanup time in seconds
+disconnectedSessionTTL = 120
+
+[browser]
+# Disable usage statistics collection
+gatherUsageStats = false
+# Server address
+serverAddress = "localhost"
+
+[theme]
+# Use dark mode as base theme
+base = "dark"
+# Primary color for interactive elements
+primaryColor = "#7792E3"
+# Main background color
+backgroundColor = "#0E1117"
+# Sidebar and widget background color
+secondaryBackgroundColor = "#262730"
+# Text color
+textColor = "#FAFAFA"
+# Font family (sans serif | serif | monospace)
+font = "sans serif"
+
+[client]
+# Show detailed error messages
+showErrorDetails = true
+# Minimal toolbar for more space
+toolbarMode = "minimal"
+# Enable caching for better performance
+caching = true
+
+[runner]
+# Enable fast re-runs for development
+fastReruns = true
+# Enable magic commands
+magicEnabled = true
+# Don't enforce session state serialization
+enforceSerializableSessionState = false
+
+[logger]
+# Set logging level (error | warning | info | debug)
+level = "info"
+# Log message format
+messageFormat = "%(asctime)s %(levelname)s %(message)s"
