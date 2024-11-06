@@ -873,96 +873,111 @@ class GUI:
             if not hasattr(self, 'security_handler'):
                 self.security_handler = SecurityHandler(self.coder)
 
-            # Create tabs for different security tool categories
-            scan_tab, config_tab, report_tab = st.tabs(["Scan", "Configure", "Reports"])
+            # Create tabs for different security aspects
+            vuln_tab, secrets_tab, deps_tab = st.tabs(["Vulnerabilities", "Secrets", "Dependencies"])
 
-            with scan_tab:
-                st.markdown("### Security Scans")
+            with vuln_tab:
+                st.markdown("### Vulnerability Scanning")
                 
-                # Scan category selection
-                scan_category = st.selectbox(
-                    "Scan Category",
-                    ["Static Analysis", "Dynamic Analysis", "Secret Detection", "Dependency Check"]
-                )
+                # SAST tools
+                st.subheader("Static Analysis")
+                sast_col1, sast_col2 = st.columns(2)
+                with sast_col1:
+                    if st.button("Run Bandit"):
+                        with st.spinner("Running Bandit scan..."):
+                            stdout, stderr, chat_msg = self.security_handler.run_security_scan("bandit")
+                            if stdout:
+                                st.code(stdout)
+                            if stderr:
+                                st.error(stderr)
                 
-                # Tool selection based on category
-                tools = {
-                    "Static Analysis": ["Bandit", "Semgrep", "PyLint"],
-                    "Dynamic Analysis": ["OWASP ZAP", "Nuclei"],
-                    "Secret Detection": ["GitLeaks", "TruffleHog"],
-                    "Dependency Check": ["Safety", "OWASP Dependency Check"]
-                }
+                with sast_col2:
+                    if st.button("Run Semgrep"):
+                        with st.spinner("Running Semgrep scan..."):
+                            stdout, stderr, chat_msg = self.security_handler.run_security_scan("semgrep")
+                            if stdout:
+                                st.code(stdout)
+                            if stderr:
+                                st.error(stderr)
                 
-                selected_tool = st.selectbox(
-                    "Select Tool",
-                    tools.get(scan_category, [])
-                )
+                # DAST tools
+                st.subheader("Dynamic Analysis")
+                dast_col1, dast_col2 = st.columns(2)
+                with dast_col1:
+                    if st.button("OWASP ZAP Scan"):
+                        with st.spinner("Running ZAP scan..."):
+                            stdout, stderr, chat_msg = self.security_handler.run_security_scan("owasp zap")
+                            if stdout:
+                                st.code(stdout)
+                            if stderr:
+                                st.error(stderr)
                 
-                # Severity level selection
-                severity = st.select_slider(
-                    "Minimum Severity",
-                    options=["Low", "Medium", "High", "Critical"],
-                    value="Medium"
-                )
-                
-                # Output format selection
-                output_format = st.selectbox(
-                    "Output Format",
-                    ["JSON", "Text", "HTML", "SARIF"]
-                )
-                
-                # Run scan button
-                if st.button("Run Security Scan"):
-                    with st.spinner(f"Running {selected_tool} scan..."):
-                        stdout, stderr, chat_msg = self.security_handler.run_security_scan(selected_tool.lower())
-                        
-                        if stdout:
-                            st.text("Scan Results:")
-                            st.code(stdout)
-                        if stderr:
-                            st.error("Scan Errors:")
-                            st.code(stderr)
-                        
-                        if chat_msg:
-                            self.prompt = chat_msg
-                            self.prompt_as = "text"
-                            st.info("✓ Analyzing scan results...")
+                with dast_col2:
+                    if st.button("Nuclei Scan"):
+                        with st.spinner("Running Nuclei scan..."):
+                            stdout, stderr, chat_msg = self.security_handler.run_security_scan("nuclei")
+                            if stdout:
+                                st.code(stdout)
+                            if stderr:
+                                st.error(stderr)
 
-            with config_tab:
-                st.markdown("### Scan Configuration")
+            with secrets_tab:
+                st.markdown("### Secrets Detection")
                 
-                # Tool configurations
-                st.checkbox("Enable Auto-Fix", value=True)
-                st.checkbox("Include Tests", value=True)
-                st.checkbox("Deep Scan", value=False)
+                # Secret scanning tools
+                secrets_col1, secrets_col2 = st.columns(2)
+                with secrets_col1:
+                    if st.button("GitLeaks Scan"):
+                        with st.spinner("Running GitLeaks scan..."):
+                            stdout, stderr, chat_msg = self.security_handler.run_security_scan("gitleaks")
+                            if stdout:
+                                st.code(stdout)
+                            if stderr:
+                                st.error(stderr)
                 
-                # Path configuration
-                st.text_input("Custom Rules Path", placeholder="/path/to/rules")
-                st.text_input("Ignore Patterns", placeholder="*.test.py,*.min.js")
+                with secrets_col2:
+                    if st.button("TruffleHog Scan"):
+                        with st.spinner("Running TruffleHog scan..."):
+                            stdout, stderr, chat_msg = self.security_handler.run_security_scan("trufflehog")
+                            if stdout:
+                                st.code(stdout)
+                            if stderr:
+                                st.error(stderr)
                 
-                # Save configuration button
-                if st.button("Save Configuration"):
-                    st.success("Configuration saved!")
+                # Configuration for secret scanning
+                st.subheader("Configuration")
+                st.checkbox("Scan Git History", value=True)
+                st.checkbox("Include Private Keys", value=True)
+                st.checkbox("Check API Tokens", value=True)
 
-            with report_tab:
-                st.markdown("### Security Reports")
+            with deps_tab:
+                st.markdown("### Dependency Analysis")
                 
-                # Report options
-                report_type = st.selectbox(
-                    "Report Type",
-                    ["Summary", "Detailed", "Compliance", "Trends"]
-                )
+                # Dependency scanning tools
+                deps_col1, deps_col2 = st.columns(2)
+                with deps_col1:
+                    if st.button("Safety Check"):
+                        with st.spinner("Running Safety check..."):
+                            stdout, stderr, chat_msg = self.security_handler.run_security_scan("safety")
+                            if stdout:
+                                st.code(stdout)
+                            if stderr:
+                                st.error(stderr)
                 
-                # Date range for reports
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.date_input("Start Date")
-                with col2:
-                    st.date_input("End Date")
+                with deps_col2:
+                    if st.button("OWASP Dependency Check"):
+                        with st.spinner("Running Dependency check..."):
+                            stdout, stderr, chat_msg = self.security_handler.run_security_scan("dependency-check")
+                            if stdout:
+                                st.code(stdout)
+                            if stderr:
+                                st.error(stderr)
                 
-                # Generate report button
-                if st.button("Generate Report"):
-                    st.info("Generating security report...")
+                # Dependency analysis options
+                st.subheader("Options")
+                st.checkbox("Check Direct Dependencies", value=True)
+                st.checkbox("Check Transitive Dependencies", value=True)
+                st.checkbox("Include Dev Dependencies", value=False)
 
     def do_dev_tools(self):
         with st.sidebar.expander("Developer Tools", expanded=False):
