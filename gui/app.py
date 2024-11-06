@@ -1016,26 +1016,6 @@ class GUI:
                         except Exception as e:
                             st.error(f"Error executing security scan: {str(e)}")
             
-            # Help text
-            with st.container():
-                st.markdown("""
-                ### Security Tools Help
-                
-                **Categories:**
-                - **Code Analysis**: Static analysis and vulnerability scanning
-                - **Web Security**: Dynamic web application security testing
-                - **Config Security**: System and configuration security checks
-                
-                **Note**: Some security tools require installation:
-                ```bash
-                pip install semgrep bandit safety gitleaks
-                ```
-                
-                For system-level tools:
-                - Ubuntu/Debian: `sudo apt-get install nmap sslyze`
-                - CentOS/RHEL: `sudo yum install nmap sslyze`
-                - macOS: `brew install nmap sslyze`
-                """)
 
     def do_dev_tools(self):
         with st.sidebar.expander("Developer Tools", expanded=False):
