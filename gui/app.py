@@ -505,19 +505,20 @@ class GUI:
                         st.error(f"Error executing command: {str(e)}")
             
             # Help text
-            with st.expander("Shell Command Help"):
-                st.markdown("""
-                **Available Options:**
-                - **Share with AI**: Adds command output to the chat
-                - **Get AI Feedback**: Gets AI analysis of the command output
-                
-                **Example Commands:**
-                - `python test.py`
-                - `git status`
-                - `ls -la`
-                
-                **Note**: Commands are executed in the current working directory
-                """)
+            st.markdown("""
+            ### Shell Command Help
+            
+            **Available Options:**
+            - **Share with AI**: Adds command output to the chat
+            - **Get AI Feedback**: Gets AI analysis of the command output
+            
+            **Example Commands:**
+            - `python test.py`
+            - `git status`
+            - `ls -la`
+            
+            **Note**: Commands are executed in the current working directory
+            """)
 
     def do_model_settings(self):
         with st.sidebar.expander("Model Settings", expanded=False):
