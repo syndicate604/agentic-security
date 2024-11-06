@@ -504,21 +504,22 @@ class GUI:
                     except Exception as e:
                         st.error(f"Error executing command: {str(e)}")
             
-            # Help text
-            st.markdown("""
-            ### Shell Command Help
-            
-            **Available Options:**
-            - **Share with AI**: Adds command output to the chat
-            - **Get AI Feedback**: Gets AI analysis of the command output
-            
-            **Example Commands:**
-            - `python test.py`
-            - `git status`
-            - `ls -la`
-            
-            **Note**: Commands are executed in the current working directory
-            """)
+            # Help text in a container
+            with st.container():
+                st.markdown("""
+                ### Shell Command Help
+                
+                **Available Options:**
+                - **Share with AI**: Adds command output to the chat
+                - **Get AI Feedback**: Gets AI analysis of the command output
+                
+                **Example Commands:**
+                - `python test.py`
+                - `git status`
+                - `ls -la`
+                
+                **Note**: Commands are executed in the current working directory
+                """)
 
     def do_model_settings(self):
         with st.sidebar.expander("Model Settings", expanded=False):
