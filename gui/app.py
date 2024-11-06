@@ -976,25 +976,24 @@ class GUI:
                                                         st.error(f"Failed to install: {result.stderr}")
                                     
                                     # Show manual installation instructions
-                                    with st.expander("Manual Installation"):
-                                        st.markdown(f"""
-                                        ### Install {tool_name} manually:
-                                        
-                                        **Using pip:**
-                                        ```bash
-                                        {install_commands[tool_name].get('pip', '# Not available via pip')}
-                                        ```
-                                        
-                                        **Using apt (Ubuntu/Debian):**
-                                        ```bash
-                                        {install_commands[tool_name].get('apt', '# Not available via apt')}
-                                        ```
-                                        
-                                        **Using brew (macOS):**
-                                        ```bash
-                                        {install_commands[tool_name].get('brew', '# Not available via brew')}
-                                        ```
-                                        """)
+                                    st.markdown(f"""
+                                    ### Manual Installation for {tool_name}:
+                                    
+                                    **Using pip:**
+                                    ```bash
+                                    {install_commands[tool_name].get('pip', '# Not available via pip')}
+                                    ```
+                                    
+                                    **Using apt (Ubuntu/Debian):**
+                                    ```bash
+                                    {install_commands[tool_name].get('apt', '# Not available via apt')}
+                                    ```
+                                    
+                                    **Using brew (macOS):**
+                                    ```bash
+                                    {install_commands[tool_name].get('brew', '# Not available via brew')}
+                                    ```
+                                    """)
                             else:
                                 # Display normal results
                                 if stdout:
