@@ -4,18 +4,20 @@ from typing import Dict, List, Optional
 
 def get_ai_security_analysis(scan_results: dict, scan_type: str) -> str:
     """Format security scan results for AI analysis"""
+    vulnerabilities = scan_results.get('vulnerabilities', [])
+    
     return f"""Security scan completed ({scan_type}). Please analyze these results:
 
 Scan Summary:
-- Total Issues: {scan_results.get('total_issues', 0)}
-- Critical: {scan_results.get('critical', 0)}
-- High: {scan_results.get('high', 0)}
-- Medium: {scan_results.get('medium', 0)}
-- Low: {scan_results.get('low', 0)}
+- Total Issues: {len(vulnerabilities)}
+- Critical: {sum(1 for v in vulnerabilities if v.get('severity') == 'critical')}
+- High: {sum(1 for v in vulnerabilities if v.get('severity') == 'high')}
+- Medium: {sum(1 for v in vulnerabilities if v.get('severity') == 'medium')}
+- Low: {sum(1 for v in vulnerabilities if v.get('severity') == 'low')}
 
 Detailed Findings:
 ```
-{scan_results.get('details', '')}
+{json.dumps(vulnerabilities, indent=2)}
 ```
 
 Please provide:
@@ -77,6 +79,17 @@ def render_security_panel(coder=None):
                 else:
                     status_text.text("Generating report...")
                 
+            # Run the security scan
+            results, error, chat_msg = coder.security.run_security_scan(
+                scan_type=scan_type,
+                severity=severity,
+                paths=["."] if scan_target == "Current Directory" else None
+            )
+            
+            if error:
+                st.error(error)
+                return
+                
             # Display results in tabs
             tab1, tab2, tab3, tab4 = st.tabs([
                 "Summary", 
@@ -89,12 +102,17 @@ def render_security_panel(coder=None):
                 st.markdown("### Scan Summary")
                 metrics_col1, metrics_col2, metrics_col3 = st.columns(3)
                 
+                vulnerabilities = results.get('vulnerabilities', [])
+                total = len(vulnerabilities)
+                critical = sum(1 for v in vulnerabilities if v.get('severity') == 'critical')
+                high = sum(1 for v in vulnerabilities if v.get('severity') == 'high')
+                
                 with metrics_col1:
-                    st.metric("Total Issues", "12")
+                    st.metric("Total Issues", str(total))
                 with metrics_col2:
-                    st.metric("Critical", "2", delta="-1")
+                    st.metric("Critical", str(critical))
                 with metrics_col3:
-                    st.metric("High", "4", delta="+1")
+                    st.metric("High", str(high))
                 
                 st.markdown("#### Quick Stats")
                 st.json({
