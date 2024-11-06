@@ -434,47 +434,90 @@ class GUI:
             self.web_content = None
 
     def do_shell_commands(self):
+        from gui.shell_handler import AiderShellHandler
+        
         with st.sidebar.expander("Shell Commands", expanded=False):
-            command = st.text_input("Shell Command:", placeholder="/run python test.py")
-            share_output = st.checkbox("Share output with AI", value=True)
+            # Initialize shell handler if needed
+            if not hasattr(self, 'shell_handler'):
+                self.shell_handler = AiderShellHandler(self.coder)
             
-            if st.button("Run Command") and command:  # Only run if command is not empty
+            # Command input
+            command = st.text_input(
+                "Shell Command:", 
+                placeholder="/run python test.py",
+                help="Enter a shell command to execute. '/run' prefix is optional."
+            )
+            
+            # Command options
+            col1, col2 = st.columns(2)
+            with col1:
+                share_output = st.checkbox("Share with AI", value=True)
+            with col2:
+                get_feedback = st.checkbox("Get AI Feedback", value=False)
+            
+            # Run button
+            if st.button("Run Command") and command:
                 with st.spinner("Running command..."):
                     try:
-                        # Strip /run prefix if present
-                        cmd = command.strip()
-                        if cmd.startswith('/run '):
-                            cmd = cmd[5:]
-                        
-                        # Clear any existing output
-                        self.coder.commands.io.get_captured_lines()
-                        
-                        # Run the command and capture output
-                        self.coder.commands.io.tool_output(f"Running: {cmd}")
-                        result = self.coder.commands.cmd_run(cmd)
-                        
-                        # Get all captured output
-                        output_lines = self.coder.commands.io.get_captured_lines()
-                        output = "\n".join(output_lines) if output_lines else ""
-                        
-                        # Always show the command output in the UI
-                        if output or result:  # Show output if we have any
-                            final_output = output
-                            if result and str(result).strip():
-                                final_output += f"\nResult: {result}"
+                        if get_feedback:
+                            # Run with AI feedback
+                            stdout, stderr, ai_feedback = self.shell_handler.run_with_ai_feedback(command)
                             
-                            # Display in Streamlit UI
-                            st.text("Command Output:")
-                            st.code(final_output)
+                            # Display results in expandable sections
+                            if stdout or stderr:
+                                with st.expander("Command Output", expanded=True):
+                                    if stdout:
+                                        st.text("Standard Output:")
+                                        st.code(stdout)
+                                    if stderr:
+                                        st.error("Standard Error:")
+                                        st.code(stderr)
                             
-                            # If share output is enabled, also add to chat
-                            if share_output:
-                                self.prompt = f"Command output:\n```\n{final_output}\n```"
-                                self.prompt_as = "text"
+                            if ai_feedback:
+                                with st.expander("AI Feedback", expanded=True):
+                                    st.markdown(ai_feedback)
+                        
                         else:
-                            st.info("Command executed successfully with no output")
+                            # Run without feedback
+                            stdout, stderr = self.shell_handler.run_shell_command(
+                                command, 
+                                share_output=share_output
+                            )
+                            
+                            # Display results
+                            if stdout:
+                                st.text("Command Output:")
+                                st.code(stdout)
+                            if stderr:
+                                st.error("Error Output:")
+                                st.code(stderr)
+                            
+                            if not stdout and not stderr:
+                                st.info("Command executed successfully with no output")
+                            
+                            # Add to chat if sharing is enabled
+                            if share_output and (stdout or stderr):
+                                output = stdout if stdout else stderr
+                                self.prompt = f"Command output:\n```\n{output}\n```"
+                                self.prompt_as = "text"
+                                
                     except Exception as e:
                         st.error(f"Error executing command: {str(e)}")
+            
+            # Help text
+            with st.expander("Shell Command Help"):
+                st.markdown("""
+                **Available Options:**
+                - **Share with AI**: Adds command output to the chat
+                - **Get AI Feedback**: Gets AI analysis of the command output
+                
+                **Example Commands:**
+                - `python test.py`
+                - `git status`
+                - `ls -la`
+                
+                **Note**: Commands are executed in the current working directory
+                """)
 
     def do_model_settings(self):
         with st.sidebar.expander("Model Settings", expanded=False):

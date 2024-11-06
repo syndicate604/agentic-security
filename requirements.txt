@@ -13,3 +13,4 @@ bcrypt>=4.0.1
 slack-sdk>=3.26.1
 markupsafe>=2.1.1
 bleach>=6.0.0
+typing-extensions>=4.5.0
