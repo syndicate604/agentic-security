@@ -111,9 +111,24 @@ Recommendation based on {criteria}:""",
         
         # Add to chat button
         if st.button("Add to Chat"):
-            st.session_state['messages'] = st.session_state.get('messages', [])
-            st.session_state['messages'].append({
-                "role": "system",
-                "content": f"Using {selected_template} template:\n\n{prompt}"
-            })
-            st.success("✓ Prompt added to chat!")
+            # Create a formatted message
+            formatted_prompt = (
+                f"Using {selected_template} template:\n\n"
+                f"{prompt}\n\n"
+                "Please proceed with this template to help structure our interaction."
+            )
+            
+            # Add to chat via coder's message system
+            if hasattr(coder, 'add_to_chat'):
+                coder.add_to_chat(formatted_prompt)
+            elif hasattr(coder, 'messages'):
+                coder.messages.append({
+                    "role": "user",
+                    "content": formatted_prompt
+                })
+            
+            st.success("✓ Prompt added to chat! Please submit to process.")
+            
+            # Set the prompt in the parent GUI
+            if 'prompt' in st.session_state:
+                st.session_state.prompt = formatted_prompt
