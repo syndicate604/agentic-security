@@ -58,7 +58,26 @@ def get_state():
 @st.cache_resource
 def get_coder():
     try:
-        coder = main.main(return_coder=True)
+        # Get model name from session state if available
+        model_name = st.session_state.get('selected_model')
+        
+        if model_name:
+            from aider.models import Model, OPENAI_MODELS, ANTHROPIC_MODELS
+            # Determine model type and validate
+            if model_name in OPENAI_MODELS or (isinstance(model_name, str) and model_name.startswith("openai/")):
+                model = Model(model_name)
+            elif model_name in ANTHROPIC_MODELS or (isinstance(model_name, str) and model_name.startswith("claude-")):
+                model = Model(model_name)
+            else:
+                model = None
+                
+            if model:
+                coder = coders.Coder.create(main_model=model)
+            else:
+                coder = main.main(return_coder=True)
+        else:
+            coder = main.main(return_coder=True)
+            
         if not isinstance(coder, coders.Coder):
             raise ValueError(coder)
         if not coder.repo:
@@ -508,23 +527,14 @@ class GUI:
                     # Store current model info before switching
                     old_model = getattr(self.coder, 'main_model', 'unknown')
                     
-                    try:
-                        # Create new model instance
-                        from aider.models import Model
-                        new_model = Model(model)
-                        
-                        # Update coder's model
-                        self.coder.main_model = new_model
-                        
-                        # Force reload coder to apply changes
-                        if hasattr(st, 'cache_resource'):
-                            st.cache_resource.clear()
-                            self.coder = get_coder()
-                        else:
-                            raise RuntimeError("Cache resource not available")
-                            
-                    except Exception as model_error:
-                        raise ValueError(f"Error switching to model {model}: {str(model_error)}")
+                    # Store selected model in session state
+                    st.session_state['selected_model'] = model
+                    
+                    # Clear cache and force reload
+                    st.cache_resource.clear()
+                    
+                    # Create new coder instance with new model
+                    self.coder = get_coder()
                     
                     # Update state and display info
                     self.state.init("current_model", model)
