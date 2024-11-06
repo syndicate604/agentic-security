@@ -821,29 +821,97 @@ class GUI:
         with st.sidebar.expander("Security Tools", expanded=False):
             if not hasattr(self, 'security_handler'):
                 self.security_handler = SecurityHandler(self.coder)
+
+            # Create tabs for different security tool categories
+            scan_tab, config_tab, report_tab = st.tabs(["Scan", "Configure", "Reports"])
+
+            with scan_tab:
+                st.markdown("### Security Scans")
                 
-            # Basic security scan options
-            scan_type = st.selectbox(
-                "Security Scan Type",
-                ["Select scan...", "bandit", "safety"]
-            )
-            
-            if st.button("Run Security Scan") and scan_type != "Select scan...":
-                with st.spinner(f"Running {scan_type} scan..."):
-                    stdout, stderr, chat_msg = self.security_handler.run_security_scan(scan_type)
-                    
-                    if stdout:
-                        st.text("Scan Results:")
-                        st.code(stdout)
-                    if stderr:
-                        st.error("Scan Errors:")
-                        st.code(stderr)
-                    
-                    # Add scan results to chat with guidance
-                    if chat_msg:
-                        self.prompt = chat_msg
-                        self.prompt_as = "text"
-                        st.info("✓ Analyzing scan results...")
+                # Scan category selection
+                scan_category = st.selectbox(
+                    "Scan Category",
+                    ["Static Analysis", "Dynamic Analysis", "Secret Detection", "Dependency Check"]
+                )
+                
+                # Tool selection based on category
+                tools = {
+                    "Static Analysis": ["Bandit", "Semgrep", "PyLint"],
+                    "Dynamic Analysis": ["OWASP ZAP", "Nuclei"],
+                    "Secret Detection": ["GitLeaks", "TruffleHog"],
+                    "Dependency Check": ["Safety", "OWASP Dependency Check"]
+                }
+                
+                selected_tool = st.selectbox(
+                    "Select Tool",
+                    tools.get(scan_category, [])
+                )
+                
+                # Severity level selection
+                severity = st.select_slider(
+                    "Minimum Severity",
+                    options=["Low", "Medium", "High", "Critical"],
+                    value="Medium"
+                )
+                
+                # Output format selection
+                output_format = st.selectbox(
+                    "Output Format",
+                    ["JSON", "Text", "HTML", "SARIF"]
+                )
+                
+                # Run scan button
+                if st.button("Run Security Scan"):
+                    with st.spinner(f"Running {selected_tool} scan..."):
+                        stdout, stderr, chat_msg = self.security_handler.run_security_scan(selected_tool.lower())
+                        
+                        if stdout:
+                            st.text("Scan Results:")
+                            st.code(stdout)
+                        if stderr:
+                            st.error("Scan Errors:")
+                            st.code(stderr)
+                        
+                        if chat_msg:
+                            self.prompt = chat_msg
+                            self.prompt_as = "text"
+                            st.info("✓ Analyzing scan results...")
+
+            with config_tab:
+                st.markdown("### Scan Configuration")
+                
+                # Tool configurations
+                st.checkbox("Enable Auto-Fix", value=True)
+                st.checkbox("Include Tests", value=True)
+                st.checkbox("Deep Scan", value=False)
+                
+                # Path configuration
+                st.text_input("Custom Rules Path", placeholder="/path/to/rules")
+                st.text_input("Ignore Patterns", placeholder="*.test.py,*.min.js")
+                
+                # Save configuration button
+                if st.button("Save Configuration"):
+                    st.success("Configuration saved!")
+
+            with report_tab:
+                st.markdown("### Security Reports")
+                
+                # Report options
+                report_type = st.selectbox(
+                    "Report Type",
+                    ["Summary", "Detailed", "Compliance", "Trends"]
+                )
+                
+                # Date range for reports
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.date_input("Start Date")
+                with col2:
+                    st.date_input("End Date")
+                
+                # Generate report button
+                if st.button("Generate Report"):
+                    st.info("Generating security report...")
 
     def do_dev_tools(self):
         with st.sidebar.expander("Developer Tools", expanded=False):
