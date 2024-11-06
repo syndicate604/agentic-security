@@ -830,7 +830,7 @@ class GUI:
             
             if st.button("Run Security Scan") and scan_type != "Select scan...":
                 with st.spinner(f"Running {scan_type} scan..."):
-                    stdout, stderr = self.security_handler.run_security_scan(scan_type)
+                    stdout, stderr, chat_msg = self.security_handler.run_security_scan(scan_type)
                     
                     if stdout:
                         st.text("Scan Results:")
