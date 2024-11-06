@@ -1155,6 +1155,23 @@ def gui_main():
         .css-1d391kg hr {
             border-color: #00ff00 !important;
         }
+
+        /* Chat input area */
+        .stChatInput {
+            background-color: #0a0a0a !important;
+            border-color: #00ff00 !important;
+        }
+        
+        .stChatInput textarea {
+            background-color: #0a0a0a !important;
+            color: #00ff00 !important;
+            font-family: 'Courier New', monospace !important;
+        }
+        
+        .stChatInput textarea:focus {
+            border-color: #33ff33 !important;
+            box-shadow: 0 0 0 1px #33ff33 !important;
+        }
         </style>
     """, unsafe_allow_html=True)
 
