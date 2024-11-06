@@ -184,8 +184,6 @@ class GUI:
             self.do_recent_msgs()
             self.do_clear_chat_history()
             self.do_model_settings()
-            from config_handler import render_config_panel
-            render_config_panel(self.coder)
             self.do_shell_commands()
             self.do_github_actions() 
             self.do_security_tools()
