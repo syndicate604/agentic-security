@@ -187,6 +187,8 @@ class GUI:
             self.do_shell_commands()
             self.do_github_actions()
             self.do_dev_tools()
+            self.do_code_generator()
+            self.do_code_analyzer()
             
             st.warning(
                 "This browser version of aider is experimental. Please share feedback in [GitHub"
@@ -812,6 +814,210 @@ class GUI:
             - **Max Tokens**: {max_tokens}
             - **Provider**: {provider}
             """)
+
+    def do_code_generator(self):
+        with st.sidebar.expander("AI Code Generator", expanded=False):
+            # Project type selection
+            project_type = st.selectbox(
+                "Project Type",
+                [
+                    "Select type...",
+                    "API Endpoint",
+                    "CLI Tool", 
+                    "Data Pipeline",
+                    "Web Scraper",
+                    "Database Schema",
+                    "Test Suite",
+                    "Security Tool",
+                    "Machine Learning Model",
+                    "UI Component",
+                    "Custom"
+                ]
+            )
+            
+            if project_type != "Select type...":
+                # Framework/technology selection
+                frameworks = {
+                    "API Endpoint": ["FastAPI", "Flask", "Django REST", "Express"],
+                    "CLI Tool": ["Click", "Typer", "Argparse", "Custom"],
+                    "Data Pipeline": ["Apache Airflow", "Luigi", "Prefect", "Custom"],
+                    "Web Scraper": ["Scrapy", "Beautiful Soup", "Selenium", "Custom"],
+                    "Database Schema": ["SQLAlchemy", "Django ORM", "Prisma", "Raw SQL"],
+                    "Test Suite": ["Pytest", "Unittest", "Jest", "Custom"],
+                    "Security Tool": ["Python-Security", "OWASP", "Custom"],
+                    "Machine Learning Model": ["Scikit-learn", "TensorFlow", "PyTorch", "Custom"],
+                    "UI Component": ["React", "Vue", "Streamlit", "Custom"],
+                    "Custom": ["No Framework"]
+                }
+                
+                framework = st.selectbox(
+                    "Framework/Technology",
+                    frameworks.get(project_type, ["Custom"])
+                )
+                
+                # Features and requirements
+                st.markdown("### Features & Requirements")
+                features = st.text_area(
+                    "List desired features (one per line)",
+                    height=100,
+                    help="Enter each feature or requirement on a new line"
+                )
+                
+                # Code style preferences
+                st.markdown("### Code Style")
+                col1, col2 = st.columns(2)
+                with col1:
+                    style = st.radio(
+                        "Code Style",
+                        ["Simple", "Production", "Enterprise"]
+                    )
+                with col2:
+                    patterns = st.multiselect(
+                        "Design Patterns",
+                        ["Factory", "Singleton", "Observer", "Repository", "CQRS", "Event-driven"]
+                    )
+                
+                # Advanced options
+                with st.expander("Advanced Options"):
+                    include_tests = st.checkbox("Generate Tests", value=True)
+                    include_docs = st.checkbox("Generate Documentation", value=True)
+                    include_typing = st.checkbox("Include Type Hints", value=True)
+                    include_logging = st.checkbox("Include Logging", value=True)
+                    include_ci = st.checkbox("Generate CI/CD Config", value=False)
+                    
+                # Generation options
+                col1, col2 = st.columns(2)
+                with col1:
+                    generate_full = st.checkbox("Generate Full Project", value=False)
+                with col2:
+                    explain_code = st.checkbox("Explain Generated Code", value=True)
+                
+                # Generate button
+                if st.button("Generate Code"):
+                    prompt = f"""Generate {style.lower()}-style {project_type.lower()} using {framework} with the following features:
+                    
+Features:
+{features}
+
+Requirements:
+- Design Patterns: {', '.join(patterns)}
+- {'Include' if include_tests else 'Skip'} tests
+- {'Include' if include_docs else 'Skip'} documentation
+- {'Use' if include_typing else 'Skip'} type hints
+- {'Include' if include_logging else 'Skip'} logging
+- {'Generate' if include_ci else 'Skip'} CI/CD config
+
+Please provide:
+{'- Complete project structure and all files' if generate_full else '- Core implementation only'}
+{'- Detailed explanation of the code' if explain_code else ''}
+"""
+                    # Set the prompt for processing
+                    self.prompt = prompt
+                    self.prompt_as = "user"
+
+    def do_code_analyzer(self):
+        with st.sidebar.expander("Code Analyzer", expanded=False):
+            # Analysis type selection
+            analysis_type = st.multiselect(
+                "Analysis Types",
+                [
+                    "Security Vulnerabilities",
+                    "Code Quality",
+                    "Performance Issues",
+                    "Architecture Review",
+                    "Dependency Analysis",
+                    "Test Coverage",
+                    "Documentation Quality",
+                    "API Design",
+                    "Database Usage",
+                    "Error Handling"
+                ]
+            )
+            
+            # Code input method
+            input_method = st.radio(
+                "Code Input Method",
+                ["Current Files", "Paste Code", "GitHub URL"]
+            )
+            
+            if input_method == "Paste Code":
+                code = st.text_area("Paste Code Here", height=200)
+            elif input_method == "GitHub URL":
+                repo_url = st.text_input("GitHub Repository URL")
+            
+            # Analysis depth
+            st.markdown("### Analysis Depth")
+            col1, col2 = st.columns(2)
+            with col1:
+                depth = st.select_slider(
+                    "Analysis Depth",
+                    options=["Basic", "Standard", "Deep", "Comprehensive"]
+                )
+            with col2:
+                focus = st.multiselect(
+                    "Focus Areas",
+                    ["Maintainability", "Scalability", "Security", "Performance"]
+                )
+            
+            # Output preferences
+            st.markdown("### Output Preferences")
+            output_format = st.multiselect(
+                "Include in Report",
+                [
+                    "Issue Summary",
+                    "Code Examples",
+                    "Fix Suggestions",
+                    "Best Practices",
+                    "Refactoring Ideas",
+                    "Architecture Diagram",
+                    "Risk Assessment",
+                    "Metrics Dashboard"
+                ],
+                default=["Issue Summary", "Fix Suggestions"]
+            )
+            
+            # Advanced options
+            with st.expander("Advanced Analysis Options"):
+                ignore_patterns = st.text_input(
+                    "Ignore Patterns",
+                    placeholder="*.test.py,*_test.go"
+                )
+                custom_rules = st.text_area(
+                    "Custom Analysis Rules",
+                    placeholder="One rule per line"
+                )
+                include_metrics = st.checkbox("Include Code Metrics", value=True)
+                suggest_alternatives = st.checkbox("Suggest Alternative Implementations", value=True)
+                
+            # Analyze button
+            if st.button("Analyze Code"):
+                # Build analysis prompt based on selections
+                prompt = f"""Perform a {depth.lower()} analysis of the {'provided code' if input_method == 'Paste Code' else 'repository'} focusing on:
+                
+Analysis Types:
+{chr(10).join(f'- {t}' for t in analysis_type)}
+
+Focus Areas:
+{chr(10).join(f'- {f}' for f in focus)}
+
+Please provide:
+{chr(10).join(f'- {o}' for o in output_format)}
+
+{'Include code metrics and detailed measurements' if include_metrics else ''}
+{'Suggest alternative implementations and patterns' if suggest_alternatives else ''}
+
+{'Custom Rules to apply:' + chr(10) + custom_rules if custom_rules else ''}
+{'Ignore patterns:' + chr(10) + ignore_patterns if ignore_patterns else ''}
+
+"""
+                if input_method == "Paste Code":
+                    prompt += f"\nCode to analyze:\n```\n{code}\n```"
+                elif input_method == "GitHub URL":
+                    prompt += f"\nAnalyze repository: {repo_url}"
+                
+                # Set the prompt for processing
+                self.prompt = prompt
+                self.prompt_as = "user"
 
     def do_dev_tools(self):
         with st.sidebar.expander("Developer Tools", expanded=False):
