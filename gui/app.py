@@ -8,7 +8,9 @@ from aider import urls, coders, io, main, scrape
 from aider.commands import SwitchCoder
 
 class CaptureIO(io.InputOutput):
-    lines = []
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.lines = []
 
     def tool_output(self, msg, log_only=False):
         if not log_only:
@@ -53,24 +55,32 @@ def get_state():
 
 @st.cache_resource
 def get_coder():
-    coder = main.main(return_coder=True)
-    if not isinstance(coder, coders.Coder):
-        raise ValueError(coder)
-    if not coder.repo:
-        raise ValueError("GUI can currently only be used inside a git repo")
+    try:
+        coder = main.main(return_coder=True)
+        if not isinstance(coder, coders.Coder):
+            raise ValueError(coder)
+        if not coder.repo:
+            raise ValueError("GUI can currently only be used inside a git repo")
 
-    io = CaptureIO(
-        pretty=False,
-        yes=True,
-        dry_run=coder.io.dry_run,
-        encoding=coder.io.encoding,
-    )
-    coder.commands.io = io
-
-    for line in coder.get_announcements():
-        coder.io.tool_output(line)
-
-    return coder
+        # Create CaptureIO instance with proper initialization
+        capture_io = CaptureIO(
+            pretty=False,
+            yes=True,
+            dry_run=coder.io.dry_run,
+            encoding=coder.io.encoding,
+        )
+        
+        # Set the IO instance
+        coder.commands.io = capture_io
+        
+        # Get initial announcements
+        for line in coder.get_announcements():
+            capture_io.tool_output(line, log_only=False)
+            
+        return coder
+    except Exception as e:
+        st.error(f"Error initializing Aider: {str(e)}")
+        raise
 
 class GUI:
     prompt = None
