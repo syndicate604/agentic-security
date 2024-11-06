@@ -10,7 +10,7 @@ export async function activate(context: vscode.ExtensionContext) {
         try {
             // Get configuration
             const config = vscode.workspace.getConfiguration('aider');
-            const port = config.get('port') || 8501;
+            const port: number = config.get('port') as number || 8501;
 
             // Create and show panel
             if (currentPanel) {
