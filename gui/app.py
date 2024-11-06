@@ -389,7 +389,16 @@ class GUI:
             if st.button("Run Command") and command:  # Only run if command is not empty
                 with st.spinner("Running command..."):
                     try:
-                        output = self.coder.commands.cmd_run(command)
+                        # Capture any existing output before running command
+                        self.coder.commands.io.get_captured_lines()
+                        
+                        # Run the command
+                        self.coder.commands.cmd_run(command)
+                        
+                        # Get captured output
+                        output_lines = self.coder.commands.io.get_captured_lines()
+                        output = "\n".join(output_lines) if output_lines else ""
+                        
                         if output:  # Only process if there is output
                             if share_output:
                                 self.prompt = f"Command output:\n```\n{output}\n```"
