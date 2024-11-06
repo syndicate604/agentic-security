@@ -12,6 +12,7 @@ class SecurityHandler:
         self.coder = coder
         self.io = coder.commands.io
         self.pipeline = SecurityPipeline()
+        self.tool_configs = {
             "Bandit": {
                 "command": "bandit",
                 "args": ["-r", ".", "-f", "json"],
