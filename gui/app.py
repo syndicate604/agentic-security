@@ -8,6 +8,7 @@ import os
 import streamlit as st
 from aider import urls, coders, io, main, scrape
 from aider.commands import SwitchCoder
+from .git_handler import GitHandler, render_git_sidebar
 
 class CaptureIO(io.InputOutput):
     def __init__(self, *args, **kwargs):
@@ -192,6 +193,7 @@ class GUI:
             self.do_clear_chat_history()
             self.do_model_settings()
             self.do_shell_commands()
+            render_git_sidebar(self.git_handler)
             st.warning(
                 "This browser version of aider is experimental. Please share feedback in [GitHub"
                 " issues](https://github.com/Aider-AI/aider/issues)."
@@ -319,6 +321,7 @@ class GUI:
             self.coder.io.no_interactive = True
 
             self.initialize_state()
+            self.git_handler = GitHandler(self.coder)
         except Exception as e:
             st.error(f"Error initializing GUI: {str(e)}")
             return
