@@ -6,7 +6,15 @@ class GitHubActionsHandler:
     def __init__(self, coder: Coder):
         """Initialize with an existing coder instance"""
         self.coder = coder
-        self.repo_path = coder.repo.git_dir.parent if coder.repo else None
+        # Get repo path safely
+        self.repo_path = None
+        if coder.repo:
+            try:
+                # Try to get git dir from repo object
+                self.repo_path = coder.repo.git_dir.parent
+            except AttributeError:
+                # Fallback to repo working directory if available
+                self.repo_path = getattr(coder.repo, 'working_dir', None)
         
     def list_workflows(self) -> Tuple[Optional[List[Dict]], Optional[str]]:
         """List GitHub Actions workflows"""
