@@ -425,12 +425,12 @@ def gui_main():
         
         /* Sidebar styling */
         .css-1d391kg {
-            background-color: #141414;
+            background-color: #0d0d0d;
         }
         
         /* Input fields */
         .stTextInput input {
-            background-color: #1a1a1a;
+            background-color: #111111;
             color: #00ff00;
             border-color: #00ff00;
             font-family: 'Courier New', monospace;
@@ -542,14 +542,14 @@ def gui_main():
 
         /* Sidebar select boxes and dropdowns */
         .css-1d391kg select, .css-1d391kg .stSelectbox {
-            background-color: #1a1a1a !important;
+            background-color: #111111 !important;
             color: #00ff00 !important;
             border-color: #00ff00 !important;
         }
 
         /* Sidebar warning box */
         .css-1d391kg .stAlert {
-            background-color: #1a1a1a !important;
+            background-color: #111111 !important;
             color: #00ff00 !important;
             border-color: #00ff00 !important;
         }
