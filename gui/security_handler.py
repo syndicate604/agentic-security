@@ -114,3 +114,16 @@ class SecurityHandler:
         except Exception as e:
             error_msg = str(e)
             return None, f"Error running security scan: {error_msg}", None
+            
+    def apply_fixes(self, files: list, message: str = None, max_attempts: int = 3) -> bool:
+        """Apply security fixes using FixCycle"""
+        try:
+            fixer = FixCycle(
+                files=files,
+                message=message or "Review this code for security issues and propose fixes following security best practices.",
+                max_attempts=max_attempts
+            )
+            return fixer.run_fix_cycle()
+        except Exception as e:
+            self.io.tool_error(f"Error applying fixes: {str(e)}")
+            return False
