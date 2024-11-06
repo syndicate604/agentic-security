@@ -4,6 +4,7 @@ import os
 import random
 import sys
 import io
+import os
 import streamlit as st
 from aider import urls, coders, io, main, scrape
 from aider.commands import SwitchCoder
@@ -498,6 +499,12 @@ class GUI:
             # Model switching
             if st.button("Switch Model"):
                 try:
+                    # Check API keys before attempting switch
+                    if provider == "OpenAI" and not os.getenv("OPENAI_API_KEY"):
+                        raise ValueError("OpenAI API key not found. Please set OPENAI_API_KEY environment variable.")
+                    elif provider == "Anthropic" and not os.getenv("ANTHROPIC_API_KEY"):
+                        raise ValueError("Anthropic API key not found. Please set ANTHROPIC_API_KEY environment variable.")
+                    
                     # Store current model info before switching
                     old_model = getattr(self.coder, 'main_model', 'unknown')
                     
@@ -506,9 +513,12 @@ class GUI:
                         raise AttributeError("Model switching not supported in current configuration")
                     
                     # Attempt to switch model
-                    result = self.coder.commands.cmd_model(model)
-                    if not result:
-                        raise ValueError(f"Failed to switch to model {model}")
+                    try:
+                        result = self.coder.commands.cmd_model(model)
+                        if not result:
+                            raise ValueError(f"Failed to switch to model {model}. The model may not be available with your current API key.")
+                    except Exception as model_error:
+                        raise ValueError(f"Error switching to model {model}: {str(model_error)}")
                     
                     # Force reload coder with new model
                     if hasattr(st, 'cache_resource'):
