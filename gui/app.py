@@ -484,13 +484,13 @@ class GUI:
                         self.info(f"Error updating settings: {str(e)}")
 
             # Display current settings
-            with st.expander("Current Model Info"):
-                st.markdown(f"""
-                - **Current Model**: {self.state.current_model if hasattr(self.state, 'current_model') else model}
-                - **Temperature**: {temperature}
-                - **Max Tokens**: {max_tokens}
-                - **Provider**: {provider}
-                """)
+            st.markdown("### Current Model Info")
+            st.markdown(f"""
+            - **Current Model**: {self.state.current_model if hasattr(self.state, 'current_model') else model}
+            - **Temperature**: {temperature}
+            - **Max Tokens**: {max_tokens}
+            - **Provider**: {provider}
+            """)
 
     def do_undo(self, commit_hash):
         self.last_undo_empty.empty()
