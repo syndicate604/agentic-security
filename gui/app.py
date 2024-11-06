@@ -837,35 +837,194 @@ class GUI:
 
 
     def do_security_tools(self):
-        """Add security panel to sidebar"""
+        """Enhanced security panel with comprehensive scanning options"""
         from security_handler import SecurityHandler
         
-        with st.sidebar.expander("Security Tools", expanded=False):
-            if not hasattr(self, 'security_handler'):
-                self.security_handler = SecurityHandler(self.coder)
-                
-            # Basic security scan options
-            scan_type = st.selectbox(
-                "Security Scan Type",
-                ["Select scan...", "bandit", "safety"]
+        st.markdown("### 🛡️ Security Dashboard")
+        
+        if not hasattr(self, 'security_handler'):
+            self.security_handler = SecurityHandler(self.coder)
+        
+        # Scan Type Selection with descriptions
+        scan_options = {
+            "Quick Scan": {
+                "description": "Fast security check of common vulnerabilities",
+                "tools": ["bandit", "safety"],
+                "icon": "🚀"
+            },
+            "Deep Scan": {
+                "description": "Comprehensive security analysis",
+                "tools": ["bandit", "safety", "semgrep", "gitleaks"],
+                "icon": "🔍"
+            },
+            "Dependency Scan": {
+                "description": "Check dependencies for known vulnerabilities",
+                "tools": ["safety"],
+                "icon": "📦"
+            },
+            "Secret Scanner": {
+                "description": "Detect exposed secrets and credentials",
+                "tools": ["gitleaks"],
+                "icon": "🔐"
+            }
+        }
+        
+        # Scan Configuration
+        col1, col2 = st.columns([2, 3])
+        with col1:
+            selected_scan = st.selectbox(
+                "Scan Type",
+                options=["Select scan..."] + list(scan_options.keys())
+            )
+        
+        with col2:
+            if selected_scan != "Select scan...":
+                st.info(f"{scan_options[selected_scan]['icon']} {scan_options[selected_scan]['description']}")
+        
+        # Scan Options
+        if selected_scan != "Select scan...":
+            # Severity Level
+            severity = st.select_slider(
+                "Minimum Severity",
+                options=["Low", "Medium", "High", "Critical"],
+                value="Medium"
             )
             
-            if st.button("Run Security Scan") and scan_type != "Select scan...":
-                with st.spinner(f"Running {scan_type} scan..."):
-                    stdout, stderr, chat_msg = self.security_handler.run_security_scan(scan_type)
-                    
-                    if stdout:
-                        st.text("Scan Results:")
-                        st.code(stdout)
-                    if stderr:
-                        st.error("Scan Errors:")
-                        st.code(stderr)
-                    
-                    # Add scan results to chat with guidance
-                    if chat_msg:
-                        self.prompt = chat_msg
-                        self.prompt_as = "text"
-                        st.info("✓ Analyzing scan results...")
+            # File Selection
+            scan_target = st.radio(
+                "Scan Target",
+                ["All Files", "Git Changes", "Selected Files"]
+            )
+            
+            if scan_target == "Selected Files":
+                selected_files = st.multiselect(
+                    "Select Files",
+                    self.coder.get_all_relative_files(),
+                    help="Choose specific files to scan"
+                )
+            
+            # Options in columns
+            col1, col2 = st.columns(2)
+            with col1:
+                ignore_tests = st.checkbox("Ignore Tests", value=True)
+                fail_on_warnings = st.checkbox("Fail on Warnings", value=False)
+            with col2:
+                save_report = st.checkbox("Save Report", value=True)
+                auto_fix = st.checkbox("Auto-fix Issues", value=False)
+            
+            # Run Scan Button
+            if st.button("Run Security Scan", type="primary"):
+                with st.spinner(f"Running {selected_scan}..."):
+                    try:
+                        # Configure scan parameters
+                        scan_params = {
+                            "severity": severity.lower(),
+                            "ignore_tests": ignore_tests,
+                            "fail_on_warnings": fail_on_warnings,
+                            "save_report": save_report,
+                            "auto_fix": auto_fix,
+                            "files": selected_files if scan_target == "Selected Files" else None
+                        }
+                        
+                        # Run selected security tools
+                        tools = scan_options[selected_scan]["tools"]
+                        results = []
+                        
+                        # Progress bar for multiple tools
+                        progress_bar = st.progress(0)
+                        for i, tool in enumerate(tools):
+                            st.markdown(f"Running {tool}...")
+                            stdout, stderr, chat_msg = self.security_handler.run_security_scan(
+                                tool, 
+                                severity=severity.lower(),
+                                scan_params=scan_params
+                            )
+                            
+                            if stdout:
+                                results.append({
+                                    "tool": tool,
+                                    "output": stdout,
+                                    "errors": stderr,
+                                    "analysis": chat_msg
+                                })
+                            
+                            progress_bar.progress((i + 1) / len(tools))
+                        
+                        # Display Results
+                        if results:
+                            st.markdown("### Scan Results")
+                            
+                            # Summary metrics
+                            metrics_col1, metrics_col2, metrics_col3 = st.columns(3)
+                            total_issues = sum(len(r["output"].splitlines()) for r in results)
+                            with metrics_col1:
+                                st.metric("Total Issues", total_issues)
+                            with metrics_col2:
+                                st.metric("Critical Issues", 
+                                    len([r for r in results if "CRITICAL" in r["output"]])
+                                )
+                            with metrics_col3:
+                                st.metric("Tools Run", len(results))
+                            
+                            # Results tabs
+                            tool_tabs = st.tabs([r["tool"].title() for r in results])
+                            for tab, result in zip(tool_tabs, results):
+                                with tab:
+                                    if result["output"]:
+                                        st.code(result["output"])
+                                    if result["errors"]:
+                                        st.error(result["errors"])
+                                    
+                                    # AI Analysis
+                                    if result["analysis"]:
+                                        st.markdown("#### 🤖 AI Analysis")
+                                        st.markdown(result["analysis"])
+                            
+                            # Export results if requested
+                            if save_report:
+                                report_path = f"security_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+                                with open(report_path, "w") as f:
+                                    f.write("\n\n".join(r["output"] for r in results))
+                                st.download_button(
+                                    "📥 Download Report",
+                                    "\n\n".join(r["output"] for r in results),
+                                    file_name=report_path,
+                                    mime="text/markdown"
+                                )
+                        
+                        else:
+                            st.success("No security issues found!")
+                            
+                    except Exception as e:
+                        st.error(f"Error during security scan: {str(e)}")
+        
+        # Help section
+        st.markdown("""
+        ### ℹ️ Security Tools Help
+        
+        **Available Scan Types**
+        1. **Quick Scan** 🚀
+           - Fast security check
+           - Best for routine checks
+        
+        2. **Deep Scan** 🔍
+           - Comprehensive analysis
+           - Recommended for releases
+        
+        3. **Dependency Scan** 📦
+           - Checks package vulnerabilities
+           - Important for supply chain security
+        
+        4. **Secret Scanner** 🔐
+           - Finds exposed credentials
+           - Critical for security compliance
+        
+        **Severity Levels**
+        - **Low**: Minor issues
+        - **Medium**: Moderate risks
+        - **High**: Serious vulnerabilities
+        - **Critical**: Immediate attention needed
+        """)
 
     def do_dev_tools(self):
         with st.sidebar.expander("Developer Tools", expanded=False):
