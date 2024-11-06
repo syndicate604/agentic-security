@@ -9,6 +9,7 @@ import streamlit as st
 from aider import urls, coders, io, main, scrape
 from aider.commands import SwitchCoder
 
+
 class CaptureIO(io.InputOutput):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -255,24 +256,26 @@ class GUI:
         self.messages = st.container()
 
         with self.messages:
-            for msg in self.state.messages:
-                role = msg["role"]
+                for msg in self.state.messages:
+                    role = msg["role"]
 
-                if role == "edit":
-                    self.show_edit_info(msg)
-                elif role == "info":
-                    st.info(msg["content"])
-                elif role == "text":
-                    text = msg["content"]
-                    line = text.splitlines()[0]
-                    with self.messages.expander(line):
-                        st.text(text)
-                elif role in ("user", "assistant"):
-                    with st.chat_message(role):
-                        st.write(msg["content"])
-                else:
-                    st.dict(msg)
-
+                    if role == "edit":
+                        self.show_edit_info(msg)
+                    elif role == "info":
+                        st.info(msg["content"])
+                    elif role == "text":
+                        text = msg["content"]
+                        line = text.splitlines()[0]
+                        with self.messages.expander(line):
+                            st.text(text)
+                    elif role == "user":
+                        with st.chat_message(role, avatar="💀"):  # User icon
+                            st.write(msg["content"])
+                    elif role == "assistant":
+                        with st.chat_message(role, avatar="🤖"):  # Assistant icon
+                            st.write(msg["content"])
+                    else:
+                        st.json(msg)  # Changed from st.dict to st.json for better display
     def initialize_state(self):
         messages = [
             dict(role="info", content=self.announce()),
@@ -322,7 +325,7 @@ class GUI:
         self.do_messages_container()
         self.do_sidebar()
 
-        user_inp = st.chat_input("Say something")
+        user_inp = st.chat_input("// Enter Command Here")
         if user_inp:
             self.prompt = user_inp
 
@@ -1002,123 +1005,7 @@ def gui_main():
 
         # Enable dark mode globally
         st.markdown("""
-            <style>
-                [data-testid="stSidebar"] {
-                    background-color: #0E1117;
-                }
-                
-                [data-testid="stToolbar"] {
-                    background-color: #0E1117;
-                }
-                
-                .stApp {
-                    background-color: #0E1117;
-                }
-                
-                .stMarkdown, .stText {
-                    color: #FAFAFA;
-                }
-                
-                button[data-baseweb="tab"] {
-                    background-color: #0E1117;
-                    color: #FAFAFA;
-                }
-                
-                button[data-baseweb="tab"]:hover {
-                    background-color: #262730;
-                }
-                
-                .stSelectbox > div > div {
-                    background-color: #262730;
-                    color: #FAFAFA;
-                }
-                
-                .stTextInput > div > div > input {
-                    background-color: #262730;
-                    color: #FAFAFA;
-                }
-                
-                .stTextArea > div > div > textarea {
-                    background-color: #262730;
-                    color: #FAFAFA;
-                }
-                
-                .stNumberInput > div > div > input {
-                    background-color: #262730;
-                    color: #FAFAFA;
-                }
-                
-                .stDateInput > div > div > input {
-                    background-color: #262730;
-                    color: #FAFAFA;
-                }
-                
-                .stTimeInput > div > div > input {
-                    background-color: #262730;
-                    color: #FAFAFA;
-                }
-                
-                .stFileUploader > div > div {
-                    background-color: #262730;
-                    color: #FAFAFA;
-                }
-                
-                .stDataFrame {
-                    background-color: #262730;
-                    color: #FAFAFA;
-                }
-                
-                .stTable {
-                    background-color: #262730;
-                    color: #FAFAFA;
-                }
-                
-                .stAlert {
-                    background-color: #262730;
-                    color: #FAFAFA;
-                }
-                
-                .stProgress > div > div > div > div {
-                    background-color: #262730;
-                }
-                
-                .stDownloadButton > button {
-                    background-color: #262730;
-                    color: #FAFAFA;
-                }
-                
-                .stExpander > div > div {
-                    background-color: #262730;
-                    color: #FAFAFA;
-                }
-                
-                .streamlit-expanderHeader {
-                    background-color: #262730;
-                    color: #FAFAFA;
-                }
-                
-                .stWidgetLabel {
-                    color: #FAFAFA;
-                }
-                
-                .stRadio > div {
-                    background-color: #262730;
-                    color: #FAFAFA;
-                }
-                
-                .stCheckbox > div > label {
-                    color: #FAFAFA;
-                }
-                
-                .stSlider > div {
-                    color: #FAFAFA;
-                }
-                
-                .stMultiSelect > div > div {
-                    background-color: #262730;
-                    color: #FAFAFA;
-                }
-            </style>
+          
         """, unsafe_allow_html=True)
 
         # Apply custom CSS for dark mode hacker style
@@ -1278,21 +1165,62 @@ def gui_main():
             border-color: #00ff00 !important;
         }
 
-        /* Chat input area */
+       /* Chat input container */
         .stChatInput {
+            padding: 10px;
             background-color: #0a0a0a !important;
-            border-color: #00ff00 !important;
+            border-radius: 10px;
+            border: 1px solid #00ff00 !important;
         }
-        
+
+        /* Chat input textarea */
         .stChatInput textarea {
-            background-color: #0a0a0a !important;
-            color: #00ff00 !important;
+            color: #00FF00 !important;
             font-family: 'Courier New', monospace !important;
+            font-size: 16px !important;
+            font-style: italic !important;
+            background-color: transparent !important;
+            border: none !important;
+            padding: 8px !important;
+            width: 100% !important;
         }
-        
-        .stChatInput textarea:focus {
-            border-color: #33ff33 !important;
-            box-shadow: 0 0 0 1px #33ff33 !important;
+
+        /* Chat input textarea placeholder */
+        .stChatInput textarea::placeholder {
+            color: #00ff00 !important;
+            opacity: 0.5 !important;
+            font-style: italic !important;
+        }
+
+        /* Submit button */
+        .stChatInput button {
+            border: 1px solid #00FF00 !important;
+            border-radius: 50% !important;
+            padding: 8px !important;
+            background-color: transparent !important;
+            margin-left: 10px !important;
+            width: 40px !important;
+            height: 40px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+
+        /* Submit button hover */
+        .stChatInput button:hover {
+            background-color: #00ff00 !important;
+        }
+
+        /* Submit button hover icon */
+        .stChatInput button:hover svg {
+            color: #0a0a0a !important;
+        }
+
+        /* Submit button icon */
+        .stChatInput button svg {
+            color: #00FF00 !important;
+            width: 20px !important;
+            height: 20px !important;
         }
 
         /* Chat input container background */
@@ -1300,18 +1228,19 @@ def gui_main():
         [data-testid="stChatInputContainer"] > div,
         .stBottom.st-emotion-cache-1p2n2i4.ea3mdgi7,
         .st-emotion-cache-abycrm {
-            background-color: #0a0a0a !important;
+            background-color: #000 !important;
             border-top: 1px solid #00ff00 !important;
             padding-top: 1rem !important;
-            color: #ffffff !important;
         }
 
         /* Ensure all nested divs in chat input are dark */
         [data-testid="stChatInputContainer"] div,
         .stBottom.st-emotion-cache-1p2n2i4.ea3mdgi7 div,
         .st-emotion-cache-abycrm div {
-            background-color: #0a0a0a !important;
+            background-color: #000 !important;
         }
+                    
+                    
         </style>
     """, unsafe_allow_html=True)
 
