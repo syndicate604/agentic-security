@@ -75,20 +75,38 @@ class AiderShellHandler:
     def run_with_ai_feedback(self, command: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """
         Run command and get AI feedback on the output
-        Returns: Tuple of (stdout, stderr, ai_feedback)
+        Returns: Tuple of (stdout, stderr, chat_msg)
         """
         stdout, stderr, _ = self.run_shell_command(command, share_output=False)
         
-        ai_feedback = None
-        if stderr:
-            ai_feedback = self.coder.run(
-                f"There was an error running '{command}':\n```\n{stderr}\n```\n"
-                "Can you help fix this?"
-            )
-        elif stdout:
-            ai_feedback = self.coder.run(
-                f"I ran '{command}' and got this output:\n```\n{stdout}\n```\n"
-                "Can you explain what this means?"
-            )
-            
-        return stdout, stderr, ai_feedback
+        output = stderr if stderr else stdout
+        if output:
+            if command.startswith('git '):
+                chat_msg = (
+                    f"Git command `{command}` output:\n```\n{output}\n```\n\n"
+                    "Please provide a detailed analysis including:\n"
+                    "1. What changes were made or what state is shown\n"
+                    "2. Any potential issues or warnings\n"
+                    "3. Recommended next steps\n"
+                    "4. Best practices relevant to this operation"
+                )
+            elif command.startswith('python ') or command.endswith('.py'):
+                chat_msg = (
+                    f"Python script `{command}` output:\n```\n{output}\n```\n\n"
+                    "Please provide a detailed analysis including:\n"
+                    "1. Execution results and any errors\n"
+                    "2. Code quality insights\n"
+                    "3. Performance considerations\n"
+                    "4. Security implications if relevant"
+                )
+            else:
+                chat_msg = (
+                    f"Command `{command}` output:\n```\n{output}\n```\n\n"
+                    "Please provide a detailed analysis including:\n"
+                    "1. What the output means\n"
+                    "2. Any warnings or issues\n"
+                    "3. Relevant system implications\n"
+                    "4. Suggested follow-up actions"
+                )
+            return stdout, stderr, chat_msg
+        return stdout, stderr, None

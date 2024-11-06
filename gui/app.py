@@ -469,40 +469,21 @@ class GUI:
                     try:
                         if get_feedback:
                             # Run with AI feedback
-                            stdout, stderr, ai_feedback = self.shell_handler.run_with_ai_feedback(command)
+                            stdout, stderr, chat_msg = self.shell_handler.run_with_ai_feedback(command)
                             
-                            # Display results in expandable sections
-                            if stdout or stderr:
-                                with st.expander("Command Output", expanded=True):
-                                    if stdout:
-                                        st.text("Standard Output:")
-                                        st.code(stdout)
-                                    if stderr:
-                                        st.error("Standard Error:")
-                                        st.code(stderr)
-                                
-                                # Add command output to chat history
-                                output_type = "error" if stderr else "output"
-                                output_content = stderr if stderr else stdout
-                                self.state.messages.append({
-                                    "role": "text",
-                                    "content": f"Command `{command}` {output_type}:\n```\n{output_content}\n```"
-                                })
+                            # Display command output
+                            if stdout:
+                                st.text("Command Output:")
+                                st.code(stdout)
+                            if stderr:
+                                st.error("Error Output:")
+                                st.code(stderr)
                             
-                            # Process AI feedback
-                            if ai_feedback:
-                                # Display in UI
-                                with st.expander("AI Analysis", expanded=True):
-                                    st.markdown(ai_feedback)
-                                
-                                # Add to chat history as assistant message
-                                self.state.messages.append({
-                                    "role": "assistant",
-                                    "content": f"Analysis of command `{command}`:\n\n{ai_feedback}"
-                                })
-                                
-                                # Force chat update
-                                st.experimental_rerun()
+                            # If we have output and a chat message, process it through the chat
+                            if chat_msg:
+                                self.prompt = chat_msg
+                                self.prompt_as = "text"
+                                st.info("✓ Analyzing command output...")
                         
                         else:
                             # Run without feedback
