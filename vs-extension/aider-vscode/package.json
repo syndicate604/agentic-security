@@ -1,7 +1,12 @@
 {
-  "name": "aider-vscode",
-  "displayName": "Aider VSCode",
+  "name": "your-extension-name",
+  "displayName": "Your Extension Display Name",
   "description": "AI pair programming with Aider in VSCode",
+  "publisher": "your-publisher-id",
+  "repository": {
+    "type": "git",
+    "url": "your-repo-url"
+  },
   "version": "0.1.0",
   "engines": {
     "vscode": "^1.74.0"
