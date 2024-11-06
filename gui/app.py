@@ -418,19 +418,19 @@ def gui_main():
         <style>
         /* Dark mode background and text colors */
         .stApp {
-            background-color: #0a0a0a;
+            background-color: #050505;
             color: #00ff00;
             font-family: 'Courier New', monospace;
         }
         
         /* Sidebar styling */
         .css-1d391kg {
-            background-color: #0d0d0d;
+            background-color: #080808;
         }
         
         /* Input fields */
         .stTextInput input {
-            background-color: #111111;
+            background-color: #0a0a0a;
             color: #00ff00;
             border-color: #00ff00;
             font-family: 'Courier New', monospace;
@@ -438,7 +438,7 @@ def gui_main():
         
         /* Buttons */
         .stButton button {
-            background-color: #1a1a1a;
+            background-color: #0d0d0d;
             color: #00ff00;
             border: 1px solid #00ff00;
             font-family: 'Courier New', monospace;
@@ -451,14 +451,14 @@ def gui_main():
         
         /* Chat messages */
         .stChatMessage {
-            background-color: #141414;
+            background-color: #0a0a0a;
             border: 1px solid #00ff00;
             font-family: 'Courier New', monospace;
         }
         
         /* Code blocks */
         .stCodeBlock {
-            background-color: #1a1a1a;
+            background-color: #0d0d0d;
             font-family: 'Courier New', monospace;
         }
         
@@ -475,21 +475,21 @@ def gui_main():
         
         /* Expander */
         .streamlit-expanderHeader {
-            background-color: #1a1a1a;
+            background-color: #0d0d0d;
             color: #00ff00;
             font-family: 'Courier New', monospace;
         }
         
         /* Select boxes */
         .stSelectbox {
-            background-color: #1a1a1a;
+            background-color: #0d0d0d;
             color: #00ff00;
             font-family: 'Courier New', monospace;
         }
 
         /* Multiselect */
         .stMultiSelect {
-            background-color: #1a1a1a;
+            background-color: #0d0d0d;
             color: #00ff00;
             font-family: 'Courier New', monospace;
         }
