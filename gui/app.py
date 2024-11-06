@@ -193,13 +193,49 @@ class GUI:
                 self.do_clear_chat_history()
                 
             with tools_tab:
+                # Initialize handlers if not already done
+                if not hasattr(self, 'shell_handler'):
+                    from shell_handler import AiderShellHandler
+                    self.shell_handler = AiderShellHandler(self.coder)
+                
+                if not hasattr(self, 'git_handler'):
+                    from git_handler import SimpleGitHandler
+                    self.git_handler = SimpleGitHandler()
+                
+                if not hasattr(self, 'security_handler'):
+                    from security_handler import SecurityHandler
+                    self.security_handler = SecurityHandler(self.coder)
+                
+                # Create tool tabs
                 tool_tabs = st.tabs(["Shell", "Git", "Security", "Dev"])
+                
+                # Shell Commands Tab
                 with tool_tabs[0]:
                     self.do_shell_commands()
+                
+                # Git Tab
                 with tool_tabs[1]:
-                    self.do_github_actions()
+                    st.markdown("### Git Operations")
+                    # Show current branch and status
+                    st.info(f"Current Branch: {self.git_handler.get_current_branch()}")
+                    
+                    # Git operations
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("Show Status"):
+                            status = self.git_handler.get_status()
+                            st.code(status)
+                    with col2:
+                        if st.button("Show Recent Commits"):
+                            commits = self.git_handler.get_recent_commits(5)
+                            for commit in commits:
+                                st.write(f"• {commit['hash']}: {commit['message']}")
+                
+                # Security Tab
                 with tool_tabs[2]:
                     self.do_security_tools()
+                
+                # Dev Tools Tab
                 with tool_tabs[3]:
                     self.do_dev_tools()
                     
