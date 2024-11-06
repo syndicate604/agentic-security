@@ -7,7 +7,6 @@ import io
 import os
 import streamlit as st
 from aider import urls, coders, io, main, scrape
-from code_generator import render_code_generator
 from aider.commands import SwitchCoder
 
 class CaptureIO(io.InputOutput):
@@ -186,8 +185,7 @@ class GUI:
             self.do_clear_chat_history()
             self.do_model_settings()
             self.do_shell_commands()
-            self.do_github_actions()
-            self.do_code_generator()
+            self.do_github_actions() 
             self.do_dev_tools()
             
             st.warning(
