@@ -494,6 +494,12 @@ def gui_main():
             font-family: 'Courier New', monospace;
         }
 
+        /* Header/top bar styling */
+        header[data-testid="stHeader"] {
+            background-color: #050505 !important;
+            border-bottom: 1px solid #00ff00;
+        }
+
         /* Scrollbars */
         ::-webkit-scrollbar {
             width: 10px;
