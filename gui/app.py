@@ -517,6 +517,47 @@ def gui_main():
             background: #00ff00;
             color: #0a0a0a;
         }
+
+        /* Sidebar specific styles */
+        .css-1d391kg, [data-testid="stSidebar"] {
+            background-color: #141414 !important;
+            border-right: 1px solid #00ff00;
+        }
+
+        /* Sidebar title */
+        .css-1d391kg h1 {
+            color: #00ff00 !important;
+        }
+
+        /* Sidebar navigation items */
+        .css-1d391kg .streamlit-expanderHeader {
+            background-color: #1a1a1a;
+            color: #00ff00 !important;
+        }
+
+        /* Sidebar labels and text */
+        .css-1d391kg label, .css-1d391kg .stMarkdown {
+            color: #00ff00 !important;
+        }
+
+        /* Sidebar select boxes and dropdowns */
+        .css-1d391kg select, .css-1d391kg .stSelectbox {
+            background-color: #1a1a1a !important;
+            color: #00ff00 !important;
+            border-color: #00ff00 !important;
+        }
+
+        /* Sidebar warning box */
+        .css-1d391kg .stAlert {
+            background-color: #1a1a1a !important;
+            color: #00ff00 !important;
+            border-color: #00ff00 !important;
+        }
+
+        /* Sidebar divider */
+        .css-1d391kg hr {
+            border-color: #00ff00 !important;
+        }
         </style>
     """, unsafe_allow_html=True)
 
