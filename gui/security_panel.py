@@ -1,5 +1,6 @@
 import streamlit as st
 import datetime
+import json
 from typing import Dict, List, Optional
 
 def get_ai_security_analysis(scan_results: dict, scan_type: str) -> str:
