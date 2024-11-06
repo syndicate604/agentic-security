@@ -5,6 +5,7 @@ import random
 import sys
 import streamlit as st
 from aider import urls, coders, io, main, scrape
+from config_handler import render_config_panel
 
 class CaptureIO(io.InputOutput):
     lines = []
