@@ -813,9 +813,6 @@ class GUI:
             - **Provider**: {provider}
             """)
 
-    def do_code_generator(self):
-        """Add code generator panel to sidebar"""
-        render_code_generator(self.coder)
 
     def do_dev_tools(self):
         with st.sidebar.expander("Developer Tools", expanded=False):
