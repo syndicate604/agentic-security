@@ -186,20 +186,8 @@ class GUI:
             self.do_model_settings()
             self.do_shell_commands()
             
-            # GitHub Actions placeholder
-            with st.sidebar.expander("GitHub Actions", expanded=False):
-                st.info("GitHub Actions integration coming soon!")
-                st.markdown("""
-                Future features:
-                - View workflow status
-                - Trigger workflows
-                - View workflow logs
-                - Configure workflow settings
-                """)
-                
-                # Disabled placeholder button
-                st.button("Refresh Workflows", disabled=True)
-                st.button("Configure Actions", disabled=True)
+            # GitHub Actions integration
+            self.do_github_actions()
             
             st.warning(
                 "This browser version of aider is experimental. Please share feedback in [GitHub"
@@ -449,6 +437,98 @@ class GUI:
         else:
             self.info(f"No web content found for `{url}`.")
             self.web_content = None
+
+    def do_github_actions(self):
+        from github_handler import GitHubActionsHandler
+        
+        with st.sidebar.expander("GitHub Actions", expanded=False):
+            # Initialize handler if needed
+            if not hasattr(self, 'github_handler'):
+                self.github_handler = GitHubActionsHandler(self.coder)
+            
+            # List workflows
+            workflows, error = self.github_handler.list_workflows()
+            if error:
+                st.error(f"Error listing workflows: {error}")
+                st.info("Make sure GitHub CLI (gh) is installed and authenticated")
+                return
+                
+            if workflows:
+                # Workflow selection
+                selected_workflow = st.selectbox(
+                    "Select Workflow",
+                    options=[w['name'] for w in workflows],
+                    format_func=lambda x: f"{x} ({next((w['state'] for w in workflows if w['name'] == x), 'unknown')})"
+                )
+                
+                if selected_workflow:
+                    # Action buttons
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("View Recent Runs"):
+                            runs, run_error = self.github_handler.get_workflow_runs(selected_workflow)
+                            if run_error:
+                                st.error(f"Error getting runs: {run_error}")
+                            elif runs:
+                                for run in runs:
+                                    with st.expander(f"{run['status']}: {run['title']}", expanded=False):
+                                        # Button to view logs
+                                        if st.button(f"View Logs", key=f"logs_{run['id']}"):
+                                            logs, log_error = self.github_handler.get_run_logs(run['id'])
+                                            if log_error:
+                                                st.error(f"Error getting logs: {log_error}")
+                                            elif logs:
+                                                # Share with AI for analysis
+                                                self.prompt = (
+                                                    f"GitHub Actions workflow run logs for {selected_workflow}:\n"
+                                                    f"```\n{logs}\n```\n\n"
+                                                    "Please analyze these logs and:\n"
+                                                    "1. Summarize the workflow execution\n"
+                                                    "2. Identify any errors or warnings\n"
+                                                    "3. Suggest potential improvements\n"
+                                                    "4. Provide relevant troubleshooting steps if needed"
+                                                )
+                                                self.prompt_as = "text"
+                                                st.info("✓ Logs shared with AI for analysis")
+                                                st.code(logs)
+                    
+                    with col2:
+                        if st.button("Run Workflow"):
+                            output, error = self.github_handler.run_workflow(selected_workflow)
+                            if error:
+                                st.error(f"Error running workflow: {error}")
+                            else:
+                                st.success(f"Workflow triggered: {output}")
+                                
+                                # Share with AI for monitoring suggestions
+                                self.prompt = (
+                                    f"I just triggered the GitHub Actions workflow '{selected_workflow}'.\n\n"
+                                    "Please provide:\n"
+                                    "1. What to watch for in the results\n"
+                                    "2. Common issues to be aware of\n"
+                                    "3. Best practices for monitoring this workflow\n"
+                                    "4. Suggested next steps after completion"
+                                )
+                                self.prompt_as = "text"
+            else:
+                st.info("No workflows found in this repository")
+                
+            # Help text
+            with st.container():
+                st.markdown("""
+                ### GitHub Actions Help
+                
+                **Features:**
+                - View workflow status
+                - Trigger workflow runs
+                - View run history and logs
+                - AI analysis of workflow results
+                
+                **Requirements:**
+                - GitHub CLI (gh) installed
+                - Authenticated with `gh auth login`
+                - Repository with GitHub Actions
+                """)
 
     def do_shell_commands(self):
         from shell_handler import AiderShellHandler
