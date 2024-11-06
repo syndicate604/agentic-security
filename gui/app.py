@@ -506,7 +506,13 @@ class GUI:
                             
                             # Add to chat if sharing is enabled and we have a chat message
                             if share_output and chat_msg:
-                                self.prompt = f"Shell command: `{command}`\n{chat_msg}"
+                                # Add command context and instructions
+                                self.prompt = (
+                                    f"Shell command: `{command}`\n\n"
+                                    f"{chat_msg}\n\n"
+                                    "Please let me know what specific aspects of this output "
+                                    "you'd like me to explain or what assistance you need."
+                                )
                                 self.prompt_as = "text"
                                 
                     except Exception as e:

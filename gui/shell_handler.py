@@ -36,13 +36,34 @@ class AiderShellHandler:
             if share_output and (stdout or stderr):
                 output = stdout if stdout else stderr
                 # Return the output to be handled by GUI's chat system with git-specific handling
+                # Provide more contextual guidance based on command type
                 if command.startswith('git '):
                     return stdout, stderr, (
                         f"Git command `{command}` output:\n```\n{output}\n```\n\n"
-                        "Would you like me to explain the git status or help with any git operations?"
+                        "I can help you:\n"
+                        "- Explain what these changes mean\n"
+                        "- Suggest next git commands\n"
+                        "- Help resolve any issues\n"
+                        "What would you like to know?"
+                    )
+                elif command.startswith('python ') or command.endswith('.py'):
+                    return stdout, stderr, (
+                        f"Python script `{command}` output:\n```\n{output}\n```\n\n"
+                        "I can help you:\n"
+                        "- Debug any errors\n"
+                        "- Explain the output\n"
+                        "- Optimize the code\n"
+                        "What would you like me to help with?"
                     )
                 else:
-                    return stdout, stderr, f"Command output:\n```\n{output}\n```"
+                    return stdout, stderr, (
+                        f"Command `{command}` output:\n```\n{output}\n```\n\n"
+                        "I can:\n"
+                        "- Explain this output\n"
+                        "- Suggest related commands\n"
+                        "- Help troubleshoot issues\n"
+                        "How can I assist you?"
+                    )
             
             return stdout, stderr, None
             
