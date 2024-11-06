@@ -836,6 +836,9 @@ class GUI:
             if not hasattr(self, 'shell_handler'):
                 from shell_handler import AiderShellHandler
                 self.shell_handler = AiderShellHandler(self.coder)
+            elif self.shell_handler is None:
+                from shell_handler import AiderShellHandler
+                self.shell_handler = AiderShellHandler(self.coder)
                 
             # Security scan categories
             scan_categories = {
