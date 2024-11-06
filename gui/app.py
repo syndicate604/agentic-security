@@ -306,17 +306,29 @@ class GUI:
 
     def __init__(self):
         try:
+            # Initialize core components
             self.coder = get_coder()
             self.state = get_state()
-
-            self.coder.yield_stream = True
-            self.coder.stream = True
-            self.coder.pretty = False
             
-            # Disable interactive prompts in IO to prevent blocking
-            self.coder.io.yes = True
-            self.coder.io.no_interactive = True
-
+            # Configure coder settings
+            if hasattr(self.coder, 'yield_stream'):
+                self.coder.yield_stream = True
+            if hasattr(self.coder, 'stream'):
+                self.coder.stream = True
+            if hasattr(self.coder, 'pretty'):
+                self.coder.pretty = False
+            
+            # Configure IO settings
+            if hasattr(self.coder, 'io'):
+                self.coder.io.yes = True
+                self.coder.io.no_interactive = True
+            
+            # Initialize handlers
+            self.shell_handler = None
+            self.github_handler = None
+            self.security_handler = None
+            
+            # Initialize state last
             self.initialize_state()
         except Exception as e:
             st.error(f"Error initializing GUI: {str(e)}")
