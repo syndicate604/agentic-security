@@ -832,6 +832,11 @@ class GUI:
     def do_security_tools(self):
         """Add security tools panel to sidebar"""
         with st.sidebar.expander("Security Tools", expanded=False):
+            # Initialize shell handler if needed
+            if not hasattr(self, 'shell_handler'):
+                from shell_handler import AiderShellHandler
+                self.shell_handler = AiderShellHandler(self.coder)
+                
             # Security scan categories
             scan_categories = {
                 "Code Analysis": {
