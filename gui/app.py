@@ -116,7 +116,117 @@ class GUI:
                 self.do_dev_tools()
             
             with st.expander("📝 Prompt Engineering", expanded=False):
-                self.prompt_handler.render_prompt_engineering_panel(self.coder)
+                # Add tabs for better organization
+                tab1, tab2, tab3 = st.tabs(["✏️ Templates", "⚙️ Settings", "🔧 Advanced"])
+                
+                with tab1:
+                    # Template search and management
+                    search_term = st.text_input("🔍 Search Templates", "")
+                    template_category = st.selectbox(
+                        "Category",
+                        ["All", "Git", "Code Review", "Documentation", "Custom"]
+                    )
+                    
+                    # Filter templates based on search and category
+                    filtered_templates = self.prompt_handler.get_filtered_templates(
+                        search_term, 
+                        template_category
+                    )
+                    
+                    # Template selection and editing
+                    selected_template = st.selectbox(
+                        "Select Template",
+                        options=list(filtered_templates.keys()),
+                        key="selected_template"
+                    )
+                    
+                    # Template editor with description
+                    with st.expander("Edit Template", expanded=True):
+                        st.text_area(
+                            "Template Description",
+                            value=filtered_templates[selected_template].get('description', ''),
+                            height=50,
+                            key="template_description"
+                        )
+                        st.text_area(
+                            "Template Content",
+                            value=filtered_templates[selected_template]['template'],
+                            height=150,
+                            key="template_editor"
+                        )
+                        
+                        # Quick insert variables
+                        st.markdown("#### Quick Insert Variables")
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.button("${git_context}")
+                        with col2:
+                            st.button("${user_query}")
+                        with col3:
+                            st.button("${branch}")
+                
+                with tab2:
+                    # Context settings with presets
+                    preset = st.selectbox(
+                        "Presets",
+                        ["Custom", "Minimal", "Standard", "Detailed"],
+                        key="context_preset"
+                    )
+                    
+                    if preset != "Custom":
+                        self.prompt_handler.apply_preset(preset)
+                    
+                    with st.expander("Git Context", expanded=True):
+                        num_commits = st.slider(
+                            "Number of commits",
+                            1, 10,
+                            st.session_state.context_settings['num_commits'],
+                            help="Number of recent commits to include"
+                        )
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            include_status = st.checkbox(
+                                "Git status",
+                                value=st.session_state.context_settings['include_status'],
+                                help="Include git status"
+                            )
+                        with col2:
+                            include_branch = st.checkbox(
+                                "Branch info",
+                                value=st.session_state.context_settings['include_branch'],
+                                help="Include branch info"
+                            )
+                
+                with tab3:
+                    # Template testing
+                    with st.expander("Template Testing", expanded=True):
+                        test_input = st.text_input(
+                            "Test User Query",
+                            "What's the latest commit?"
+                        )
+                        if st.button("Test Template"):
+                            with st.spinner("Testing template..."):
+                                preview = self.prompt_handler.generate_preview(
+                                    self.coder,
+                                    st.session_state.template_editor
+                                )
+                                st.markdown(preview)
+                    
+                    # Template version history
+                    with st.expander("Version History", expanded=False):
+                        if st.button("Save Version"):
+                            self.prompt_handler.save_template_version()
+                        
+                        versions = self.prompt_handler.get_template_versions()
+                        if versions:
+                            version = st.selectbox(
+                                "Previous Versions",
+                                options=list(versions.keys()),
+                                format_func=self.prompt_handler.format_version_timestamp
+                            )
+                            if st.button("Restore Version"):
+                                self.prompt_handler.restore_template_version(version)
             
             # Footer
             st.markdown("---")
