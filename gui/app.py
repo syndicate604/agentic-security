@@ -520,7 +520,7 @@ def gui_main():
 
         /* Sidebar specific styles */
         .css-1d391kg, [data-testid="stSidebar"] {
-            background-color: #141414 !important;
+            background-color: #080808 !important;
             border-right: 1px solid #00ff00;
         }
 
@@ -531,7 +531,7 @@ def gui_main():
 
         /* Sidebar navigation items */
         .css-1d391kg .streamlit-expanderHeader {
-            background-color: #1a1a1a;
+            background-color: #0a0a0a;
             color: #00ff00 !important;
         }
 
@@ -542,14 +542,14 @@ def gui_main():
 
         /* Sidebar select boxes and dropdowns */
         .css-1d391kg select, .css-1d391kg .stSelectbox {
-            background-color: #111111 !important;
+            background-color: #0a0a0a !important;
             color: #00ff00 !important;
             border-color: #00ff00 !important;
         }
 
         /* Sidebar warning box */
         .css-1d391kg .stAlert {
-            background-color: #111111 !important;
+            background-color: #0a0a0a !important;
             color: #00ff00 !important;
             border-color: #00ff00 !important;
         }
