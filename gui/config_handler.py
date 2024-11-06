@@ -174,20 +174,18 @@ def render_config_panel(coder: Coder):
                     st.success("All tools are installed!")
 
             # Help section
-            with st.expander("Configuration Help"):
-                st.markdown("""
-                ### Configuration Manager Help
-                
-                This panel helps you manage security and development tools:
-                
-                1. **System Information**: Shows installed versions of core components
-                2. **Tool Status**: Check installation status of each tool
-                3. **Installation**: Install individual tools or all missing tools
-                
-                **Note**: Some tools require system-level installation and may need manual intervention.
-                
-                For system tools, please use your system's package manager:
-                - Ubuntu/Debian: `sudo apt-get install <package>`
-                - macOS: `brew install <package>`
-                - Windows: `choco install <package>`
-                """)
+            st.markdown("### Configuration Manager Help")
+            st.markdown("""
+            This panel helps you manage security and development tools:
+            
+            1. **System Information**: Shows installed versions of core components
+            2. **Tool Status**: Check installation status of each tool
+            3. **Installation**: Install individual tools or all missing tools
+            
+            **Note**: Some tools require system-level installation and may need manual intervention.
+            
+            For system tools, please use your system's package manager:
+            - Ubuntu/Debian: `sudo apt-get install <package>`
+            - macOS: `brew install <package>`
+            - Windows: `choco install <package>`
+            """)
