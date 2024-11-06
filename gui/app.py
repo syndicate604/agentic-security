@@ -167,6 +167,7 @@ class GUI:
 
     def do_sidebar(self):
         with st.sidebar:
+            # Header
             st.markdown("""
             <h1 style='
                 font-family: "Courier New", monospace;
@@ -182,18 +183,30 @@ class GUI:
             S.P.A.R.C.
             </h1>            
             """, unsafe_allow_html=True)
-            self.do_add_to_chat()
-            self.do_recent_msgs()
-            self.do_clear_chat_history()
-            self.do_model_settings()
-            self.do_shell_commands()
-            self.do_github_actions() 
-            self.do_security_tools()
-            self.do_dev_tools()
             
-            st.warning(
-                "Created by rUv, 'cause he could, with help from aider."
-            )
+            # Create tabs for main sections
+            chat_tab, tools_tab, settings_tab = st.tabs(["Chat", "Tools", "Settings"])
+            
+            with chat_tab:
+                self.do_add_to_chat()
+                self.do_recent_msgs()
+                self.do_clear_chat_history()
+                
+            with tools_tab:
+                tool_tabs = st.tabs(["Shell", "Git", "Security", "Dev"])
+                with tool_tabs[0]:
+                    self.do_shell_commands()
+                with tool_tabs[1]:
+                    self.do_github_actions()
+                with tool_tabs[2]:
+                    self.do_security_tools()
+                with tool_tabs[3]:
+                    self.do_dev_tools()
+                    
+            with settings_tab:
+                # Config panel at top of settings
+                render_config_panel(self.coder)
+                self.do_model_settings()
 
     def do_add_to_chat(self):
         self.do_add_files()
