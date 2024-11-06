@@ -508,24 +508,23 @@ class GUI:
                     # Store current model info before switching
                     old_model = getattr(self.coder, 'main_model', 'unknown')
                     
-                    # Validate model exists before switching
-                    if not hasattr(self.coder.commands, 'cmd_model'):
-                        raise AttributeError("Model switching not supported in current configuration")
-                    
-                    # Attempt to switch model
                     try:
-                        result = self.coder.commands.cmd_model(model)
-                        if not result:
-                            raise ValueError(f"Failed to switch to model {model}. The model may not be available with your current API key.")
+                        # Create new model instance
+                        from aider.models import Model
+                        new_model = Model(model)
+                        
+                        # Update coder's model
+                        self.coder.main_model = new_model
+                        
+                        # Force reload coder to apply changes
+                        if hasattr(st, 'cache_resource'):
+                            st.cache_resource.clear()
+                            self.coder = get_coder()
+                        else:
+                            raise RuntimeError("Cache resource not available")
+                            
                     except Exception as model_error:
                         raise ValueError(f"Error switching to model {model}: {str(model_error)}")
-                    
-                    # Force reload coder with new model
-                    if hasattr(st, 'cache_resource'):
-                        st.cache_resource.clear()
-                        self.coder = get_coder()
-                    else:
-                        raise RuntimeError("Cache resource not available")
                     
                     # Update state and display info
                     self.state.init("current_model", model)
