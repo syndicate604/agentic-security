@@ -481,7 +481,7 @@ class GUI:
             with col1:
                 share_output = st.checkbox("Share with AI", value=True)
             with col2:
-                get_feedback = st.checkbox("Get AI Feedback", value=False)
+                get_feedback = st.checkbox("Get AI Feedback", value=True)
             
             # Run button
             if st.button("Run Command") and command:
