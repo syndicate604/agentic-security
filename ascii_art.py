@@ -111,6 +111,33 @@ PATTERNS = {
   |      ||                    ||       |
   '======================================'
 """,
+    "wow": """
+W   W    W   W  OOOOO  W   W
+W   W    W   W  O   O  W   W
+W   W    W   W  O   O  W   W
+W W W    W   W  O   O  W   W
+WW WW    W W W  O   O  W   W
+W   W     W W   O   O  W   W
+W   W      W    OOOOO   WWW
+""",
+    "hello": """
+H   H  EEEEE  L      L      OOOOO
+H   H  E      L      L      O   O
+H   H  E      L      L      O   O
+HHHHH  EEEE   L      L      O   O
+H   H  E      L      L      O   O
+H   H  E      L      L      O   O
+H   H  EEEEE  LLLLL  LLLLL  OOOOO
+""",
+    "mega": """
+MM   MM  EEEEE   GGGGG   AAAAA
+M M M M  E      G     G  A   A
+M  M  M  E      G        A   A
+M     M  EEEE   G  GGG   AAAAA
+M     M  E      G    G   A   A
+M     M  E      G    G   A   A
+M     M  EEEEE   GGGG    A   A
+""",
 }
 
 def show_pattern(name):
