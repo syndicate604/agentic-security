@@ -1172,6 +1172,13 @@ def gui_main():
             border-color: #33ff33 !important;
             box-shadow: 0 0 0 1px #33ff33 !important;
         }
+
+        /* Chat input container background */
+        [data-testid="stChatInputContainer"] {
+            background-color: #0a0a0a !important;
+            border-top: 1px solid #00ff00 !important;
+            padding-top: 1rem !important;
+        }
         </style>
     """, unsafe_allow_html=True)
 
