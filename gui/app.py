@@ -250,9 +250,19 @@ class GUI:
                 - Security tool configurations
                 """)
                 
+                # Add Aider configuration info
+                st.markdown("#### Aider Configuration")
+                st.code(f"""
+Aider v{self.coder.__version__}
+Main model: {self.coder.main_model}
+Weak model: {self.coder.other_model if hasattr(self.coder, 'other_model') else 'Not configured'}
+Git repo: {self.coder.repo.git_dir.parent if self.coder.repo else 'None'} with {len(self.coder.get_all_relative_files())} files
+Repo-map: using {self.coder.repo_map_tokens if hasattr(self.coder, 'repo_map_tokens') else '1024'} tokens, auto refresh
+                """)
+                
                 st.markdown("---")  # Divider
                 
-                # Only show config panel in settings
+                # Configuration panel with existing sections
                 render_config_panel(self.coder)
 
     def do_add_to_chat(self):
@@ -465,136 +475,6 @@ class GUI:
         if echo:
             self.messages.info(message)
 
-    def do_model_settings(self):
-        """Add model settings panel to settings tab"""
-        st.markdown("#### Model Settings")
-        
-        # Provider selection
-        provider = st.radio(
-            "AI Provider",
-            ["OpenAI", "Anthropic"],
-            key="provider_selection"
-        )
-        
-        # Model selection based on provider
-        if provider == "OpenAI":
-            model = st.selectbox(
-                "Select Model",
-                [
-                    "gpt-4",
-                    "gpt-4-32k",
-                    "gpt-4-1106-preview",  # GPT-4 Turbo
-                    "gpt-4-0125-preview",  # Latest GPT-4 Preview
-                    "gpt-3.5-turbo",
-                    "gpt-3.5-turbo-16k",
-                    "gpt-3.5-turbo-1106"
-                ],
-                index=0,
-                key="openai_model_selection"
-            )
-        else:  # Anthropic
-            model = st.selectbox(
-                "Select Model",
-                [
-                    "claude-3-opus-20240229",
-                    "claude-3-sonnet-20240229",
-                    "claude-3-haiku-20240307",
-                    "claude-2.1",
-                    "claude-2.0"
-                ],
-                index=0,
-                key="anthropic_model_selection"
-            )
-
-        # Model switching
-        if st.button("Switch Model"):
-            try:
-                # Check API keys before attempting switch
-                if provider == "OpenAI" and not os.getenv("OPENAI_API_KEY"):
-                    raise ValueError("OpenAI API key not found. Please set OPENAI_API_KEY environment variable.")
-                elif provider == "Anthropic" and not os.getenv("ANTHROPIC_API_KEY"):
-                    raise ValueError("Anthropic API key not found. Please set ANTHROPIC_API_KEY environment variable.")
-                
-                # Store current model info before switching
-                old_model = getattr(self.coder, 'main_model', 'unknown')
-                
-                # Store selected model in session state
-                st.session_state['selected_model'] = model
-                
-                # Clear cache and force reload
-                st.cache_resource.clear()
-                
-                # Create new coder instance with new model
-                self.coder = get_coder()
-                
-                # Update state and display info
-                self.state.init("current_model", model)
-                self.info(f"Successfully switched from {old_model} to {model}")
-                
-                # Add system message about model switch
-                self.state.messages.append({
-                    "role": "system",
-                    "content": f"Model switched from {old_model} to {model}"
-                })
-                
-                # Force UI update
-                st.rerun()
-                
-            except AttributeError as e:
-                self.info(f"Configuration error: {str(e)}")
-            except ValueError as e:
-                self.info(f"Invalid model selection: {str(e)}")
-            except RuntimeError as e:
-                self.info(f"Streamlit error: {str(e)}")
-            except Exception as e:
-                self.info(f"Unexpected error switching model: {str(e)}\nPlease check your API keys and model access.")
-
-        # Model settings
-        settings_container = st.container()
-        with settings_container:
-            st.markdown("##### Advanced Settings")
-            
-            # Temperature setting
-            current_temp = self.coder.temperature if hasattr(self.coder, 'temperature') else 0.7
-            # Ensure current_temp is a float
-            if isinstance(current_temp, (list, tuple)):
-                current_temp = 0.7  # Default if invalid type
-
-            temperature = st.slider(
-                "Temperature",
-                min_value=0.0,
-                max_value=2.0,
-                value=float(current_temp),  # Convert to float
-                step=0.1,
-                help="Higher values make output more random, lower values more deterministic"
-            )
-            
-            # Max tokens setting
-            max_tokens = st.number_input(
-                "Max Tokens",
-                min_value=100,
-                max_value=32000,
-                value=2000,
-                step=100,
-                help="Maximum number of tokens in the response"
-            )
-
-            # Apply settings button
-            if st.button("Apply Settings"):
-                try:
-                    # Update temperature
-                    if hasattr(self.coder, 'set_temperature'):
-                        self.coder.set_temperature(temperature)
-                    else:
-                        self.coder.temperature = temperature
-                    
-                    # Update max tokens if supported
-                    if hasattr(self.coder, 'set_max_tokens'):
-                        self.coder.set_max_tokens(max_tokens)
-                    
-                    self.info("Model settings updated successfully")
-                except Exception as e:
-                    self.info(f"Error updating settings: {str(e)}")
 
     def do_web(self):
         st.markdown("Add the text content of a web page to the chat")
