@@ -249,7 +249,7 @@ class GUI:
         self.state.init("web_content_num", 0)
         self.state.init("prompt")
         self.state.init("scraper")
-
+        self.state.init("current_model", self.coder.main_model)
         self.state.init("initial_inchat_files", self.coder.get_inchat_relative_files())
 
         if "input_history" not in self.state.keys:
