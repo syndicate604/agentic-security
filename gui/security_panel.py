@@ -113,11 +113,24 @@ def render_security_panel(coder=None):
                 else:
                     status_text.text("Generating report...")
                 
-            # Run the security scan
+            # Run the security scan with proper configuration
+            scan_config = {
+                "Quick Scan": {"depth": "quick"},
+                "Deep Scan": {"depth": "deep"},
+                "Dependency Scan": {"type": "dependency"},
+                "Secret Scanner": {"type": "secrets"}
+            }
+                
+            paths = ["."] if scan_target == "Current Directory" else None
+            if scan_target == "Selected Files":
+                # TODO: Add file selector
+                st.warning("File selection not yet implemented")
+                return
+                
             results, error, chat_msg = coder.security.run_security_scan(
-                scan_type=scan_type,
+                scan_type=scan_config[scan_type]["type"] if "type" in scan_config[scan_type] else "bandit",
                 severity=severity,
-                paths=["."] if scan_target == "Current Directory" else None
+                paths=paths
             )
             
             if error:
@@ -164,23 +177,8 @@ def render_security_panel(coder=None):
             with tab2:
                 st.markdown("### Security Issues")
                 
-                # Example vulnerabilities
-                vulnerabilities = [
-                    {
-                        "severity": "Critical",
-                        "title": "SQL Injection Vulnerability",
-                        "file": "app.py",
-                        "line": 23,
-                        "description": "Unsanitized user input in SQL query"
-                    },
-                    {
-                        "severity": "High",
-                        "title": "Insecure Password Storage",
-                        "file": "auth.py",
-                        "line": 45,
-                        "description": "Passwords stored without proper hashing"
-                    }
-                ]
+                # Display actual vulnerabilities from scan results
+                vulnerabilities = results.get('vulnerabilities', [])
                 
                 for vuln in vulnerabilities:
                     with st.container():
@@ -193,12 +191,22 @@ def render_security_panel(coder=None):
             
             with tab3:
                 st.markdown("### Dependency Analysis")
-                st.dataframe({
-                    "Package": ["requests", "flask", "sqlalchemy"],
-                    "Version": ["2.28.1", "2.0.1", "1.4.41"],
-                    "Status": ["Up to date", "Update available", "Vulnerable"],
-                    "Risk": ["Low", "Medium", "High"]
-                })
+                if 'dependencies' in results:
+                    deps_data = {
+                        "Package": [],
+                        "Version": [],
+                        "Status": [],
+                        "Risk": []
+                    }
+                    for dep in results['dependencies']:
+                        deps_data["Package"].append(dep.get('name', 'Unknown'))
+                        deps_data["Version"].append(dep.get('version', 'Unknown'))
+                        deps_data["Status"].append(dep.get('status', 'Unknown'))
+                        deps_data["Risk"].append(dep.get('risk_level', 'Unknown'))
+                    
+                    st.dataframe(deps_data)
+                else:
+                    st.info("No dependency information available")
             
             # Prepare scan results for AI analysis
             scan_results = {
