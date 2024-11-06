@@ -7,6 +7,7 @@ import io
 import os
 import streamlit as st
 from aider import urls, coders, io, main, scrape
+from code_generator import render_code_generator
 from aider.commands import SwitchCoder
 
 class CaptureIO(io.InputOutput):
@@ -186,6 +187,7 @@ class GUI:
             self.do_model_settings()
             self.do_shell_commands()
             self.do_github_actions()
+            self.do_code_generator()
             self.do_dev_tools()
             
             st.warning(
@@ -812,6 +814,10 @@ class GUI:
             - **Max Tokens**: {max_tokens}
             - **Provider**: {provider}
             """)
+
+    def do_code_generator(self):
+        """Add code generator panel to sidebar"""
+        render_code_generator(self.coder)
 
     def do_dev_tools(self):
         with st.sidebar.expander("Developer Tools", expanded=False):
