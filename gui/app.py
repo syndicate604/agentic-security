@@ -378,27 +378,106 @@ class GUI:
 
     def do_model_settings(self):
         with st.sidebar.expander("Model Settings", expanded=False):
-            # Model selection
-            model = st.selectbox(
-                "Select Model",
-                ["gpt-4", "gpt-3.5-turbo", "gpt-4-32k"],
-                index=0,
-                key="model_selection"
+            # Provider selection
+            provider = st.radio(
+                "AI Provider",
+                ["OpenAI", "Anthropic"],
+                key="provider_selection"
             )
-            if st.button("Switch Model"):
-                self.coder.commands.cmd_model(model)
-                self.info(f"Switched to {model}")
             
-            # Temperature setting
-            temperature = st.slider(
-                "Temperature",
-                min_value=0.0,
-                max_value=2.0,
-                value=0.7,
-                step=0.1
-            )
-            if st.button("Update Temperature"):
-                self.coder.commands.set_temperature(temperature)
+            # Model selection based on provider
+            if provider == "OpenAI":
+                model = st.selectbox(
+                    "Select Model",
+                    [
+                        "gpt-4",
+                        "gpt-4-32k",
+                        "gpt-4-1106-preview",  # GPT-4 Turbo
+                        "gpt-4-0125-preview",  # Latest GPT-4 Preview
+                        "gpt-3.5-turbo",
+                        "gpt-3.5-turbo-16k",
+                        "gpt-3.5-turbo-1106"   # Latest GPT-3.5
+                    ],
+                    index=0,
+                    key="openai_model_selection"
+                )
+            else:  # Anthropic
+                model = st.selectbox(
+                    "Select Model",
+                    [
+                        "claude-3-opus-20240229",   # Most capable
+                        "claude-3-sonnet-20240229",  # Balanced
+                        "claude-3-haiku-20240307",   # Fastest
+                        "claude-2.1",                # Legacy
+                        "claude-2.0"                 # Legacy
+                    ],
+                    index=0,
+                    key="anthropic_model_selection"
+                )
+
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Switch Model"):
+                    self.coder.commands.cmd_model(model)
+                    self.info(f"Switched to {model}")
+
+            # Model settings
+            with st.container():
+                st.markdown("### Model Settings")
+                
+                # Temperature setting
+                temperature = st.slider(
+                    "Temperature",
+                    min_value=0.0,
+                    max_value=2.0,
+                    value=0.7,
+                    step=0.1,
+                    help="Higher values make output more random, lower values more deterministic"
+                )
+                
+                # Max tokens setting
+                max_tokens = st.number_input(
+                    "Max Tokens",
+                    min_value=100,
+                    max_value=32000,
+                    value=2000,
+                    step=100,
+                    help="Maximum number of tokens in the response"
+                )
+                
+                # System message customization
+                system_message = st.text_area(
+                    "Custom System Message",
+                    value=self.coder.get_system_message() if hasattr(self.coder, 'get_system_message') else "",
+                    help="Customize the system message sent to the AI"
+                )
+
+                # Apply settings button
+                if st.button("Apply Settings"):
+                    try:
+                        # Update temperature
+                        self.coder.commands.set_temperature(temperature)
+                        
+                        # Update max tokens if method exists
+                        if hasattr(self.coder.commands, 'set_max_tokens'):
+                            self.coder.commands.set_max_tokens(max_tokens)
+                        
+                        # Update system message if method exists
+                        if hasattr(self.coder.commands, 'set_system_message'):
+                            self.coder.commands.set_system_message(system_message)
+                        
+                        self.info("Model settings updated successfully")
+                    except Exception as e:
+                        self.info(f"Error updating settings: {str(e)}")
+
+            # Model information display
+            with st.expander("Current Model Info"):
+                st.markdown(f"""
+                - **Current Model**: {self.coder.current_model if hasattr(self.coder, 'current_model') else model}
+                - **Temperature**: {temperature}
+                - **Max Tokens**: {max_tokens}
+                - **Provider**: {provider}
+                """)
 
     def do_undo(self, commit_hash):
         self.last_undo_empty.empty()
