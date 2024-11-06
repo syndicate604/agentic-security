@@ -50,7 +50,7 @@ class AiderShellHandler:
         Run command and get AI feedback on the output
         Returns: Tuple of (stdout, stderr, ai_feedback)
         """
-        stdout, stderr = self.run_shell_command(command, share_output=False)
+        stdout, stderr, _ = self.run_shell_command(command, share_output=False)
         
         ai_feedback = None
         if stderr:
