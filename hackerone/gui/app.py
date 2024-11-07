@@ -266,7 +266,7 @@ def hash_password(password):
                 with st.expander(f"Report {i+1}: {report['title']}", expanded=False):
                     render_markdown_report(report)
                     
-                    # Edit options
+                    # Edit options 
                     with st.form(f"edit_form_{i}"):
                         report["title"] = st.text_input("Title", report["title"])
                         report["severity"] = st.select_slider(
