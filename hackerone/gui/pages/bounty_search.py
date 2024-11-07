@@ -29,6 +29,9 @@ OPENAI_API_KEY = "your_openai_key"        # Get from OpenAI
     
         # Sidebar filters
         st.sidebar.header("Filters")
+    except Exception as e:
+        st.error(f"Error accessing API credentials: {str(e)}")
+        return
     min_bounty = st.sidebar.number_input("Minimum Bounty ($)", 0, 100000, 100)
     tech_stack = st.sidebar.multiselect(
         "Technology Stack",
