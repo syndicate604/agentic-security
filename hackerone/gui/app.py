@@ -230,11 +230,15 @@ def hash_password(password):
     elif page == "Reports":
         st.header("Vulnerability Reports")
         
-        if not hasattr(st.session_state, 'reports'):
-            st.session_state.reports = []
+        # Create tabs for reports and bounty search
+        reports_tab, bounty_tab = st.tabs(["My Reports", "Bounty Programs"])
         
-        # Add report filtering/sorting options
-        col1, col2 = st.columns(2)
+        with reports_tab:
+            if not hasattr(st.session_state, 'reports'):
+                st.session_state.reports = []
+            
+            # Add report filtering/sorting options
+            col1, col2 = st.columns(2)
         with col1:
             sort_by = st.selectbox(
                 "Sort by",
@@ -296,6 +300,41 @@ def hash_password(password):
             # Get API credentials from secrets.toml
             api_username = st.secrets["HACKERONE_API_USERNAME"]
             api_token = st.secrets["HACKERONE_API_TOKEN"]
+            
+            # Add program matching section
+            st.subheader("Program Matching")
+            if hasattr(st.session_state, 'reports') and st.session_state.reports:
+                unsubmitted_reports = [r for r in st.session_state.reports if r.get('status') != 'Submitted']
+                
+                if unsubmitted_reports:
+                    st.info("Finding best matching programs for your reports...")
+                    
+                    for report in unsubmitted_reports:
+                        with st.expander(f"🎯 Matches for: {report['title']}", expanded=False):
+                            try:
+                                programs = st.session_state.bounty_hunter.get_programs()
+                                matches = []
+                                
+                                for program in programs:
+                                    # Basic matching based on vulnerability type and tech stack
+                                    if (report.get('vulnerability_type', '').lower() in 
+                                        program['attributes'].get('description', '').lower()):
+                                        matches.append(program)
+                                
+                                if matches:
+                                    st.success(f"Found {len(matches)} potential matching programs")
+                                    for program in matches:
+                                        st.markdown(f"""
+                                        ### {program['attributes']['name']}
+                                        **Bounty Range:** {program['attributes'].get('bounty_range', 'N/A')}
+                                        
+                                        **Match Reason:** Vulnerability type matches program scope
+                                        """)
+                                else:
+                                    st.warning("No direct matches found. Consider reviewing program scopes manually.")
+                                    
+                            except Exception as e:
+                                st.error(f"Failed to find matches: {str(e)}")
             
             # Initialize API client if not already done
             if not hasattr(st.session_state, 'api_client'):
