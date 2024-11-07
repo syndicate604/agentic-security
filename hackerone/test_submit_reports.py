@@ -1,6 +1,8 @@
 import pytest
 import json
+import time
 import base64
+import requests
 from unittest.mock import Mock, patch
 from pathlib import Path
 from submit_reports import HackerOneAPI, RateLimiter
@@ -77,7 +79,7 @@ def test_submit_report(mock_request, api_client, mock_response):
     assert call_args[1]["url"] == "https://api.hackerone.com/v1/reports"
     
     # Check request data
-    data = json.loads(call_args[1]["json"])
+    data = call_args[1]["json"]
     assert data["data"]["type"] == "report"
     assert data["data"]["attributes"]["title"] == MOCK_REPORT["title"]
     
@@ -123,7 +125,7 @@ def test_add_attachment(mock_request, api_client, mock_response, tmp_path):
     assert call_args[1]["url"] == "https://api.hackerone.com/v1/reports/1337/attachments"
     
     # Check file data
-    data = json.loads(call_args[1]["json"])
+    data = call_args[1]["json"]
     assert data["data"]["type"] == "attachment"
     assert data["data"]["attributes"]["file_name"] == "test.txt"
     

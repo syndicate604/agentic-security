@@ -144,6 +144,31 @@ class HackerOneAPI:
             
         Returns:
             API response containing report details
+            
+        Raises:
+            ValueError: If required fields are missing or invalid
+        """
+        # Validate required fields
+        if not title or not title.strip():
+            raise ValueError("Title is required and cannot be empty")
+        if not vulnerability_info or not vulnerability_info.strip():
+            raise ValueError("Vulnerability information is required")
+        if not impact or not impact.strip():
+            raise ValueError("Impact description is required")
+        """
+        Submit a vulnerability report
+        
+        Args:
+            title: Report title
+            vulnerability_info: Detailed vulnerability description
+            impact: Security impact description
+            severity: CVSS-based severity rating
+            weakness_id: CWE ID for vulnerability type
+            attachments: List of file paths to attach
+            structured_scope: Affected assets/components
+            
+        Returns:
+            API response containing report details
         """
         # Prepare report data
         data = {
