@@ -41,31 +41,54 @@ class BountyHunter:
         
     def analyze_program(self, program: Dict) -> Dict:
         """Use LiteLLM to analyze program potential"""
-        prompt = f"""
-        Analyze this bug bounty program and rate it from 1-10:
-        
-        Program: {program['attributes']['name']}
-        Description: {program['attributes'].get('description', 'N/A')}
-        Bounty Range: {program['attributes'].get('bounty_range', 'N/A')}
-        
-        Consider:
-        1. Bounty amounts
-        2. Scope size
-        3. Technology stack
-        4. Program history
-        
-        Provide a JSON response with:
-        - score (1-10)
-        - reasoning (brief explanation)
-        - recommended_focus (suggested vulnerability types to look for)
-        """
-        
-        response = completion(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}]
-        )
-        
-        return response.json()
+        try:
+            prompt = f"""
+            Analyze this bug bounty program and rate it from 1-10:
+            
+            Program: {program['attributes']['name']}
+            Description: {program['attributes'].get('description', 'N/A')}
+            Bounty Range: {program['attributes'].get('bounty_range', 'N/A')}
+            
+            Consider:
+            1. Bounty amounts
+            2. Scope size
+            3. Technology stack
+            4. Program history
+            
+            Provide:
+            {{
+                "score": <1-10>,
+                "reasoning": "<brief explanation>",
+                "recommended_focus": "<suggested vulnerability types>"
+            }}
+            """
+            
+            response = completion(
+                model="gpt-4",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            
+            # Ensure we get a valid JSON response
+            try:
+                return {
+                    "score": response.choices[0].message.content.get("score", 5),
+                    "reasoning": response.choices[0].message.content.get("reasoning", "Analysis unavailable"),
+                    "recommended_focus": response.choices[0].message.content.get("recommended_focus", "General security testing")
+                }
+            except (AttributeError, KeyError):
+                return {
+                    "score": 5,
+                    "reasoning": "Analysis failed to parse",
+                    "recommended_focus": "General security testing"
+                }
+                
+        except Exception as e:
+            st.error(f"Analysis failed: {str(e)}")
+            return {
+                "score": 0,
+                "reasoning": f"Analysis error: {str(e)}",
+                "recommended_focus": "Analysis unavailable"
+            }
 
     def get_program_stats(self) -> pd.DataFrame:
         """Get statistical overview of programs"""

@@ -3,6 +3,13 @@ import sys
 import os
 from pathlib import Path
 import json
+
+def init_session_state():
+    """Initialize session state variables"""
+    if 'reports' not in st.session_state:
+        st.session_state.reports = []
+    if 'app' not in st.session_state:
+        st.session_state.app = AIHackerFix()
 from datetime import datetime
 import litellm
 from typing import Dict, List, Optional
