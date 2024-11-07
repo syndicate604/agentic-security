@@ -14,6 +14,7 @@ from datetime import datetime
 import litellm
 from typing import Dict, List, Optional
 import markdown
+from submit_reports import HackerOneAPI
 
 # Add parent directory to path to import submit_reports
 sys.path.append(str(Path(__file__).parent.parent))
@@ -298,27 +299,65 @@ def hash_password(password):
     elif page == "Submit":
         st.header("Submit Reports")
         
-        if not st.session_state.app.api_client:
-            st.warning("Please configure API credentials in Settings first.")
-            return
-        
-        if not hasattr(st.session_state, 'reports'):
-            st.warning("No reports to submit. Generate reports in the Analyze page first.")
-            return
-        
-        # Display reports for submission
-        for i, report in enumerate(st.session_state.reports):
-            st.subheader(f"Report {i+1}: {report['title']}")
-            submit = st.checkbox(f"Submit Report {i+1}")
+        try:
+            # Get API credentials from secrets.toml
+            api_username = st.secrets["HACKERONE_API_USERNAME"]
+            api_token = st.secrets["HACKERONE_API_TOKEN"]
             
-            if submit:
-                try:
-                    with st.spinner(f"Submitting report {i+1}..."):
-                        response = st.session_state.app.api_client.submit_report(**report)
-                        st.success(f"Report {i+1} submitted successfully!")
-                        st.json(response)
-                except Exception as e:
-                    st.error(f"Failed to submit report {i+1}: {str(e)}")
+            # Initialize API client if not already done
+            if not hasattr(st.session_state, 'api_client'):
+                st.session_state.api_client = HackerOneAPI(api_username, api_token)
+            
+            if not hasattr(st.session_state, 'reports'):
+                st.warning("No reports to submit. Generate reports in the Analyze page first.")
+                return
+            
+            # Display reports for submission
+            for i, report in enumerate(st.session_state.reports):
+                with st.expander(f"Report {i+1}: {report['title']}", expanded=False):
+                    # Show report details
+                    st.markdown(f"**Severity:** {report.get('severity', 'Not specified')}")
+                    st.markdown(f"**Type:** {report.get('vulnerability_type', 'Not specified')}")
+                    
+                    # Preview section
+                    if st.checkbox(f"Preview Report {i+1}", key=f"preview_{i}"):
+                        st.markdown("### Description")
+                        st.markdown(report.get("vulnerability_information", "No description available"))
+                        st.markdown("### Impact")
+                        st.markdown(report.get("impact", "No impact statement available"))
+                    
+                    # Submit button
+                    if st.button(f"Submit Report {i+1}", key=f"submit_{i}"):
+                        try:
+                            with st.spinner(f"Submitting report {i+1}..."):
+                                response = st.session_state.api_client.submit_report(
+                                    title=report['title'],
+                                    vulnerability_info=report.get('vulnerability_information', ''),
+                                    impact=report.get('impact', ''),
+                                    severity=report.get('severity', 'medium')
+                                )
+                                st.success(f"Report {i+1} submitted successfully!")
+                                st.json(response)
+                                
+                                # Update report status
+                                report['status'] = 'Submitted'
+                                report['submission_id'] = response.get('data', {}).get('id')
+                                
+                        except Exception as e:
+                            st.error(f"Failed to submit report {i+1}: {str(e)}")
+                            
+        except Exception as e:
+            if "HACKERONE_API_USERNAME" not in st.secrets or "HACKERONE_API_TOKEN" not in st.secrets:
+                st.error("HackerOne API credentials not found in .streamlit/secrets.toml")
+                st.markdown("""
+                Please add your HackerOne API credentials to `.streamlit/secrets.toml`:
+                ```toml
+                HACKERONE_API_USERNAME = "your_username"
+                HACKERONE_API_TOKEN = "your_token"
+                ```
+                """)
+            else:
+                st.error(f"Error initializing API client: {str(e)}")
 
 def report_to_markdown(report: dict) -> str:
     """Convert report to markdown format"""
