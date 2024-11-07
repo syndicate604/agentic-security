@@ -91,6 +91,13 @@ class AIHackerFix:
             "weakness_id": None  # Can be mapped based on vulnerability type
         }
 
+def init_session_state():
+    """Initialize session state variables"""
+    if 'reports' not in st.session_state:
+        st.session_state.reports = []
+    if 'app' not in st.session_state:
+        st.session_state.app = AIHackerFix()
+
 def main():
     # Initialize session state
     init_session_state()

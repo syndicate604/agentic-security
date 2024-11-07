@@ -379,9 +379,10 @@ def main():
         notifier = NotificationHandler(config.get('SLACK_WEBHOOK'))
         
         # Initialize API client
+        username, token = config
         client = HackerOneAPI(
-            api_username=st.secrets["HACKERONE_API_USERNAME"],
-            api_token=st.secrets["HACKERONE_API_TOKEN"]
+            api_username=username,
+            api_token=token
         )
         
         if notifier.webhook_url:
