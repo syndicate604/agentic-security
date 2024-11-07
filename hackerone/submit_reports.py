@@ -23,9 +23,10 @@ import time
 import base64
 import requests
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 from pathlib import Path
 from dotenv import load_dotenv
+from datetime import datetime
 
 # Setup logging
 logging.basicConfig(
@@ -41,6 +42,40 @@ logger = logging.getLogger(__name__)
 class ConfigError(Exception):
     """Custom exception for configuration errors"""
     pass
+
+class NotificationHandler:
+    """Handles sending notifications to configured channels"""
+    
+    def __init__(self, webhook_url: Optional[str] = None):
+        self.webhook_url = webhook_url
+        
+    def send_notification(self, message: str, level: str = 'info') -> bool:
+        """
+        Send notification to configured channels
+        Returns True if notification was sent successfully
+        """
+        if not self.webhook_url:
+            return False
+            
+        try:
+            payload = {
+                "text": f"[{level.upper()}] {message}",
+                "username": "HackerOne Report Bot",
+                "icon_emoji": ":bug:",
+                "timestamp": datetime.now().timestamp()
+            }
+            
+            response = requests.post(
+                self.webhook_url,
+                json=payload,
+                timeout=5
+            )
+            response.raise_for_status()
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to send notification: {str(e)}")
+            return False
 
 def check_environment() -> Tuple[str, str]:
     """
@@ -324,8 +359,17 @@ def main():
         # Check environment setup
         api_username, api_token = check_environment()
         
-        # Initialize API client
-        client = HackerOneAPI(api_username, api_token)
+        # Initialize notification handler if webhook provided
+        notifier = NotificationHandler(config.get('SLACK_WEBHOOK'))
+        
+        # Initialize API client with model selection
+        client = HackerOneAPI(
+            api_username=config['OPENAI_API_KEY'],
+            api_token=config['ANTHROPIC_API_KEY']
+        )
+        
+        if notifier.webhook_url:
+            notifier.send_notification("Starting vulnerability report submission")
         
         # Define reports to submit
         reports = [
@@ -396,8 +440,11 @@ def main():
             except KeyError as e:
                 logger.error(f"Missing required field in report config: {e}")
             except Exception as e:
-                logger.error(f"Failed to submit {report['title']}: {str(e)}")
+                error_msg = f"Failed to submit {report['title']}: {str(e)}"
+                logger.error(error_msg)
                 logger.debug("Stack trace:", exc_info=True)
+                if notifier.webhook_url:
+                    notifier.send_notification(error_msg, level='error')
     
         # Check status of submitted reports
         for report in submitted_reports:
