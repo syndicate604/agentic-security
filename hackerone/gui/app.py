@@ -297,19 +297,78 @@ def hash_password(password):
     elif page == "Bounty Search":
         st.title("🎯 Bug Bounty Program Search")
         
-        # Initialize BountyHunter if needed
+        # Debug output for secrets
+        st.write("Checking API credentials...")
+        try:
+            api_username = st.secrets["HACKERONE_API_USERNAME"]
+            api_token = st.secrets["HACKERONE_API_TOKEN"]
+            st.success("API credentials found")
+        except Exception as e:
+            st.error(f"Error accessing secrets: {str(e)}")
+            st.stop()
+        
+        # Initialize BountyHunter
         if 'bounty_hunter' not in st.session_state:
-            try:
-                api_username = st.secrets["HACKERONE_API_USERNAME"]
-                api_token = st.secrets["HACKERONE_API_TOKEN"]
-                st.session_state.bounty_hunter = BountyHunter(api_username, api_token)
-            except Exception as e:
-                st.error(f"Failed to initialize bounty hunter: {str(e)}")
-                st.info("Please configure HackerOne API credentials in Settings")
-                st.stop()
+            st.session_state.bounty_hunter = BountyHunter(api_username, api_token)
 
-        # Create search interface
-        with st.expander("Advanced Search Parameters", expanded=True):
+        # Simple search first
+        st.subheader("Basic Program Search")
+        
+        # Initialize session state for pagination
+        if 'page' not in st.session_state:
+            st.session_state.page = 1
+        if 'programs' not in st.session_state:
+            st.session_state.programs = []
+        
+        # Fetch programs button
+        if st.button("Fetch All Programs") or not st.session_state.programs:
+            with st.spinner("Fetching programs..."):
+                st.session_state.programs = st.session_state.bounty_hunter.get_programs()
+                st.success(f"Found {len(st.session_state.programs)} programs")
+        
+        # Display programs with pagination
+        if st.session_state.programs:
+            # Pagination controls
+            items_per_page = 10
+            total_pages = (len(st.session_state.programs) + items_per_page - 1) // items_per_page
+            
+            col1, col2, col3 = st.columns([1,3,1])
+            with col1:
+                if st.button("Previous") and st.session_state.page > 1:
+                    st.session_state.page -= 1
+            with col2:
+                st.write(f"Page {st.session_state.page} of {total_pages}")
+            with col3:
+                if st.button("Next") and st.session_state.page < total_pages:
+                    st.session_state.page += 1
+            
+            # Display current page of programs
+            start_idx = (st.session_state.page - 1) * items_per_page
+            end_idx = min(start_idx + items_per_page, len(st.session_state.programs))
+            
+            for program in st.session_state.programs[start_idx:end_idx]:
+                with st.expander(f"🎯 {program['attributes'].get('name', 'Unnamed Program')}", expanded=False):
+                    st.markdown(f"""
+                    ### Program Details
+                    **Bounty Range:** {program['attributes'].get('bounty_range', 'Not specified')}
+                    
+                    **Description:**  
+                    {program['attributes'].get('description', 'No description available')}
+                    """)
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("View Details", key=f"view_{program.get('id')}"):
+                            st.json(program)
+                    with col2:
+                        if st.button("Analyze", key=f"analyze_{program.get('id')}"):
+                            with st.spinner("Analyzing program..."):
+                                analysis = st.session_state.bounty_hunter.analyze_program(program)
+                                st.markdown(analysis)
+        
+        # Advanced search section
+        st.subheader("Advanced Search")
+        with st.expander("Advanced Search Options"):
             col1, col2 = st.columns(2)
             with col1:
                 min_bounty = st.number_input("Minimum Bounty ($)", 0, 100000, 100)

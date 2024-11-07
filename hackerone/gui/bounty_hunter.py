@@ -14,18 +14,25 @@ class BountyHunter:
     def get_programs(self) -> List[Dict]:
         """Fetch all public bug bounty programs"""
         try:
+            st.write("Fetching programs...") # Debug output
             response = requests.get(
-                f"{self.base_url}/programs",
+                "https://api.hackerone.com/v1/programs",  # Changed from /hackers/programs
                 auth=self.auth,
                 headers=self.headers
             )
             response.raise_for_status()
-            return response.json()['data']
+            
+            # Debug output
+            st.write(f"Response status: {response.status_code}")
+            data = response.json()
+            st.write(f"Found {len(data.get('data', []))} programs")
+            
+            return data.get('data', [])
         except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 401:
-                st.error("Invalid API credentials. Please check your HackerOne API username and token.")
-            else:
-                st.error(f"API request failed: {str(e)}")
+            st.error(f"HTTP Error: {e.response.status_code} - {e.response.text}")
+            return []
+        except Exception as e:
+            st.error(f"Error fetching programs: {str(e)}")
             return []
         
     def get_hacktivity(self, limit: int = 100) -> List[Dict]:
