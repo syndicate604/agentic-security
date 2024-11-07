@@ -5,6 +5,9 @@ markdown>=3.5.1  # For markdown to HTML conversion
 python-magic>=0.4.27  # For file type detection
 bcrypt>=4.0.1  # For password hashing
 rich>=13.9.3  # For console output formatting
+litellm>=1.0.0  # For LLM integration
+pandas>=2.0.0  # For data analysis
+plotly>=5.0.0  # For data visualization
 
 # Testing dependencies
 pytest>=7.4.3  # Testing framework
