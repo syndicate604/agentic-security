@@ -225,5 +225,67 @@ def test_input_validation(mock_request, api_client, mock_response):
             weakness_id=3.14  # Float not allowed
         )
 
+@patch('os.getenv')
+def test_check_environment(mock_getenv):
+    """Test environment variable checking"""
+    # Test valid environment
+    mock_getenv.side_effect = lambda x: {
+        'HACKERONE_API_USERNAME': 'test_user',
+        'HACKERONE_API_TOKEN': 'test_token'
+    }.get(x)
+    
+    username, token = check_environment()
+    assert username == 'test_user'
+    assert token == 'test_token'
+    
+    # Test missing variables
+    mock_getenv.side_effect = lambda x: None
+    with pytest.raises(ConfigError, match="Missing required environment variables"):
+        check_environment()
+
+@patch('requests.post')
+def test_notification_handler(mock_post):
+    """Test notification sending"""
+    # Test with webhook URL
+    handler = NotificationHandler(webhook_url="http://test.com")
+    mock_post.return_value.raise_for_status.return_value = None
+    
+    assert handler.send_notification("Test message") == True
+    mock_post.assert_called_once()
+    
+    # Test without webhook URL
+    handler = NotificationHandler(webhook_url=None)
+    assert handler.send_notification("Test message") == False
+    
+    # Test with failed request
+    handler = NotificationHandler(webhook_url="http://test.com")
+    mock_post.side_effect = requests.exceptions.RequestException
+    assert handler.send_notification("Test message") == False
+
+@patch('submit_reports.check_environment')
+@patch('submit_reports.NotificationHandler')
+@patch('submit_reports.HackerOneAPI')
+def test_main(mock_api, mock_notifier, mock_check_env, tmp_path):
+    """Test main function"""
+    # Setup mocks
+    mock_check_env.return_value = ('test_user', 'test_token')
+    mock_notifier.return_value.webhook_url = 'http://test.com'
+    mock_api.return_value.submit_report.return_value = MOCK_API_RESPONSE
+    
+    # Create test report files
+    report_dir = tmp_path / "reports"
+    report_dir.mkdir()
+    (report_dir / "test_report.md").write_text("Test content")
+    
+    # Run main
+    with patch('sys.argv', ['submit_reports.py']):
+        main()
+    
+    # Verify API client was created
+    mock_api.assert_called_once_with('test_user', 'test_token')
+    
+    # Verify notification was attempted
+    mock_notifier.return_value.send_notification.assert_called()
+
 if __name__ == '__main__':
     pytest.main([__file__])
