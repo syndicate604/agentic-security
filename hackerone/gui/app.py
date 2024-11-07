@@ -7,6 +7,7 @@ from datetime import datetime
 import litellm
 from typing import Dict, List, Optional
 import markdown
+from bounty_hunter import BountyHunter
 
 def render_markdown_report(report: dict) -> None:
     """Render a report in markdown format with proper formatting"""
