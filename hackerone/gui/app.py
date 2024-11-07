@@ -8,6 +8,24 @@ import litellm
 from typing import Dict, List, Optional
 import markdown
 
+def render_markdown_report(report: dict) -> None:
+    """Render a report in markdown format with proper formatting"""
+    st.markdown(f"""
+    # {report['title']}
+    
+    **Severity:** {report.get('severity', 'Not set')}  
+    **Status:** {report.get('status', 'Draft')}  
+    **Type:** {report.get('vulnerability_type', 'Not specified')}
+    
+    ## Description
+    {report.get('vulnerability_information', 'No description available')}
+    
+    ## Impact
+    {report.get('impact', 'No impact statement available')}
+    
+    {f"**Submission ID:** {report.get('submission_id')}" if report.get('submission_id') else ''}
+    """)
+
 # Add parent directory to Python path
 sys.path.append(str(Path(__file__).parent.parent))
 from submit_reports import HackerOneAPI
@@ -246,49 +264,25 @@ def hash_password(password):
             # Display reports in expandable sections
             for i, report in enumerate(reports):
                 with st.expander(f"Report {i+1}: {report['title']}", expanded=False):
-                    # Report metadata
-                    cols = st.columns(3)
-                    with cols[0]:
-                        st.markdown(f"**Severity:** {report.get('severity', 'Not set')}")
-                    with cols[1]:
-                        st.markdown(f"**Type:** {report.get('vulnerability_type', 'Not specified')}")
-                    with cols[2]:
-                        st.markdown(f"**Status:** {report.get('status', 'Draft')}")
-                    
-                    # Report content
-                    st.markdown("### Description")
-                    st.markdown(report.get("vulnerability_information", "No description available"))
-                    
-                    st.markdown("### Impact")
-                    st.markdown(report.get("impact", "No impact statement available"))
+                    render_markdown_report(report)
                     
                     # Edit options
-                    st.markdown("### Edit Report")
-                    report["title"] = st.text_input("Title", report["title"], key=f"title_{i}")
-                    report["severity"] = st.select_slider(
-                        "Severity",
-                        options=["low", "medium", "high", "critical"],
-                        value=report.get("severity", "medium"),
-                        key=f"severity_{i}"
-                    )
-                    
-                    # Action buttons
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        if st.button("Save Changes", key=f"save_{i}"):
-                            st.success("Changes saved!")
-                    with col2:
-                        if st.button("Export Report", key=f"export_{i}"):
-                            # Add export functionality
-                            st.download_button(
-                                "Download Report",
-                                report_to_markdown(report),
-                                file_name=f"vulnerability_report_{i}.md",
-                                mime="text/markdown"
-                            )
-                    with col3:
-                        if st.button("Delete Report", key=f"delete_{i}"):
-                            if st.session_state.reports.remove(report):
+                    with st.form(f"edit_form_{i}"):
+                        report["title"] = st.text_input("Title", report["title"])
+                        report["severity"] = st.select_slider(
+                            "Severity",
+                            options=["none", "low", "medium", "high", "critical"],
+                            value=report.get("severity", "medium")
+                        )
+                        
+                        # Action buttons
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.form_submit_button("Save Changes"):
+                                st.success("Changes saved!")
+                        with col2:
+                            if st.form_submit_button("Delete Report"):
+                                st.session_state.reports.remove(report)
                                 st.success("Report deleted!")
                                 st.rerun()
         else:
@@ -377,9 +371,7 @@ def hash_password(password):
                 else:
                     for i, report in enumerate(submitted_reports):
                         with st.expander(f"✅ {report['title']}", expanded=False):
-                            st.markdown(f"**Submission ID:** {report.get('submission_id', 'N/A')}")
-                            st.markdown(f"**Severity:** {report.get('severity', 'Not set')}")
-                            st.markdown(f"**Status:** {report.get('status', 'Unknown')}")
+                            render_markdown_report(report)
                             
                             if st.button(f"Check Status {i}", key=f"check_status_{i}"):
                                 try:
