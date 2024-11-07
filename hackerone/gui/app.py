@@ -302,7 +302,16 @@ def hash_password(password):
         try:
             api_username = st.secrets["HACKERONE_API_USERNAME"]
             api_token = st.secrets["HACKERONE_API_TOKEN"]
-            st.success("API credentials found")
+            
+            # Show partial credentials for debugging
+            st.write(f"Username: {api_username[:3]}...")
+            st.write(f"Token: {api_token[:5]}...")
+            
+            if api_username and api_token:
+                st.success("API credentials found")
+            else:
+                st.error("API credentials are empty")
+                st.stop()
         except Exception as e:
             st.error(f"Error accessing secrets: {str(e)}")
             st.stop()

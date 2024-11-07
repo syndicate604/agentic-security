@@ -7,27 +7,44 @@ from litellm import completion
 
 class BountyHunter:
     def __init__(self, api_username: str, api_token: str):
+        """Initialize with HackerOne API credentials"""
         self.auth = (api_username, api_token)
-        self.headers = {'Accept': 'application/json'}
-        self.base_url = "https://api.hackerone.com/v1/hackers"
+        self.headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        }
+        self.base_url = "https://api.hackerone.com/v1"
         
     def get_programs(self) -> List[Dict]:
         """Fetch all public bug bounty programs"""
         try:
             st.write("Fetching programs...") # Debug output
+            
+            # Use the public programs endpoint
             response = requests.get(
-                "https://api.hackerone.com/v1/programs",  # Changed from /hackers/programs
+                f"{self.base_url}/hackers/programs",
+                params={
+                    'filter[state][]': 'public'
+                },
                 auth=self.auth,
                 headers=self.headers
             )
-            response.raise_for_status()
             
-            # Debug output
+            # Debug authentication
+            st.write(f"Using credentials: {self.auth[0][:3]}...") # Show first 3 chars only
             st.write(f"Response status: {response.status_code}")
-            data = response.json()
-            st.write(f"Found {len(data.get('data', []))} programs")
             
-            return data.get('data', [])
+            if response.status_code == 401:
+                st.error("Authentication failed. Please check your API credentials.")
+                st.write("Response:", response.text)
+                return []
+                
+            response.raise_for_status()
+            data = response.json()
+            
+            programs = data.get('data', [])
+            st.success(f"Successfully fetched {len(programs)} programs")
+            return programs
         except requests.exceptions.HTTPError as e:
             st.error(f"HTTP Error: {e.response.status_code} - {e.response.text}")
             return []
