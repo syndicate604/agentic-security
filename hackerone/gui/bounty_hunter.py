@@ -12,13 +12,20 @@ class BountyHunter:
         
     def get_programs(self) -> List[Dict]:
         """Fetch all public bug bounty programs"""
-        response = requests.get(
-            f"{self.base_url}/programs",
-            auth=self.auth,
-            headers=self.headers
-        )
-        response.raise_for_status()
-        return response.json()['data']
+        try:
+            response = requests.get(
+                f"{self.base_url}/programs",
+                auth=self.auth,
+                headers=self.headers
+            )
+            response.raise_for_status()
+            return response.json()['data']
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 401:
+                st.error("Invalid API credentials. Please check your HackerOne API username and token.")
+            else:
+                st.error(f"API request failed: {str(e)}")
+            return []
         
     def get_hacktivity(self, limit: int = 100) -> List[Dict]:
         """Fetch recent bounty awards"""

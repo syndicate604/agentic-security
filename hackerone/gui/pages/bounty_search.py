@@ -9,14 +9,26 @@ from bounty_hunter import BountyHunter
 def render_bounty_search():
     st.title("Bug Bounty Program Search")
     
-    # Initialize BountyHunter
-    if 'bounty_hunter' not in st.session_state:
+    # Check for API credentials
+    try:
         api_username = st.secrets["HACKERONE_API_USERNAME"]
-        api_token = st.secrets["HACKERONE_API_TOKEN"] 
-        st.session_state.bounty_hunter = BountyHunter(api_username, api_token)
+        api_token = st.secrets["HACKERONE_API_TOKEN"]
+        
+        if api_username == "your_actual_username" or api_token == "your_actual_token":
+            st.error("Please configure your HackerOne API credentials in .streamlit/secrets.toml")
+            st.code("""
+HACKERONE_API_USERNAME = "your_username"  # Get from HackerOne
+HACKERONE_API_TOKEN = "your_token"        # Get from HackerOne
+OPENAI_API_KEY = "your_openai_key"        # Get from OpenAI
+            """)
+            return
+            
+        # Initialize BountyHunter
+        if 'bounty_hunter' not in st.session_state:
+            st.session_state.bounty_hunter = BountyHunter(api_username, api_token)
     
-    # Sidebar filters
-    st.sidebar.header("Filters")
+        # Sidebar filters
+        st.sidebar.header("Filters")
     min_bounty = st.sidebar.number_input("Minimum Bounty ($)", 0, 100000, 100)
     tech_stack = st.sidebar.multiselect(
         "Technology Stack",
