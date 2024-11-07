@@ -17,17 +17,56 @@ Uses HTTP Basic Authentication with API username and token
 """
 
 import os
+import sys
 import json
 import time
 import base64
 import requests
-from typing import Dict, List, Optional
 import logging
+from typing import Dict, List, Optional, Tuple
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Setup logging
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO"),
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+class ConfigError(Exception):
+    """Custom exception for configuration errors"""
+    pass
+
+def check_environment() -> Tuple[str, str]:
+    """
+    Check and validate environment variables
+    Returns tuple of (username, token) if valid
+    Raises detailed ConfigError if invalid
+    """
+    load_dotenv()
+    
+    api_username = os.getenv("HACKERONE_API_USERNAME")
+    api_token = os.getenv("HACKERONE_API_TOKEN")
+    
+    missing = []
+    if not api_username:
+        missing.append("HACKERONE_API_USERNAME")
+    if not api_token:
+        missing.append("HACKERONE_API_TOKEN")
+        
+    if missing:
+        raise ConfigError(
+            f"Missing required environment variables: {', '.join(missing)}\n"
+            "Please set them in your .env file or environment.\n"
+            "See .env.example for required variables."
+        )
+        
+    return api_username, api_token
 
 class RateLimiter:
     """Rate limiter for API requests"""
@@ -281,82 +320,108 @@ class HackerOneAPI:
 
 def main():
     """Main function to submit vulnerability reports"""
+    try:
+        # Check environment setup
+        api_username, api_token = check_environment()
+        
+        # Initialize API client
+        client = HackerOneAPI(api_username, api_token)
+        
+        # Define reports to submit
+        reports = [
+            {
+                "title": "Command Injection in API Endpoint",
+                "file": "command_injection_report.md",
+                "severity": "high",
+                "weakness_id": 77  # CWE-77: Command Injection
+            },
+            {
+                "title": "SQL Injection in User Query",
+                "file": "sql_injection_report.md", 
+                "severity": "high",
+                "weakness_id": 89  # CWE-89: SQL Injection
+            },
+            {
+                "title": "Cross-Site Scripting in Comment Display",
+                "file": "xss_report.md",
+                "severity": "medium", 
+                "weakness_id": 79  # CWE-79: Cross-site Scripting
+            },
+            {
+                "title": "Weak Cryptographic Implementation",
+                "file": "weak_crypto_report.md",
+                "severity": "medium",
+                "weakness_id": 326  # CWE-326: Inadequate Encryption Strength
+            }
+        ]
+        
+        # Submit reports
+        submitted_reports = []
+        for report in reports:
+            try:
+                # Validate report file exists
+                if not Path(report["file"]).exists():
+                    raise FileNotFoundError(f"Report file not found: {report['file']}")
+                
+                # Read report content
+                with open(report["file"], "r") as f:
+                    content = f.read()
+                
+                # Extract impact section
+                impact_start = content.find("## Impact")
+                if impact_start == -1:
+                    logger.error(f"No Impact section found in {report['file']}")
+                    continue
+                    
+                impact_end = content.find("##", impact_start + 1)
+                if impact_end == -1:
+                    impact_end = len(content)
+                impact = content[impact_start:impact_end].strip()
+                
+                # Submit report
+                result = client.submit_report(
+                    title=report["title"],
+                    vulnerability_info=content,
+                    impact=impact,
+                    severity=report["severity"],
+                    weakness_id=report["weakness_id"]
+                )
+                
+                submitted_reports.append(result)
+                logger.info(f"Successfully submitted report: {report['title']}")
+                logger.debug(f"Report ID: {result['data']['id']}")
+                
+            except FileNotFoundError as e:
+                logger.error(str(e))
+            except KeyError as e:
+                logger.error(f"Missing required field in report config: {e}")
+            except Exception as e:
+                logger.error(f"Failed to submit {report['title']}: {str(e)}")
+                logger.debug("Stack trace:", exc_info=True)
     
-    # Get API credentials from environment
-    api_username = os.getenv("HACKERONE_API_USERNAME")
-    api_token = os.getenv("HACKERONE_API_TOKEN")
-    
-    if not all([api_username, api_token]):
-        raise ValueError("HACKERONE_API_USERNAME and HACKERONE_API_TOKEN must be set")
-    
-    # Initialize API client
-    client = HackerOneAPI(api_username, api_token)
-    
-    # Define reports to submit
-    reports = [
-        {
-            "title": "Command Injection in API Endpoint",
-            "file": "command_injection_report.md",
-            "severity": "high",
-            "weakness_id": 77  # CWE-77: Command Injection
-        },
-        {
-            "title": "SQL Injection in User Query",
-            "file": "sql_injection_report.md",
-            "severity": "high",
-            "weakness_id": 89  # CWE-89: SQL Injection
-        },
-        {
-            "title": "Cross-Site Scripting in Comment Display",
-            "file": "xss_report.md",
-            "severity": "medium",
-            "weakness_id": 79  # CWE-79: Cross-site Scripting
-        },
-        {
-            "title": "Weak Cryptographic Implementation",
-            "file": "weak_crypto_report.md",
-            "severity": "medium",
-            "weakness_id": 326  # CWE-326: Inadequate Encryption Strength
-        }
-    ]
-    
-    # Submit each report
-    submitted_reports = []
-    for report in reports:
-        try:
-            # Read report content
-            with open(report["file"], "r") as f:
-                content = f.read()
-            
-            # Extract impact section
-            impact_start = content.find("## Impact")
-            impact_end = content.find("##", impact_start + 1)
-            impact = content[impact_start:impact_end].strip()
-            
-            # Submit report
-            result = client.submit_report(
-                title=report["title"],
-                vulnerability_info=content,
-                impact=impact,
-                severity=report["severity"],
-                weakness_id=report["weakness_id"]
-            )
-            
-            submitted_reports.append(result)
-            logger.info(f"Submitted report: {report['title']}")
-            
-        except Exception as e:
-            logger.error(f"Failed to submit {report['title']}: {str(e)}")
-    
-    # Check status of submitted reports
-    for report in submitted_reports:
-        try:
-            report_id = report["data"]["id"]
-            status = client.check_report_status(report_id)
-            logger.info(f"Report {report_id} status: {status['data']['attributes']['state']}")
-            
-        except Exception as e:
-            logger.error(f"Failed to check status: {str(e)}")
+        # Check status of submitted reports
+        for report in submitted_reports:
+            try:
+                report_id = report["data"]["id"]
+                status = client.check_report_status(report_id)
+                logger.info(
+                    f"Report {report_id} status: "
+                    f"{status['data']['attributes']['state']}"
+                )
+                
+            except KeyError as e:
+                logger.error(f"Invalid report response format: {e}")
+            except Exception as e:
+                logger.error(f"Failed to check status for {report_id}: {str(e)}")
+                logger.debug("Stack trace:", exc_info=True)
+                
+    except ConfigError as e:
+        logger.error(f"Configuration Error: {str(e)}")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
+        logger.debug("Stack trace:", exc_info=True)
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
