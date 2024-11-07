@@ -1,0 +1,16 @@
+{
+  "api": {
+    "username": "",
+    "token": ""
+  },
+  "ai": {
+    "model": "gpt-4",
+    "temperature": 0.3,
+    "api_key": ""
+  },
+  "ui": {
+    "theme": "dark",
+    "layout": "wide",
+    "notifications": true
+  }
+}

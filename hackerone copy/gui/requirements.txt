@@ -1,0 +1,16 @@
+# Core dependencies
+streamlit>=1.29.0  # Streamlit framework
+litellm>=0.12.0  # LLM integration
+requests>=2.31.0  # HTTP requests
+python-dotenv>=1.0.0  # Environment variables
+markdown>=3.5.1  # Markdown processing
+
+# Testing dependencies
+pytest>=7.4.3  # Testing framework
+pytest-cov>=4.1.0  # Coverage reporting
+pytest-mock>=3.12.0  # Mocking utilities
+pytest-asyncio>=0.23.2  # Async testing
+pytest-streamlit>=0.1.0  # Streamlit testing
+
+# Optional dependencies
+python-magic>=0.4.27  # File type detection
