@@ -2,6 +2,7 @@ import streamlit as st
 import sys
 import os
 from pathlib import Path
+from settings import Settings
 import json
 from datetime import datetime
 import litellm
@@ -117,6 +118,8 @@ def init_session_state():
         st.session_state.reports = []
     if 'app' not in st.session_state:
         st.session_state.app = AIHackerFix()
+    if 'settings' not in st.session_state:
+        st.session_state.settings = Settings()
 
 def main():
     # Initialize session state
@@ -135,36 +138,39 @@ def main():
     # Settings page
     if page == "Settings":
         st.header("⚙️ Application Settings")
+        settings = st.session_state.settings
         
-        # Create tabs for different settings categories
         api_tab, ai_tab, ui_tab = st.tabs(["API Settings", "AI Configuration", "UI Preferences"])
         
         with api_tab:
             st.subheader("🔑 HackerOne API Configuration")
             
-            # Add description and documentation link
             st.markdown("""
             Configure your HackerOne API credentials. You can get these from your 
             [HackerOne Settings Page](https://hackerone.com/settings/api_token).
             """)
             
-            # Add input fields with better labels and help text
+            api_settings = settings.get_section("api")
             api_username = st.text_input(
                 "API Username",
                 type="password",
                 help="Your HackerOne API username",
-                value=st.secrets.get("HACKERONE_API_USERNAME", "")
+                value=api_settings.get("username", "")
             )
             
             api_token = st.text_input(
                 "API Token",
                 type="password",
                 help="Your HackerOne API token",
-                value=st.secrets.get("HACKERONE_API_TOKEN", "")
+                value=api_settings.get("token", "")
             )
             
             if st.button("Save API Credentials", key="save_api"):
                 try:
+                    settings.update_section("api", {
+                        "username": api_username,
+                        "token": api_token
+                    })
                     st.session_state.app.init_api_client(api_username, api_token)
                     st.success("✅ API credentials saved and verified!")
                 except Exception as e:
@@ -173,23 +179,23 @@ def main():
         with ai_tab:
             st.subheader("🤖 AI Configuration")
             
-            # Add OpenAI key input with validation
             st.markdown("""
             Configure your OpenAI API key for AI-powered analysis. Get your key from the 
             [OpenAI Dashboard](https://platform.openai.com/api-keys).
             """)
             
+            ai_settings = settings.get_section("ai")
             litellm_key = st.text_input(
                 "OpenAI API Key",
                 type="password",
                 help="Your OpenAI API key for LiteLLM",
-                value=st.secrets.get("OPENAI_API_KEY", "")
+                value=ai_settings.get("api_key", "")
             )
             
-            # Add model selection
             model = st.selectbox(
                 "AI Model",
                 ["gpt-4", "gpt-3.5-turbo"],
+                index=0 if ai_settings.get("model") == "gpt-4" else 1,
                 help="Select the AI model to use for analysis"
             )
             
@@ -197,17 +203,18 @@ def main():
                 "Temperature",
                 min_value=0.0,
                 max_value=1.0,
-                value=0.3,
+                value=ai_settings.get("temperature", 0.3),
                 help="Controls randomness in AI responses (0=focused, 1=creative)"
             )
             
             if st.button("Save AI Settings", key="save_ai"):
                 try:
-                    os.environ["OPENAI_API_KEY"] = litellm_key
-                    st.session_state.ai_settings = {
+                    settings.update_section("ai", {
+                        "api_key": litellm_key,
                         "model": model,
                         "temperature": temperature
-                    }
+                    })
+                    os.environ["OPENAI_API_KEY"] = litellm_key
                     st.success("✅ AI configuration saved!")
                 except Exception as e:
                     st.error(f"❌ Failed to save AI settings: {str(e)}")
@@ -215,56 +222,57 @@ def main():
         with ui_tab:
             st.subheader("🎨 UI Preferences")
             
-            # Add theme selection
+            ui_settings = settings.get_section("ui")
             theme = st.selectbox(
                 "Color Theme",
                 ["Dark", "Light"],
+                index=0 if ui_settings.get("theme") == "dark" else 1,
                 help="Select application color theme"
             )
             
-            # Add layout options
             layout = st.radio(
                 "Layout",
                 ["Wide", "Centered"],
+                index=0 if ui_settings.get("layout") == "wide" else 1,
                 help="Select application layout"
             )
             
-            # Add notification settings
             notifications = st.toggle(
                 "Enable Notifications",
+                value=ui_settings.get("notifications", True),
                 help="Show desktop notifications for important events"
             )
             
             if st.button("Save UI Preferences", key="save_ui"):
                 try:
-                    st.session_state.ui_preferences = {
+                    settings.update_section("ui", {
                         "theme": theme.lower(),
                         "layout": layout.lower(),
                         "notifications": notifications
-                    }
+                    })
                     st.success("✅ UI preferences saved!")
                     st.info("🔄 Refresh the page to see theme changes")
                 except Exception as e:
                     st.error(f"❌ Failed to save UI preferences: {str(e)}")
         
-        # Add status indicators at the bottom
+        # Status indicators
         st.divider()
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            if hasattr(st.session_state.app, 'api_client'):
+            if api_settings.get("username") and api_settings.get("token"):
                 st.success("✅ API Connected")
             else:
                 st.error("❌ API Not Connected")
                 
         with col2:
-            if "OPENAI_API_KEY" in os.environ:
+            if ai_settings.get("api_key"):
                 st.success("✅ AI Configured")
             else:
                 st.warning("⚠️ AI Not Configured")
                 
         with col3:
-            if hasattr(st.session_state, 'ui_preferences'):
+            if ui_settings:
                 st.success("✅ UI Customized")
             else:
                 st.info("ℹ️ Default UI Settings")
