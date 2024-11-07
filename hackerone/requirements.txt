@@ -3,6 +3,8 @@ requests>=2.31.0  # For making HTTP requests
 python-dotenv>=1.0.0  # For loading environment variables
 markdown>=3.5.1  # For markdown to HTML conversion
 python-magic>=0.4.27  # For file type detection
+bcrypt>=4.0.1  # For password hashing
+rich>=13.9.3  # For console output formatting
 
 # Testing dependencies
 pytest>=7.4.3  # Testing framework
