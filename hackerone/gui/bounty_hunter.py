@@ -63,10 +63,19 @@ class BountyHunter:
             }}
             """
             
-            response = completion(
-                model="gpt-4",
-                messages=[{"role": "user", "content": prompt}]
-            )
+            try:
+                response = completion(
+                    model="gpt-4",
+                    messages=[{"role": "user", "content": prompt}],
+                    api_key=st.secrets["OPENAI_API_KEY"]
+                )
+            except Exception as e:
+                st.error(f"LiteLLM API error: {str(e)}")
+                return {
+                    "score": 5,
+                    "reasoning": "AI analysis unavailable",
+                    "recommended_focus": "General security testing"
+                }
             
             # Ensure we get a valid JSON response
             try:

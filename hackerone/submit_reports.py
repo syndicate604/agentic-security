@@ -378,10 +378,10 @@ def main():
         # Initialize notification handler if webhook provided
         notifier = NotificationHandler(config.get('SLACK_WEBHOOK'))
         
-        # Initialize API client with model selection
+        # Initialize API client
         client = HackerOneAPI(
-            api_username=config['OPENAI_API_KEY'], 
-            api_token=config['ANTHROPIC_API_KEY']
+            api_username=st.secrets["HACKERONE_API_USERNAME"],
+            api_token=st.secrets["HACKERONE_API_TOKEN"]
         )
         
         if notifier.webhook_url:

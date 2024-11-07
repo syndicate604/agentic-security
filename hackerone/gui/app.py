@@ -3,24 +3,12 @@ import sys
 import os
 from pathlib import Path
 import json
-
-# Add parent directory to Python path
-sys.path.append(str(Path(__file__).parent.parent))
-from submit_reports import HackerOneAPI
-
-def init_session_state():
-    """Initialize session state variables"""
-    if 'reports' not in st.session_state:
-        st.session_state.reports = []
-    if 'app' not in st.session_state:
-        st.session_state.app = AIHackerFix()
 from datetime import datetime
 import litellm
 from typing import Dict, List, Optional
 import markdown
-from submit_reports import HackerOneAPI
 
-# Add parent directory to path to import submit_reports
+# Add parent directory to Python path
 sys.path.append(str(Path(__file__).parent.parent))
 from submit_reports import HackerOneAPI
 
