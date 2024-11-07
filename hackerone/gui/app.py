@@ -239,10 +239,14 @@ def main():
                 value=""
             )
             
+            # Get current AI settings from secrets
+            current_model = st.secrets.get("LITELLM_MODEL", "gpt-4")
+            current_temp = float(st.secrets.get("LITELLM_TEMPERATURE", "0.3"))
+            
             model = st.selectbox(
                 "AI Model",
                 ["gpt-4", "gpt-3.5-turbo"],
-                index=0 if ai_settings.get("model") == "gpt-4" else 1,
+                index=0 if current_model == "gpt-4" else 1,
                 help="Select the AI model to use for analysis"
             )
             
@@ -250,7 +254,7 @@ def main():
                 "Temperature",
                 min_value=0.0,
                 max_value=1.0,
-                value=ai_settings.get("temperature", 0.3),
+                value=current_temp,
                 help="Controls randomness in AI responses (0=focused, 1=creative)"
             )
             
@@ -312,13 +316,13 @@ def main():
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            if api_settings.get("username") and api_settings.get("token"):
+            if st.secrets.get("HACKERONE_API_USERNAME") and st.secrets.get("HACKERONE_API_TOKEN"):
                 st.success("✅ API Connected")
             else:
                 st.error("❌ API Not Connected")
                 
         with col2:
-            if ai_settings.get("api_key"):
+            if st.secrets.get("OPENAI_API_KEY"):
                 st.success("✅ AI Configured")
             else:
                 st.warning("⚠️ AI Not Configured")
