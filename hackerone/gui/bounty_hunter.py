@@ -65,17 +65,16 @@ class BountyHunter:
             
             try:
                 response = completion(
-                    model="gpt-4",
+                    model="gpt-4-1106-preview",  # Using GPT-4 Turbo
                     messages=[{"role": "user", "content": prompt}],
+                    temperature=0.7,
+                    max_tokens=500,
                     api_key=st.secrets["OPENAI_API_KEY"]
                 )
+                return response.choices[0].message.content
             except Exception as e:
                 st.error(f"LiteLLM API error: {str(e)}")
-                return {
-                    "score": 5,
-                    "reasoning": "AI analysis unavailable",
-                    "recommended_focus": "General security testing"
-                }
+                return "AI analysis unavailable"
             
             # Ensure we get a valid JSON response
             try:

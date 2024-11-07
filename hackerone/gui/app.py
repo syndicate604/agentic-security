@@ -128,7 +128,7 @@ def main():
     
     # Sidebar navigation
     st.sidebar.title("Navigation")
-    page = st.sidebar.radio("Go to", ["Settings", "Analyze", "Reports", "Submit"])
+    page = st.sidebar.radio("Go to", ["Settings", "Analyze", "Reports", "Bounty Search", "Submit"])
     
     # Settings page
     if page == "Settings":
@@ -293,6 +293,125 @@ def hash_password(password):
             st.info("No reports generated yet. Go to Analyze page to create reports.")
     
     # Submit page
+    elif page == "Bounty Search":
+        st.title("🎯 Bug Bounty Program Search")
+        
+        # Initialize BountyHunter if needed
+        if 'bounty_hunter' not in st.session_state:
+            try:
+                api_username = st.secrets["HACKERONE_API_USERNAME"]
+                api_token = st.secrets["HACKERONE_API_TOKEN"]
+                st.session_state.bounty_hunter = BountyHunter(api_username, api_token)
+            except Exception as e:
+                st.error(f"Failed to initialize bounty hunter: {str(e)}")
+                st.info("Please configure HackerOne API credentials in Settings")
+                st.stop()
+
+        # Create search interface
+        with st.expander("Advanced Search Parameters", expanded=True):
+            col1, col2 = st.columns(2)
+            with col1:
+                min_bounty = st.number_input("Minimum Bounty ($)", 0, 100000, 100)
+                max_response_time = st.slider("Max Response Time (days)", 1, 30, 7)
+                program_types = st.multiselect(
+                    "Program Types",
+                    ["Public", "Private", "Enterprise"],
+                    default=["Public"]
+                )
+            with col2:
+                min_resolved = st.number_input("Minimum Resolved Reports", 0, 1000, 10)
+                min_response_rate = st.slider("Minimum Response Rate (%)", 0, 100, 50)
+                
+        # Technology stack filter
+        tech_stack = st.multiselect(
+            "Technology Stack",
+            ["Web", "Mobile", "API", "Desktop", "IoT", "Smart Contracts", 
+             "Android", "iOS", "Cloud", "Blockchain", "Network"],
+            default=["Web", "API"]
+        )
+        
+        # Vulnerability focus
+        vuln_types = st.multiselect(
+            "Vulnerability Types",
+            ["RCE", "SQLi", "XSS", "CSRF", "SSRF", "File Upload", 
+             "Authentication", "Authorization", "Information Disclosure"],
+            default=["RCE", "SQLi", "XSS"]
+        )
+        
+        if st.button("Search Programs", type="primary"):
+            with st.spinner("Searching and analyzing programs..."):
+                try:
+                    programs = st.session_state.bounty_hunter.get_programs()
+                    
+                    # Filter programs based on criteria
+                    filtered_programs = []
+                    for program in programs:
+                        attrs = program['attributes']
+                        
+                        # Parse bounty range
+                        try:
+                            min_program_bounty = int(''.join(filter(str.isdigit, 
+                                attrs.get('bounty_range', '0').split('-')[0])))
+                        except:
+                            min_program_bounty = 0
+                        
+                        # Check if program matches criteria
+                        if (min_program_bounty >= min_bounty and
+                            attrs.get('response_efficiency_percentage', 0) >= min_response_rate and
+                            attrs.get('resolved_report_count', 0) >= min_resolved and
+                            any(tech.lower() in attrs.get('description', '').lower() 
+                                for tech in tech_stack)):
+                            filtered_programs.append(program)
+                    
+                    st.success(f"Found {len(filtered_programs)} matching programs")
+                    
+                    # Display results
+                    for program in filtered_programs:
+                        with st.expander(f"🎯 {program['attributes']['name']}", expanded=False):
+                            # Program details
+                            st.markdown(f"""
+                            ### Program Overview
+                            **Bounty Range:** {program['attributes'].get('bounty_range', 'N/A')}  
+                            **Response Rate:** {program['attributes'].get('response_efficiency_percentage', 'N/A')}%  
+                            **Resolved Reports:** {program['attributes'].get('resolved_report_count', 'N/A')}
+                            
+                            ### Description
+                            {program['attributes'].get('description', 'No description available')}
+                            """)
+                            
+                            # AI Analysis
+                            if st.button("Generate AI Analysis", key=f"ai_{program['id']}"):
+                                with st.spinner("Analyzing program..."):
+                                    analysis = st.session_state.bounty_hunter.analyze_program(program)
+                                    st.markdown(analysis)
+                            
+                            # Action buttons
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                if st.button("Save Program", key=f"save_{program['id']}"):
+                                    if 'saved_programs' not in st.session_state:
+                                        st.session_state.saved_programs = []
+                                    st.session_state.saved_programs.append(program)
+                                    st.success("Program saved!")
+                            
+                            with col2:
+                                if st.button("Create Report Template", key=f"template_{program['id']}"):
+                                    template = {
+                                        "title": f"Security Vulnerability in {program['attributes']['name']}",
+                                        "program": program['attributes']['name'],
+                                        "severity": "medium",
+                                        "vulnerability_information": "## Description\n\n[Add details]\n\n",
+                                        "impact": "## Impact\n\n[Add impact]\n\n",
+                                        "status": "Draft"
+                                    }
+                                    if not hasattr(st.session_state, 'reports'):
+                                        st.session_state.reports = []
+                                    st.session_state.reports.append(template)
+                                    st.success("Report template created!")
+                                    
+                except Exception as e:
+                    st.error(f"Search failed: {str(e)}")
+
     elif page == "Submit":
         st.header("Submit Reports")
         
