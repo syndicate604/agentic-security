@@ -99,6 +99,9 @@ class AIHackerFix:
         }
 
 def main():
+    # Initialize session state
+    init_session_state()
+    
     st.title("🛡️ AI Hacker Fix")
     
     # Initialize app state
