@@ -162,8 +162,11 @@ def test_error_handling(mock_request, api_client):
             impact="Test"
         )
 
-def test_input_validation(api_client):
+@patch('requests.request')
+def test_input_validation(mock_request, api_client, mock_response):
     """Test input validation"""
+    mock_request.return_value = mock_response
+    
     # Test missing required fields
     with pytest.raises(ValueError, match="Title is required"):
         api_client.submit_report(
