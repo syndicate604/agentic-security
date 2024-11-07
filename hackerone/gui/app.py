@@ -139,15 +139,54 @@ def main():
     elif page == "Analyze":
         st.header("Analyze Vulnerability")
         
+        # Add sample code selector
+        st.subheader("Select Sample or Enter Code")
+        sample_option = st.selectbox(
+            "Choose a sample or enter your own code",
+            ["Custom Code", "SQL Injection Sample", "Command Injection Sample", "XSS Sample", "Weak Crypto Sample"]
+        )
+        
+        # Sample code dictionary
+        sample_codes = {
+            "SQL Injection Sample": """
+def get_user(username):
+    query = f"SELECT * FROM users WHERE username = '{username}'"
+    cursor.execute(query)
+    return cursor.fetchone()
+            """,
+            
+            "Command Injection Sample": """
+def process_user_input(user_input):
+    command = f"echo {user_input}"
+    os.system(command)
+            """,
+            
+            "XSS Sample": """
+def display_comment(comment):
+    return f"<div>{comment}</div>"  # Unsanitized output
+            """,
+            
+            "Weak Crypto Sample": """
+def hash_password(password):
+    return hashlib.md5(password.encode()).hexdigest()
+            """
+        }
+        
         # Code input
-        st.subheader("Code to Analyze")
-        code = st.text_area("Paste code here", height=200)
+        if sample_option == "Custom Code":
+            code = st.text_area("Paste code here", height=200)
+        else:
+            code = st.text_area("Code to Analyze", value=sample_codes[sample_option], height=200)
         
         # Vulnerability type selection
         vuln_type = st.selectbox(
             "Vulnerability Type",
             ["SQL Injection", "XSS", "Command Injection", "Weak Cryptography"]
         )
+        
+        # Auto-select vulnerability type based on sample
+        if sample_option != "Custom Code":
+            vuln_type = sample_option.replace(" Sample", "")
         
         if st.button("Analyze"):
             with st.spinner("Analyzing vulnerability..."):
