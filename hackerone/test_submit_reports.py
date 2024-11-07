@@ -5,7 +5,14 @@ import base64
 import requests
 from unittest.mock import Mock, patch
 from pathlib import Path
-from submit_reports import HackerOneAPI, RateLimiter
+from submit_reports import (
+    HackerOneAPI, 
+    RateLimiter,
+    NotificationHandler,
+    check_environment,
+    ConfigError,
+    main
+)
 
 # Sample test data
 MOCK_REPORT = {
