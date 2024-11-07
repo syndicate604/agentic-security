@@ -7,7 +7,8 @@ import json
 from datetime import datetime
 import litellm
 from typing import Dict, List, Optional
-from typing import Dict, List, Optional
+from pathlib import Path
+import os
 import markdown
 from bounty_hunter import BountyHunter
 
@@ -121,6 +122,28 @@ def init_session_state():
     if 'settings' not in st.session_state:
         st.session_state.settings = Settings()
 
+def update_secrets(updates: dict):
+    """Safely update secrets.toml file"""
+    secrets_file = Path(__file__).parent / ".streamlit" / "secrets.toml"
+    
+    # Read current secrets
+    current_secrets = {}
+    if secrets_file.exists():
+        with open(secrets_file, 'r') as f:
+            current_secrets = {
+                line.split('=')[0].strip(): line.split('=')[1].strip().strip('"\'')
+                for line in f.readlines()
+                if '=' in line and not line.startswith('#')
+            }
+    
+    # Update with new values
+    current_secrets.update(updates)
+    
+    # Write back to file
+    with open(secrets_file, 'w') as f:
+        for key, value in current_secrets.items():
+            f.write(f'{key} = "{value}"\n')
+
 def main():
     # Initialize session state
     init_session_state()
@@ -150,31 +173,48 @@ def main():
             [HackerOne Settings Page](https://hackerone.com/settings/api_token).
             """)
             
-            api_settings = settings.get_section("api")
+            # Get current values from secrets
+            current_username = st.secrets.get("HACKERONE_API_USERNAME", "")
+            current_token = st.secrets.get("HACKERONE_API_TOKEN", "")
+            
+            # Display obfuscated current values
+            if current_username:
+                st.info(f"Current API Username: {current_username[:3]}{'*' * (len(current_username)-3)}")
+            if current_token:
+                st.info(f"Current API Token: {current_token[:5]}{'*' * 20}")
+            
+            # Input fields for new values
             api_username = st.text_input(
-                "API Username",
+                "New API Username",
                 type="password",
                 help="Your HackerOne API username",
-                value=api_settings.get("username", "")
+                value=""
             )
             
             api_token = st.text_input(
-                "API Token",
+                "New API Token",
                 type="password",
                 help="Your HackerOne API token",
-                value=api_settings.get("token", "")
+                value=""
             )
             
             if st.button("Save API Credentials", key="save_api"):
                 try:
-                    settings.update_section("api", {
-                        "username": api_username,
-                        "token": api_token
-                    })
-                    st.session_state.app.init_api_client(api_username, api_token)
-                    st.success("✅ API credentials saved and verified!")
+                    updates = {}
+                    if api_username:
+                        updates["HACKERONE_API_USERNAME"] = api_username
+                    if api_token:
+                        updates["HACKERONE_API_TOKEN"] = api_token
+                        
+                    if updates:
+                        update_secrets(updates)
+                        st.success("✅ API credentials saved!")
+                        st.rerun()  # Reload the page to show updated values
+                    else:
+                        st.info("No new credentials provided")
+                        
                 except Exception as e:
-                    st.error(f"❌ Failed to initialize API client: {str(e)}")
+                    st.error(f"❌ Failed to save credentials: {str(e)}")
         
         with ai_tab:
             st.subheader("🤖 AI Configuration")
@@ -184,12 +224,19 @@ def main():
             [OpenAI Dashboard](https://platform.openai.com/api-keys).
             """)
             
-            ai_settings = settings.get_section("ai")
+            # Get current value from secrets
+            current_api_key = st.secrets.get("OPENAI_API_KEY", "")
+            
+            # Display obfuscated current value
+            if current_api_key:
+                st.info(f"Current API Key: {current_api_key[:5]}{'*' * 20}")
+            
+            # Input field for new value
             litellm_key = st.text_input(
-                "OpenAI API Key",
+                "New OpenAI API Key",
                 type="password",
                 help="Your OpenAI API key for LiteLLM",
-                value=ai_settings.get("api_key", "")
+                value=""
             )
             
             model = st.selectbox(
@@ -209,13 +256,18 @@ def main():
             
             if st.button("Save AI Settings", key="save_ai"):
                 try:
-                    settings.update_section("ai", {
-                        "api_key": litellm_key,
-                        "model": model,
-                        "temperature": temperature
-                    })
-                    os.environ["OPENAI_API_KEY"] = litellm_key
-                    st.success("✅ AI configuration saved!")
+                    updates = {}
+                    if litellm_key:
+                        updates["OPENAI_API_KEY"] = litellm_key
+                        
+                    if updates:
+                        update_secrets(updates)
+                        os.environ["OPENAI_API_KEY"] = litellm_key
+                        st.success("✅ AI configuration saved!")
+                        st.rerun()  # Reload the page to show updated values
+                    else:
+                        st.info("No new API key provided")
+                        
                 except Exception as e:
                     st.error(f"❌ Failed to save AI settings: {str(e)}")
         
