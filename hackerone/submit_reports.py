@@ -357,14 +357,14 @@ def main():
     """Main function to submit vulnerability reports"""
     try:
         # Check environment setup
-        api_username, api_token = check_environment()
+        config = check_environment()
         
         # Initialize notification handler if webhook provided
         notifier = NotificationHandler(config.get('SLACK_WEBHOOK'))
         
         # Initialize API client with model selection
         client = HackerOneAPI(
-            api_username=config['OPENAI_API_KEY'],
+            api_username=config['OPENAI_API_KEY'], 
             api_token=config['ANTHROPIC_API_KEY']
         )
         
