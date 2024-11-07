@@ -357,20 +357,45 @@ def hash_password(password):
             
             for program in st.session_state.programs[start_idx:end_idx]:
                 with st.expander(f"🎯 {program['attributes'].get('name', 'Unnamed Program')}", expanded=False):
+                    # Program header
                     st.markdown(f"""
                     ### Program Details
-                    **Bounty Range:** {program['attributes'].get('bounty_range', 'Not specified')}
+                    **Program:** [{program['attributes']['name']}]({program['attributes'].get('website', '')})  
+                    **Bounty Range:** {program['attributes']['bounty_range']}  
+                    **Response Rate:** {program['attributes'].get('response_efficiency', 0)}%  
+                    **Resolved Reports:** {program['attributes'].get('resolved_reports', 0)}
                     
-                    **Description:**  
+                    **Launch Date:** {program['attributes'].get('launch_date', 'Not available')}  
+                    **Last Updated:** {program['attributes'].get('last_updated', 'Not available')}  
+                    **Status:** {program['attributes'].get('submission_state', 'Unknown')}
+                    
+                    ### Description
                     {program['attributes'].get('description', 'No description available')}
+                    
+                    ### Scope
                     """)
                     
+                    # Display scopes in a table
+                    scopes = program['attributes'].get('scopes', [])
+                    if scopes:
+                        scope_data = []
+                        for scope in scopes:
+                            scope_data.append({
+                                "Type": scope['type'],
+                                "Target": scope['identifier'],
+                                "Bounty Eligible": "✅" if scope['eligible_for_bounty'] else "❌"
+                            })
+                        st.table(scope_data)
+                    else:
+                        st.info("No scope information available")
+                    
+                    # Action buttons
                     col1, col2 = st.columns(2)
                     with col1:
-                        if st.button("View Details", key=f"view_{program.get('id')}"):
+                        if st.button("View Details", key=f"view_{program['id']}"):
                             st.json(program)
                     with col2:
-                        if st.button("Analyze", key=f"analyze_{program.get('id')}"):
+                        if st.button("Analyze", key=f"analyze_{program['id']}"):
                             with st.spinner("Analyzing program..."):
                                 analysis = st.session_state.bounty_hunter.analyze_program(program)
                                 st.markdown(analysis)

@@ -20,29 +20,47 @@ class BountyHunter:
         try:
             st.write("Fetching programs...") # Debug output
             
-            # Use the public programs endpoint
+            # Use the public programs endpoint with expanded fields
             response = requests.get(
                 f"{self.base_url}/hackers/programs",
                 params={
-                    'filter[state][]': 'public'
+                    'filter[state][]': 'public',
+                    'page[size]': 100,
+                    'include[]': ['structured_scopes', 'submission_state']
                 },
                 auth=self.auth,
                 headers=self.headers
             )
             
-            # Debug authentication
-            st.write(f"Using credentials: {self.auth[0][:3]}...") # Show first 3 chars only
-            st.write(f"Response status: {response.status_code}")
-            
-            if response.status_code == 401:
-                st.error("Authentication failed. Please check your API credentials.")
-                st.write("Response:", response.text)
-                return []
-                
             response.raise_for_status()
             data = response.json()
             
-            programs = data.get('data', [])
+            # Process and enrich program data
+            programs = []
+            for program in data.get('data', []):
+                try:
+                    program_data = {
+                        'id': program['id'],
+                        'attributes': {
+                            'name': program['attributes'].get('name', 'Unnamed Program'),
+                            'handle': program['attributes'].get('handle', ''),
+                            'description': program['attributes'].get('description', 'No description available'),
+                            'bounty_range': self._parse_bounty_range(program['attributes'].get('bounty_range', '')),
+                            'website': program['attributes'].get('website_url', ''),
+                            'offers_bounties': program['attributes'].get('offers_bounties', False),
+                            'response_efficiency': program['attributes'].get('response_efficiency_percentage', 0),
+                            'resolved_reports': program['attributes'].get('resolved_report_count', 0),
+                            'launch_date': program['attributes'].get('started_accepting_at', ''),
+                            'last_updated': program['attributes'].get('updated_at', ''),
+                            'submission_state': program['attributes'].get('submission_state', 'open'),
+                            'scopes': self._parse_scopes(program.get('relationships', {}).get('structured_scopes', {}).get('data', [])),
+                        }
+                    }
+                    programs.append(program_data)
+                except Exception as e:
+                    st.error(f"Error processing program {program.get('id')}: {str(e)}")
+                    continue
+            
             st.success(f"Successfully fetched {len(programs)} programs")
             return programs
         except requests.exceptions.HTTPError as e:
@@ -51,6 +69,37 @@ class BountyHunter:
         except Exception as e:
             st.error(f"Error fetching programs: {str(e)}")
             return []
+            
+    def _parse_bounty_range(self, bounty_range: str) -> str:
+        """Parse and format bounty range"""
+        if not bounty_range:
+            return "No bounty information available"
+        try:
+            # Clean up the bounty range string
+            cleaned = bounty_range.replace('$', '').replace(',', '')
+            parts = cleaned.split('-')
+            if len(parts) == 2:
+                min_bounty = int(parts[0].strip())
+                max_bounty = int(parts[1].strip())
+                return f"${min_bounty:,} - ${max_bounty:,}"
+            return bounty_range
+        except:
+            return bounty_range
+            
+    def _parse_scopes(self, scopes: List[Dict]) -> List[Dict]:
+        """Parse and format program scopes"""
+        parsed_scopes = []
+        for scope in scopes:
+            try:
+                scope_data = {
+                    'type': scope['attributes'].get('asset_type', 'Unknown'),
+                    'identifier': scope['attributes'].get('asset_identifier', 'Not specified'),
+                    'eligible_for_bounty': scope['attributes'].get('eligible_for_bounty', False)
+                }
+                parsed_scopes.append(scope_data)
+            except:
+                continue
+        return parsed_scopes
         
     def get_hacktivity(self, limit: int = 100) -> List[Dict]:
         """Fetch recent bounty awards"""
