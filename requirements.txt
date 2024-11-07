@@ -1,8 +1,9 @@
-# ... other dependencies ...
+# Core dependencies
 importlib-metadata==7.2.1
 rich==13.9.3
 streamlit>=1.24.0
 gitpython>=3.1.31
 openai>=0.27.8
 python-dotenv>=1.0.0
+markdown>=3.5.1
 # ... other dependencies ...
