@@ -215,23 +215,82 @@ def hash_password(password):
         if not hasattr(st.session_state, 'reports'):
             st.session_state.reports = []
         
-        # Display reports in tabs
+        # Add report filtering/sorting options
+        col1, col2 = st.columns(2)
+        with col1:
+            sort_by = st.selectbox(
+                "Sort by",
+                ["Newest First", "Oldest First", "Severity", "Vulnerability Type"]
+            )
+        with col2:
+            filter_type = st.multiselect(
+                "Filter by Type",
+                ["SQL Injection", "XSS", "Command Injection", "Weak Cryptography"],
+                default=[]
+            )
+        
+        # Display reports in an organized way
         if st.session_state.reports:
-            tabs = st.tabs([f"Report {i+1}" for i in range(len(st.session_state.reports))])
+            # Sort reports based on selection
+            reports = st.session_state.reports.copy()
+            if sort_by == "Newest First":
+                reports.reverse()
+            elif sort_by == "Severity":
+                severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+                reports.sort(key=lambda x: severity_order.get(x.get("severity", "low"), 4))
             
-            for i, (tab, report) in enumerate(zip(tabs, st.session_state.reports)):
-                with tab:
-                    st.subheader(report["title"])
-                    st.markdown(report["vulnerability_information"])
+            # Filter reports if filters are selected
+            if filter_type:
+                reports = [r for r in reports if any(vt in r.get("title", "") for vt in filter_type)]
+            
+            # Display reports in expandable sections
+            for i, report in enumerate(reports):
+                with st.expander(f"Report {i+1}: {report['title']}", expanded=False):
+                    # Report metadata
+                    cols = st.columns(3)
+                    with cols[0]:
+                        st.markdown(f"**Severity:** {report.get('severity', 'Not set')}")
+                    with cols[1]:
+                        st.markdown(f"**Type:** {report.get('vulnerability_type', 'Not specified')}")
+                    with cols[2]:
+                        st.markdown(f"**Status:** {report.get('status', 'Draft')}")
                     
-                    # Edit report
+                    # Report content
+                    st.markdown("### Description")
+                    st.markdown(report.get("vulnerability_information", "No description available"))
+                    
+                    st.markdown("### Impact")
+                    st.markdown(report.get("impact", "No impact statement available"))
+                    
+                    # Edit options
+                    st.markdown("### Edit Report")
                     report["title"] = st.text_input("Title", report["title"], key=f"title_{i}")
-                    report["severity"] = st.selectbox(
+                    report["severity"] = st.select_slider(
                         "Severity",
-                        ["low", "medium", "high", "critical"],
-                        index=["low", "medium", "high", "critical"].index(report["severity"]),
+                        options=["low", "medium", "high", "critical"],
+                        value=report.get("severity", "medium"),
                         key=f"severity_{i}"
                     )
+                    
+                    # Action buttons
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        if st.button("Save Changes", key=f"save_{i}"):
+                            st.success("Changes saved!")
+                    with col2:
+                        if st.button("Export Report", key=f"export_{i}"):
+                            # Add export functionality
+                            st.download_button(
+                                "Download Report",
+                                report_to_markdown(report),
+                                file_name=f"vulnerability_report_{i}.md",
+                                mime="text/markdown"
+                            )
+                    with col3:
+                        if st.button("Delete Report", key=f"delete_{i}"):
+                            if st.session_state.reports.remove(report):
+                                st.success("Report deleted!")
+                                st.rerun()
         else:
             st.info("No reports generated yet. Go to Analyze page to create reports.")
     
@@ -260,6 +319,23 @@ def hash_password(password):
                         st.json(response)
                 except Exception as e:
                     st.error(f"Failed to submit report {i+1}: {str(e)}")
+
+def report_to_markdown(report: dict) -> str:
+    """Convert report to markdown format"""
+    return f"""# Vulnerability Report: {report['title']}
+
+## Severity
+{report.get('severity', 'Not specified').title()}
+
+## Description
+{report.get('vulnerability_information', 'No description available')}
+
+## Impact
+{report.get('impact', 'No impact statement available')}
+
+## Status
+{report.get('status', 'Draft')}
+"""
 
 if __name__ == "__main__":
     main()
