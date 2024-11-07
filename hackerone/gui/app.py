@@ -154,9 +154,9 @@ def main():
     if 'app' not in st.session_state:
         st.session_state.app = AIHackerFix()
     
-    # Sidebar navigation
+    # Sidebar navigation (without page links)
     st.sidebar.title("Navigation")
-    page = st.sidebar.radio("Go to", ["Settings", "Analyze", "Reports", "Bounty Search", "Submit"])
+    page = st.sidebar.radio("Select Page", ["Settings", "Analyze", "Reports", "Bounty Search", "Submit"], label_visibility="collapsed")
     
     # Settings page
     if page == "Settings":
