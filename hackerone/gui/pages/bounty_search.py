@@ -1,7 +1,7 @@
 import streamlit as st
 import plotly.express as px
 from datetime import datetime
-from bounty_hunter import BountyHunter
+from ..bounty_hunter import BountyHunter
 
 def render_bounty_search():
     st.title("Bug Bounty Program Search")
