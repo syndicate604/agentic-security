@@ -165,7 +165,7 @@ def test_error_handling(mock_request, api_client):
 def test_input_validation(api_client):
     """Test input validation"""
     # Test missing required fields
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Title is required"):
         api_client.submit_report(
             title="",  # Empty title
             vulnerability_info="Test",
@@ -173,7 +173,7 @@ def test_input_validation(api_client):
         )
     
     # Test invalid severity
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Invalid severity"):
         api_client.submit_report(
             title="Test",
             vulnerability_info="Test",
@@ -182,7 +182,7 @@ def test_input_validation(api_client):
         )
     
     # Test invalid weakness_id
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="weakness_id must be an integer"):
         api_client.submit_report(
             title="Test",
             vulnerability_info="Test",
