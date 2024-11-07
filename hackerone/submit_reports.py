@@ -238,6 +238,22 @@ class HackerOneAPI:
         # Validate weakness_id if provided
         if weakness_id is not None and not isinstance(weakness_id, int):
             raise ValueError("weakness_id must be an integer")
+        # Validate required fields
+        if not title or not title.strip():
+            raise ValueError("Title is required and cannot be empty")
+        if not vulnerability_info or not vulnerability_info.strip():
+            raise ValueError("Vulnerability information is required")
+        if not impact or not impact.strip():
+            raise ValueError("Impact description is required")
+            
+        # Validate severity if provided
+        valid_severities = {'none', 'low', 'medium', 'high', 'critical'}
+        if severity and severity.lower() not in valid_severities:
+            raise ValueError(f"Invalid severity. Must be one of: {', '.join(valid_severities)}")
+            
+        # Validate weakness_id if provided
+        if weakness_id is not None and not isinstance(weakness_id, int):
+            raise ValueError("weakness_id must be an integer")
         """
         Submit a vulnerability report
         
