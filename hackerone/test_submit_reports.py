@@ -172,7 +172,21 @@ def test_input_validation(api_client):
             impact="Test"
         )
     
-    # Test invalid severity
+    with pytest.raises(ValueError, match="Vulnerability information is required"):
+        api_client.submit_report(
+            title="Test",
+            vulnerability_info="",  # Empty vulnerability info
+            impact="Test"
+        )
+        
+    with pytest.raises(ValueError, match="Impact description is required"):
+        api_client.submit_report(
+            title="Test",
+            vulnerability_info="Test",
+            impact=""  # Empty impact
+        )
+    
+    # Test invalid severity values
     with pytest.raises(ValueError, match="Invalid severity"):
         api_client.submit_report(
             title="Test",
@@ -180,6 +194,16 @@ def test_input_validation(api_client):
             impact="Test",
             severity="invalid"  # Invalid severity
         )
+        
+    # Test valid severity values
+    for severity in ['none', 'low', 'medium', 'high', 'critical']:
+        response = api_client.submit_report(
+            title="Test",
+            vulnerability_info="Test",
+            impact="Test",
+            severity=severity
+        )
+        assert response == MOCK_API_RESPONSE
     
     # Test invalid weakness_id
     with pytest.raises(ValueError, match="weakness_id must be an integer"):
@@ -188,6 +212,14 @@ def test_input_validation(api_client):
             vulnerability_info="Test",
             impact="Test",
             weakness_id="invalid"  # Should be integer
+        )
+        
+    with pytest.raises(ValueError, match="weakness_id must be an integer"):
+        api_client.submit_report(
+            title="Test",
+            vulnerability_info="Test",
+            impact="Test",
+            weakness_id=3.14  # Float not allowed
         )
 
 if __name__ == '__main__':
