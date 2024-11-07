@@ -137,7 +137,7 @@ class HackerOneAPI:
             title: Report title
             vulnerability_info: Detailed vulnerability description
             impact: Security impact description
-            severity: CVSS-based severity rating
+            severity: CVSS-based severity rating (must be one of: none, low, medium, high, critical)
             weakness_id: CWE ID for vulnerability type
             attachments: List of file paths to attach
             structured_scope: Affected assets/components
@@ -155,6 +155,15 @@ class HackerOneAPI:
             raise ValueError("Vulnerability information is required")
         if not impact or not impact.strip():
             raise ValueError("Impact description is required")
+            
+        # Validate severity if provided
+        valid_severities = {'none', 'low', 'medium', 'high', 'critical'}
+        if severity and severity.lower() not in valid_severities:
+            raise ValueError(f"Invalid severity. Must be one of: {', '.join(valid_severities)}")
+            
+        # Validate weakness_id if provided
+        if weakness_id is not None and not isinstance(weakness_id, int):
+            raise ValueError("weakness_id must be an integer")
         """
         Submit a vulnerability report
         
