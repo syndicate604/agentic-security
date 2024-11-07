@@ -4,6 +4,10 @@ import os
 from pathlib import Path
 import json
 
+# Add parent directory to Python path
+sys.path.append(str(Path(__file__).parent.parent))
+from submit_reports import HackerOneAPI
+
 def init_session_state():
     """Initialize session state variables"""
     if 'reports' not in st.session_state:
