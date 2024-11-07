@@ -307,44 +307,89 @@ def hash_password(password):
             if not hasattr(st.session_state, 'api_client'):
                 st.session_state.api_client = HackerOneAPI(api_username, api_token)
             
-            if not hasattr(st.session_state, 'reports'):
+            # Display submission queue
+            st.subheader("Reports Queue")
+            if not hasattr(st.session_state, 'reports') or not st.session_state.reports:
                 st.warning("No reports to submit. Generate reports in the Analyze page first.")
+                st.info("Go to the Analyze page to create new vulnerability reports.")
                 return
+                
+            # Create tabs for different views
+            queue_tab, history_tab = st.tabs(["Submission Queue", "Submission History"])
             
-            # Display reports for submission
-            for i, report in enumerate(st.session_state.reports):
-                with st.expander(f"Report {i+1}: {report['title']}", expanded=False):
-                    # Show report details
-                    st.markdown(f"**Severity:** {report.get('severity', 'Not specified')}")
-                    st.markdown(f"**Type:** {report.get('vulnerability_type', 'Not specified')}")
-                    
-                    # Preview section
-                    if st.checkbox(f"Preview Report {i+1}", key=f"preview_{i}"):
-                        st.markdown("### Description")
-                        st.markdown(report.get("vulnerability_information", "No description available"))
-                        st.markdown("### Impact")
-                        st.markdown(report.get("impact", "No impact statement available"))
-                    
-                    # Submit button
-                    if st.button(f"Submit Report {i+1}", key=f"submit_{i}"):
-                        try:
-                            with st.spinner(f"Submitting report {i+1}..."):
-                                response = st.session_state.api_client.submit_report(
-                                    title=report['title'],
-                                    vulnerability_info=report.get('vulnerability_information', ''),
-                                    impact=report.get('impact', ''),
-                                    severity=report.get('severity', 'medium')
-                                )
-                                st.success(f"Report {i+1} submitted successfully!")
-                                st.json(response)
-                                
-                                # Update report status
-                                report['status'] = 'Submitted'
-                                report['submission_id'] = response.get('data', {}).get('id')
-                                
-                        except Exception as e:
-                            st.error(f"Failed to submit report {i+1}: {str(e)}")
+            with queue_tab:
+                for i, report in enumerate(st.session_state.reports):
+                    if report.get('status') != 'Submitted':  # Only show unsubmitted reports
+                        with st.expander(f"📝 Report {i+1}: {report['title']}", expanded=False):
+                            # Report metadata
+                            cols = st.columns(3)
+                            with cols[0]:
+                                st.markdown(f"**Severity:** {report.get('severity', 'Not set')}")
+                            with cols[1]:
+                                st.markdown(f"**Type:** {report.get('vulnerability_type', 'Not specified')}")
+                            with cols[2]:
+                                st.markdown(f"**Status:** {report.get('status', 'Draft')}")
                             
+                            # Report content preview
+                            st.markdown("### Description")
+                            st.markdown(report.get("vulnerability_information", "No description available"))
+                            
+                            st.markdown("### Impact")
+                            st.markdown(report.get("impact", "No impact statement available"))
+                            
+                            # Edit options
+                            with st.form(f"edit_form_{i}"):
+                                report['title'] = st.text_input("Title", report['title'])
+                                report['severity'] = st.select_slider(
+                                    "Severity",
+                                    options=["none", "low", "medium", "high", "critical"],
+                                    value=report.get('severity', 'medium')
+                                )
+                                
+                                col1, col2 = st.columns(2)
+                                with col1:
+                                    if st.form_submit_button("Save Changes"):
+                                        st.success("Changes saved!")
+                                        
+                                with col2:
+                                    if st.form_submit_button("Submit to HackerOne"):
+                                        try:
+                                            with st.spinner("Submitting report..."):
+                                                response = st.session_state.api_client.submit_report(
+                                                    title=report['title'],
+                                                    vulnerability_info=report.get('vulnerability_information', ''),
+                                                    impact=report.get('impact', ''),
+                                                    severity=report.get('severity', 'medium')
+                                                )
+                                                report['status'] = 'Submitted'
+                                                report['submission_id'] = response.get('data', {}).get('id')
+                                                st.success("Report submitted successfully!")
+                                                st.json(response)
+                                        except Exception as e:
+                                            st.error(f"Failed to submit report: {str(e)}")
+            
+            with history_tab:
+                st.subheader("Submission History")
+                submitted_reports = [r for r in st.session_state.reports if r.get('status') == 'Submitted']
+                
+                if not submitted_reports:
+                    st.info("No reports have been submitted yet.")
+                else:
+                    for i, report in enumerate(submitted_reports):
+                        with st.expander(f"✅ {report['title']}", expanded=False):
+                            st.markdown(f"**Submission ID:** {report.get('submission_id', 'N/A')}")
+                            st.markdown(f"**Severity:** {report.get('severity', 'Not set')}")
+                            st.markdown(f"**Status:** {report.get('status', 'Unknown')}")
+                            
+                            if st.button(f"Check Status {i}", key=f"check_status_{i}"):
+                                try:
+                                    status = st.session_state.api_client.check_report_status(
+                                        report['submission_id']
+                                    )
+                                    st.json(status)
+                                except Exception as e:
+                                    st.error(f"Failed to check status: {str(e)}")
+                                    
         except Exception as e:
             if "HACKERONE_API_USERNAME" not in st.secrets or "HACKERONE_API_TOKEN" not in st.secrets:
                 st.error("HackerOne API credentials not found in .streamlit/secrets.toml")
