@@ -12,7 +12,7 @@
 # Environment files
 .env
 secrets.toml
-
+.streamlit
 # Editor files
 *.sublime-project
 *.sublime-workspace
