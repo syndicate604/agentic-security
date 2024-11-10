@@ -1525,7 +1525,7 @@ tree = parse(xml_file, forbid_dtd=True, forbid_entities=True)
                 raise FileNotFoundError(f"Path not found: {path}")
 
             # Use sanitized path as cache key
-            cache_key = f"review_{path.replace('/', '_').replace('\\', '_')}"
+            cache_key = f"review_{path.replace('/', '_').replace('\\\\', '_')}"
             cached_results = None if skip_cache else self.cache.get_scan_results(cache_key)
 
             if cached_results and isinstance(cached_results, dict):
